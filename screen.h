@@ -6,6 +6,7 @@
 
 #include "keypad.h"
 #include "lcd.h"
+#include "sensor.h"
 
 #ifndef SCREEN_H
 #define SCREEN_H

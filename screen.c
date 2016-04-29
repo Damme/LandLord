@@ -73,11 +73,27 @@ void lcdPrintDebug()
     u8g_DrawStr(&u8g,  0, 64, buffer);
 }
 
+void lcdPrintSensor()
+{
+    u8g_SetDefaultBackgroundColor(&u8g);
+    u8g_DrawBox(&u8g, 0, 0, 128, 64);
+    u8g_SetDefaultForegroundColor(&u8g);
+    u8g_SetFont(&u8g, u8g_font_4x6);
+    sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
+    u8g_DrawStr(&u8g,  0, 10, buffer);
+
+    sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
+    u8g_DrawStr(&u8g,  0, 20, buffer);
+
+    sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
+    u8g_DrawStr(&u8g,  0, 30, buffer);
+}
+
 const listItem_t mainMenuList[7] = {
     {"Spindle motor", &motortest, (uint8_t*)1},
     {"Left wheel", &motortest, (uint8_t*)2},
     {"Right wheel", &motortest, (uint8_t*)3},
-    {"Sensor front", NULL, NULL},
+    {"Sensors", &lcdPrintSensor, NULL},
     {"Debug io", &lcdPrintDebug, NULL},
     {"Childmenu test", NULL, &spindleMenuList},
     {NULL, NULL, NULL}
@@ -173,7 +189,7 @@ void motortest(void)
         LPC_PINCON->PINSEL4 |= (1 << 0);      //PWM1.1
         LPC_PINCON->PINSEL4 |= (1 << 2);      //PWM1.2
         LPC_PINCON->PINSEL4 |= (1 << 4);      //PWM1.3
-        LPC_PINCON->PINMODE4 |= (3 << 4);
+        //LPC_PINCON->PINMODE4 |= (3 << 4);
         //LPC_PINCON->PINMODE_OD2 |= (1 << 2);
 
 
@@ -209,6 +225,11 @@ void motortest(void)
         LPC_GPIO2->FIODIR |= PIN(4);
         LPC_GPIO2->FIODIR |= PIN(5);
         LPC_GPIO2->FIODIR |= PIN(6);
+
+        // test
+        LPC_GPIO0->FIODIR |= PIN(11);
+        LPC_GPIO1->FIODIR |= PIN(23);
+
     }
 
     int enb, brk, dir = 0;
@@ -301,20 +322,25 @@ void motortest(void)
         }
     }
 
+
     if (keypadGetKey() == KEY4 && !keypressed) {
         keypressed = true;
         if (!a4) {
             a4 = 1;
+            LPC_GPIO0->FIOPIN |= PIN(11);
         } else {
             a4 = 0;
+            LPC_GPIO0->FIOPIN &= ~PIN(11);
         }
     }
     if (keypadGetKey() == KEY5 && !keypressed) {
         keypressed = true;
         if (!a5) {
             a5 = 1;
+            LPC_GPIO1->FIOPIN |= PIN(23);
         } else {
             a5 = 0;
+            LPC_GPIO1->FIOPIN &= ~PIN(23);
         }
     }
     if (keypadGetKey() == KEY6 && !keypressed) {
