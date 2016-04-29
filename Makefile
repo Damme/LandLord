@@ -1,6 +1,6 @@
-BASE:=/cygdrive/c/Prog/Dev/
+BASE:=/usr
 
-GCCPATH:=$(BASE)/gcc-arm
+GCCPATH:=$(BASE)
 
 #TARGETNAME:=$(firstword $(basename $(wildcard *.c)))
 TARGETNAME:=main
@@ -74,7 +74,7 @@ all: $(DISNAME) $(HEXNAME) $(BINNAME)
 	@echo
 	@stat main.bin -c "%y %n Size: %s"
 	@echo -e "\e[0m"
-	cp $(BINNAME) /cygdrive/c/Prog/Dev/openOCD/share/openocd/scripts/main.bin
+#	cp $(BINNAME) /cygdrive/c/Prog/Dev/openOCD/share/openocd/scripts/main.bin
 
 .PHONY: upload
 upload: $(DISNAME) $(HEXNAME) $(ELFNAME)

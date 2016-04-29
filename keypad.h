@@ -1,7 +1,7 @@
 #include "define.h"
 #include "LPC17xx.h"
 #include "define.h"
-#include "freertos.h"
+#include "FreeRTOS.h"
 #include "task.h"
 #include <stdint.h>
 #include <stdbool.h>
