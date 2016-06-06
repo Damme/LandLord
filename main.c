@@ -20,8 +20,6 @@ void _ADC_IRQHandler(void)
     return;
 }
 
-int stack_Keypad, stack_Counter, stack_LCD, stack_ADC = 0;
-
 static void semADCTask(void *pvParameters)
 {
     for (;;) {

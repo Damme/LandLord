@@ -1,36 +1,13 @@
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdbool.h>
-
 #include "keypad.h"
 #include "lcd.h"
 #include "sensor.h"
+#include "global.h"
 
 #ifndef SCREEN_H
 #define SCREEN_H
 
 
 char buffer[50];
-
-extern uint32_t testCounter;
-//extern uint8_t pressed_key;
-extern uint8_t debug1;
-extern uint8_t debug2;
-extern uint8_t debug3;
-extern uint8_t debug4;
-
-extern uint32_t ADC0;
-extern uint32_t ADC1;
-extern uint32_t ADC2;
-extern uint32_t ADC3;
-extern uint32_t ADC4;
-extern uint32_t ADC5;
-extern uint32_t ADC6;
-extern uint32_t ADC7;
-
-
 
 typedef struct menuItem_s {
     //uint8_t screenID;

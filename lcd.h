@@ -1,7 +1,5 @@
-#include "LPC17xx.h"
 #include "u8g.h"
-#include "FreeRTOS.h"
-#include "task.h"
+#include "global.h"
 
 #ifndef LCD_H
 #define LCD_H

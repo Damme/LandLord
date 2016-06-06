@@ -1,7 +1,5 @@
-#include <stdbool.h>
 #include "define.h"
-#include "LPC17xx.h"
-
+#include "global.h"
 
 #ifndef SENSOR_H
 #define SENSOR_H
