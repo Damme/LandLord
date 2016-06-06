@@ -3,7 +3,12 @@
 *.lo
 *.o
 *.obj
-
+*.bin
+*.hex
+*.elf
+*.dis
+*.map
+				
 # Precompiled Headers
 *.gch
 *.pch
