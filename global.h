@@ -46,8 +46,8 @@ extern volatile uint32_t ADC4;
 extern volatile uint32_t ADC5;
 extern volatile uint32_t ADC6;
 extern volatile uint32_t ADC7;
-extern volatile uint32_t delayuS;
-extern volatile uint32_t delaymS;
 
+void delayuS(uint32_t uS);
 
 #endif
+

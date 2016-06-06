@@ -30,5 +30,16 @@ volatile uint32_t ADC5 = 0;
 volatile uint32_t ADC6 = 0;
 volatile uint32_t ADC7 = 0;
 
-volatile uint32_t delayuS = 0;
-volatile uint32_t delaymS = 0;
+void delayuS(uint32_t uS)
+{
+        LPC_TIM1->TCR = 0x02;                /* reset timer */
+        LPC_TIM1->PR  = 0x00;                /* set prescaler to zero */
+        LPC_TIM1->MR0 = uS * (SystemCoreClock / 1000000) - 1; // 23980 = 1ms
+        LPC_TIM1->IR  = 0xff;                /* reset all interrrupts */
+        LPC_TIM1->MCR = 0x04;                /* stop timer on match */
+        LPC_TIM1->TCR = 0x01;                /* start timer */
+
+        /* wait until delay time has elapsed */
+        while (LPC_TIM1->TCR & 0x01);
+}
+
