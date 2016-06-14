@@ -9,6 +9,8 @@ const uint8_t tblKey[4][4] = {
 uint8_t keyState, keyLastState = 0;
 uint8_t keyPessTime = 0;
 
+uint8_t keypadRow, keypadCol, keypadPressedKey;
+
 void KeypadSetRow(bool row)
 {
     if (row) {
@@ -25,7 +27,7 @@ void KeypadSetRow(bool row)
         LPC_PINCON->PINMODE2 |= (3 << 18);
         LPC_PINCON->PINMODE2 |= (3 << 20);
         LPC_PINCON->PINMODE2 |= (3 << 28);
-        LPC_PINCON->PINMODE2 |= (3 << 30);
+        LPC_PINCON->PINMODE2 |= ((uint32_t)3 << 30);
 
         LPC_GPIO1->FIOPIN &= ~0xC600;
         LPC_GPIO1->FIOPIN |= 0x113;
@@ -43,7 +45,7 @@ void KeypadSetRow(bool row)
         LPC_PINCON->PINMODE2 &= ~(3 << 18);
         LPC_PINCON->PINMODE2 &= ~(3 << 20);
         LPC_PINCON->PINMODE2 &= ~(3 << 28);
-        LPC_PINCON->PINMODE2 &= ~(3 << 30);
+        LPC_PINCON->PINMODE2 &= ~((uint32_t)3 << 30);
 
         LPC_PINCON->PINMODE2 |= (3 << 0);
         LPC_PINCON->PINMODE2 |= (3 << 2);
@@ -85,14 +87,24 @@ uint8_t keypadProcessKey()
         ret = KEYPWR;
         goto ret;
     }
-    keypadRow = __builtin_ffsl(LPC_GPIO1->FIOPIN & 0x113) - 1;
-    if (keypadRow == 4) keypadRow = 2;
-    if (keypadRow == 8) keypadRow = 3;
+    if (LPC_GPIO1->FIOPIN & (1<<0))
+        keypadRow = 0;
+    else if (LPC_GPIO1->FIOPIN & (1<<1))
+        keypadRow = 1;
+    else if (LPC_GPIO1->FIOPIN & (1<<4))
+        keypadRow = 2;
+    else if (LPC_GPIO1->FIOPIN & (1<<8))
+        keypadRow = 3;
     KeypadSetRow(1);
     vTaskDelay(xDelay25);
-    keypadCol = __builtin_ffsl((LPC_GPIO1->FIOPIN >> 9) & 0x63) - 1;
-    if (keypadCol == 5) keypadCol = 2;
-    if (keypadCol == 6) keypadCol = 3;
+    if (LPC_GPIO1->FIOPIN & (1<<9))
+        keypadCol = 0;
+    else if (LPC_GPIO1->FIOPIN & (1<<10))
+        keypadCol = 1;
+    else if (LPC_GPIO1->FIOPIN & (1<<14))
+        keypadCol = 2;
+    else if (LPC_GPIO1->FIOPIN & (1<<15))
+        keypadCol = 3;
     KeypadSetRow(0);
     ret = tblKey[keypadRow][keypadCol];
 ret:

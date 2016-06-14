@@ -4,8 +4,6 @@
 #ifndef LCD_H
 #define LCD_H
 
-u8g_t u8g;
-
 // TODO: fix better defines with comments. ---> define.h
 #define rstb 19
 #define csb  16

@@ -68,7 +68,7 @@ void SystemSetupStuff(void)
     LPC_GPIO0->FIODIR |= PIN(csb);              // p0.16 output mode.
     LPC_GPIO0->FIODIR |= PIN(a0);               // p0.20 output mode.
 
-    LPC_PINCON->PINSEL0 |= (3 << 30);           // p0.15 -> sck
+    LPC_PINCON->PINSEL0 |= ((uint32_t)3 << 30); // p0.15 -> sck
     LPC_PINCON->PINSEL1 |= (0xc | 0x30);        // p0.17 & p0.18 miso / mosi (no miso??)
 
     LPC_SPI->SPCR |= SPCR_MSTR;                 // SPI operates in Master mode.
@@ -118,7 +118,7 @@ void SystemSetupStuff(void)
     LPC_PINCON->PINSEL3 |= (1 << 28);       // p1.30 -> ad0.4
     LPC_PINCON->PINSEL3 |= (1 << 29);
     LPC_PINCON->PINSEL3 |= (1 << 30);       // p1.31 -> ad0.5
-    LPC_PINCON->PINSEL3 |= (1 << 31);
+    LPC_PINCON->PINSEL3 |= ((uint32_t)1 << 31);
     LPC_PINCON->PINSEL0 |= (1 << 7);        // p0.3 -> ad0.6
     LPC_PINCON->PINSEL0 |= (1 << 5);        // p0.2 -> ad0.7
 

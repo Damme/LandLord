@@ -6,9 +6,6 @@
 #ifndef SCREEN_H
 #define SCREEN_H
 
-
-char buffer[50];
-
 typedef struct menuItem_s {
     //uint8_t screenID;
     //enum enumScreenType screenType;
@@ -29,16 +26,6 @@ typedef struct currentDisp_s {
     const void *parm;
     uint8_t value;
 } currentDisp_t;
-
-uint8_t lcdCounter;
-const listItem_t mainMenuList[7];
-const listItem_t spindleMenuList[7];
-
-const menuItem_t M0;
-const menuItem_t M1;
-const menuItem_t M2;
-
-currentDisp_t currentDisplay;
 
 void LCDInit(void);
 void lcdUpdate(void);
