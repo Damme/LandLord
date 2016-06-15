@@ -214,9 +214,9 @@ void SystemSetupStuff(void)
 }
 
 HeapRegion_t xHeapRegions[] = {
-    { (uint8_t *) 0x10001000UL, 0x6fff },
-    { (uint8_t *) 0x2007C000UL, 0x3fff },
-    { (uint8_t *) 0x20080000UL, 0x3fff },
+    { (uint8_t *) 0x10001000UL, 0x7000 },
+    { (uint8_t *) 0x2007C000UL, 0x4000 },
+    { (uint8_t *) 0x20080000UL, 0x4000 },
     { NULL, 0 }
 };
 

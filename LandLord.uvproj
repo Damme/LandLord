@@ -333,7 +333,7 @@
               <OCR_RVCT9>
                 <Type>0</Type>
                 <StartAddress>0x100000c8</StartAddress>
-                <Size>0x7f38</Size>
+                <Size>0xf38</Size>
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
@@ -363,7 +363,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>..\LandLord;.\FreeRTOS;.\u8g</IncludePath>
+              <IncludePath>.;.\FreeRTOS;.\u8g</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -384,7 +384,7 @@
             </VariousControls>
           </Aads>
           <LDads>
-            <umfTarg>0</umfTarg>
+            <umfTarg>1</umfTarg>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
             <noStLib>0</noStLib>
