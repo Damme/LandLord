@@ -36,3 +36,7 @@
 ignore/
 /Objects
 /Listings
+/JLinkLog.txt
+/JLinkSettings.ini
+/LandLord.uvgui.*
+/OriginalFirmware
