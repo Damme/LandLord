@@ -4,7 +4,7 @@
 NOTE this is only a proof of concept. This code REALLY needs a lot of work! Some parts needs a total rewrite!
 */
 
-void _ADC_IRQHandler(void)
+void ADC_IRQHandler(void)
 {
     portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 
