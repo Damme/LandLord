@@ -116,6 +116,10 @@ $(ELFNAME): $(OBJ)
 	@$(LINK.o) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 $(DISNAME): $(ELFNAME)
+<<<<<<< HEAD
 	@$(OBJDUMP) -S $< > $@
+=======
+	@$(OBJDUMP) -S $< > $
+>>>>>>> eba4a8291c0aa9c9a71960b958ea6deb397a1623
 
 
