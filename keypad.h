@@ -3,18 +3,10 @@
 #ifndef KEYPAD_H
 #define KEYPAD_H
 
-const uint8_t tblKey[4][4];
-
-uint8_t keyState, keyLastState;
-uint8_t keyPessTime;
-
-
-uint8_t keypadRow, keypadCol, keypadPressedKey;
-
 void KeypadSetRow(bool row);
-uint8_t keypadProcessTask();
-uint8_t keypadGetState();
-uint8_t keypadGetKey();
-uint8_t keypadGetTime();
+uint8_t keypadProcessTask(void);
+uint8_t keypadGetState(void);
+uint8_t keypadGetKey(void);
+uint8_t keypadGetTime(void);
 
 #endif

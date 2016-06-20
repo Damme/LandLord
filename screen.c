@@ -1,5 +1,19 @@
 #include "screen.h"
 
+char buffer[50];
+
+u8g_t u8g;
+
+uint8_t lcdCounter;
+const listItem_t mainMenuList[7];
+const listItem_t spindleMenuList[7];
+
+const menuItem_t M0;
+const menuItem_t M1;
+const menuItem_t M2;
+
+currentDisp_t currentDisplay;
+
 void LCDInit(void)
 {
     u8g_InitComFn(&u8g, &u8g_dev_st7565_nhd_c12864_2x_hw_spi, u8g_com_hw_spi_fn);
@@ -14,6 +28,7 @@ void LCDInit(void)
 
 void lcdPrintDebug()
 {
+    uint8_t i;
     u8g_SetDefaultBackgroundColor(&u8g);
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
@@ -22,7 +37,7 @@ void lcdPrintDebug()
     // binary debug
     u8g_DrawStr(&u8g,  0, 10, buffer);
     u8g_DrawStr(&u8g,  0, 20, "01234567890123456789012345678901");
-    for (uint8_t i = 0 ; i < 32 ; i++) {
+    for (i = 0 ; i < 32 ; i++) {
         if ((LPC_GPIO0->FIOPIN >> i) & 1) {
             buffer[i] = 0x31;
         } else {
@@ -31,7 +46,7 @@ void lcdPrintDebug()
     }
     buffer[32] = 0x0;
     u8g_DrawStr(&u8g,  0, 30, buffer);
-    for (uint8_t i = 0 ; i < 32 ; i++) {
+    for (i = 0 ; i < 32 ; i++) {
         if ((LPC_GPIO1->FIOPIN >> i) & 1) {
             buffer[i] = 0x31;
         } else {
@@ -40,7 +55,7 @@ void lcdPrintDebug()
     }
     buffer[32] = 0x0;
     u8g_DrawStr(&u8g,  0, 40, buffer);
-    for (uint8_t i = 0 ; i < 32 ; i++) {
+    for (i = 0 ; i < 32 ; i++) {
         if ((LPC_GPIO2->FIOPIN >> i) & 1) {
             buffer[i] = 0x31;
         } else {
@@ -58,16 +73,16 @@ void lcdPrintDebug()
 
 
     sprintf(buffer, "A");
-    sprintf(buffer + strlen(buffer), "0:%04lu ", ADC0);
-    sprintf(buffer + strlen(buffer), "1:%04lu ", ADC1);
-    sprintf(buffer + strlen(buffer), "2:%04lu ", ADC2);
-    sprintf(buffer + strlen(buffer), "3:%04lu", ADC3);
+    sprintf(buffer + strlen(buffer), "0:%04u ", ADC0);
+    sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
+    sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
+    sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
     u8g_DrawStr(&u8g,  0, 56, buffer);
     sprintf(buffer, "B");
-    sprintf(buffer + strlen(buffer), "4:%04lu ", ADC4);
-    sprintf(buffer + strlen(buffer), "5:%04lu ", ADC5);
-    sprintf(buffer + strlen(buffer), "6:%04lu ", ADC6);
-    sprintf(buffer + strlen(buffer), "7:%04lu", ADC7);
+    sprintf(buffer + strlen(buffer), "4:%04u ", ADC4);
+    sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
+    sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
+    sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
     buffer[32] = 0x0;
 
     u8g_DrawStr(&u8g,  0, 64, buffer);
@@ -120,13 +135,16 @@ bool keypressed = false; // move to keypad and implement repeat key?
 
 void menuListfnc(void *ptr)
 {
+    uint8_t h, w, count;
+    uint8_t *curItem;
+
     const listItem_t *thisItem = (listItem_t *) ptr;
     u8g_SetFontRefHeightExtendedText(&u8g);
-    uint8_t h = u8g_GetFontAscent(&u8g) - u8g_GetFontDescent(&u8g);
-    uint8_t w = u8g_GetWidth(&u8g);
+    h = u8g_GetFontAscent(&u8g) - u8g_GetFontDescent(&u8g);
+    w = u8g_GetWidth(&u8g);
 
-    uint8_t count = 0;
-    uint8_t *curItem = &currentDisplay.value;
+    count = 0;
+    curItem = &currentDisplay.value;
 
     if (keypadGetKey() == KEYDOWN && !keypressed) {
         if ((thisItem + *curItem + 1)->itemName != NULL)(*curItem)++;
@@ -178,6 +196,11 @@ int pwmtest, a1, a2, a3, a4, a5, a6, a7, a8, a9 = 0;
 void motortest(void)
 {
     // useful function! :P
+
+    int enb, brk, dir = 0;
+    int *enbPort, *brkPort, *dirPort, *pwmPort;
+
+    char tmp[2] = "";
 
     if (keypadGetKey() == KEYSTART && !keypressed) {
         keypressed = true;
@@ -231,9 +254,6 @@ void motortest(void)
         LPC_GPIO1->FIODIR |= PIN(23);
 
     }
-
-    int enb, brk, dir = 0;
-    int *enbPort, *brkPort, *dirPort, *pwmPort;
 
     if ((int)currentDisplay.parm == 1) {
         //Spindle
@@ -377,9 +397,6 @@ void motortest(void)
         }
     }
 
-
-    char tmp[1] = "";
-
     u8g_SetFont(&u8g, u8g_font_4x6);
     sprintf(buffer, "pwm:%u a1:%u a1:%u a3:%u a4:%u", pwmtest, a1, a2, a3, a4);
     u8g_DrawStr(&u8g,  0, (8 * 2), buffer);
@@ -407,18 +424,17 @@ void motortest(void)
     sprintf(buffer + strlen(buffer), " - F/R(3): %s", tmp);
     u8g_DrawStr(&u8g,  0, (8 * 5), buffer);
 
-    sprintf(buffer, "0:%04lu ", ADC0);
-    sprintf(buffer + strlen(buffer), "1:%04lu ", ADC1);
-    sprintf(buffer + strlen(buffer), "2:%04lu ", ADC2);
-    sprintf(buffer + strlen(buffer), "3:%04lu", ADC3);
+    sprintf(buffer, "0:%04u ", ADC0);
+    sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
+    sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
+    sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
     u8g_DrawStr(&u8g,  0, (8 * 7), buffer);
 
-    sprintf(buffer, "4:%04lu ", ADC4);
-    sprintf(buffer + strlen(buffer), "5:%04lu ", ADC5);
-    sprintf(buffer + strlen(buffer), "6:%04lu ", ADC6);
-    sprintf(buffer + strlen(buffer), "7:%04lu", ADC7);
+    sprintf(buffer, "4:%04u ", ADC4);
+    sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
+    sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
+    sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
     u8g_DrawStr(&u8g,  0, (8 * 8), buffer);
-
 }
 
 void menuBootfnc(void)
@@ -434,8 +450,10 @@ void menuBootfnc(void)
 
 void menuBootWarnfnc(void)
 {
+    uint8_t h;
     //             12345678901234567890123456789012
-    char *line1 = "  REMOVE KNIVES BEFORE RUNNING";
+
+  	char *line1 = "  REMOVE KNIVES BEFORE RUNNING";
     char *line2 = "This firmware might cut";
     char *line3 = "all your fingers off, kill";
     char *line4 = "your cat or spontaneous combust!";
@@ -444,7 +462,7 @@ void menuBootWarnfnc(void)
     char *line7 = "   Hold down OK to contiune!";
     u8g_SetFont(&u8g, u8g_font_4x6);
     u8g_SetFontRefHeightExtendedText(&u8g);
-    uint8_t h = u8g_GetFontAscent(&u8g) - u8g_GetFontDescent(&u8g);
+    h = u8g_GetFontAscent(&u8g) - u8g_GetFontDescent(&u8g);
 
     u8g_DrawStr(&u8g,  0, (20 + h * 0), line1);
     u8g_DrawStr(&u8g,  0, (24 + h * 1), line2);
@@ -464,6 +482,7 @@ void menuBootWarnfnc(void)
 
 void lcdUpdate(void)
 {
+    uint8_t w;
     /*
     TODO: Check if screen really needs update!!!
     */
@@ -474,7 +493,7 @@ void lcdUpdate(void)
         u8g_SetFont(&u8g, u8g_font_6x13B);
         u8g_SetFontPosTop(&u8g);
         curMenu = currentDisplay.selected;
-        uint8_t w = u8g_GetStrWidth(&u8g, curMenu->itemName);
+        w = u8g_GetStrWidth(&u8g, curMenu->itemName);
         w = 64 - (w / 2);
         u8g_DrawStr(&u8g,  w, 0, curMenu->itemName);
         u8g_SetFont(&u8g, u8g_font_5x8);

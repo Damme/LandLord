@@ -35,17 +35,17 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
 
         case U8G_COM_MSG_ADDRESS:                     /* define cmd (arg_val = 0) or data mode (arg_val = 1) */
             //u8g_10MicroDelay();
-            if (arg_val) { LPC_GPIO0->FIOPIN |= (1 << a0); } else { LPC_GPIO0->FIOPIN &= ~(1 << a0); }
+            if (arg_val) { LPC_GPIO0->FIOSET = (1 << a0); } else { LPC_GPIO0->FIOCLR = (1 << a0); }
             u8g_MicroDelay();
             break;
 
         case U8G_COM_MSG_CHIP_SELECT:
-            if (!arg_val) { LPC_GPIO0->FIOPIN |= (1 << csb); } else { LPC_GPIO0->FIOPIN &= ~(1 << csb); }
+            if (!arg_val) { LPC_GPIO0->FIOSET = (1 << csb); } else { LPC_GPIO0->FIOCLR = (1 << csb); }
             u8g_MicroDelay();
             break;
 
         case U8G_COM_MSG_RESET:
-            if (arg_val) { LPC_GPIO0->FIOPIN |= (1 << rstb); } else { LPC_GPIO0->FIOPIN &= ~(1 << rstb); }
+            if (arg_val) { LPC_GPIO0->FIOSET = (1 << rstb); } else { LPC_GPIO0->FIOCLR = (1 << rstb); }
             u8g_MicroDelay();
             break;
 

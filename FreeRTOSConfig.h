@@ -133,14 +133,10 @@ to exclude the API function. */
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY    ( 3 << (8 - configPRIO_BITS) )
 
-
 #define configASSERT( x )     if( ( x ) == 0 ) { __disable_irq(); for( ;; ); }
 
-// Could be used instead of changing startup_LPC17xx.S
-//#define vPortSVCHandler      SVC_Handler
-//#define xPortPendSVHandler   PendSV_Handler
-//#define xPortSysTickHandler  SysTick_Handler
-
-
+#define vPortSVCHandler      SVC_Handler
+#define xPortPendSVHandler   PendSV_Handler
+#define xPortSysTickHandler  SysTick_Handler
 
 #endif /* FREERTOS_CONFIG_H */

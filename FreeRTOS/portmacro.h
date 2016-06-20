@@ -117,7 +117,6 @@ typedef unsigned long UBaseType_t;
 #define portBYTE_ALIGNMENT			8
 /*-----------------------------------------------------------*/
 
-
 /* Scheduler utilities. */
 extern void vPortYield( void );
 #define portNVIC_INT_CTRL_REG		( * ( ( volatile uint32_t * ) 0xe000ed04 ) )
@@ -128,23 +127,17 @@ extern void vPortYield( void );
 /*-----------------------------------------------------------*/
 
 /* Critical section management. */
+extern uint32_t ulPortSetInterruptMask( void );
+extern void vPortClearInterruptMask( uint32_t ulNewMask );
 extern void vPortEnterCritical( void );
 extern void vPortExitCritical( void );
-extern uint32_t ulPortSetInterruptMask( void );
-extern void vPortClearInterruptMask( uint32_t ulNewMaskValue );
-#define portSET_INTERRUPT_MASK_FROM_ISR()		ulPortSetInterruptMask()
-#define portCLEAR_INTERRUPT_MASK_FROM_ISR(x)	vPortClearInterruptMask(x)
+
 #define portDISABLE_INTERRUPTS()				ulPortSetInterruptMask()
-#define portENABLE_INTERRUPTS()					vPortClearInterruptMask(0)
+#define portENABLE_INTERRUPTS()					vPortClearInterruptMask( 0 )
 #define portENTER_CRITICAL()					vPortEnterCritical()
 #define portEXIT_CRITICAL()						vPortExitCritical()
-/*-----------------------------------------------------------*/
-
-/* Task function macros as described on the FreeRTOS.org WEB site.  These are
-not necessary for to use this port.  They are defined so the common demo files
-(which build with all the ports) will build. */
-#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
-#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portSET_INTERRUPT_MASK_FROM_ISR()		ulPortSetInterruptMask()
+#define portCLEAR_INTERRUPT_MASK_FROM_ISR(x)	vPortClearInterruptMask(x)
 /*-----------------------------------------------------------*/
 
 /* Tickless idle/low power functionality. */
@@ -154,21 +147,12 @@ not necessary for to use this port.  They are defined so the common demo files
 #endif
 /*-----------------------------------------------------------*/
 
-/* Architecture specific optimisations. */
+/* Port specific optimisations. */
 #ifndef configUSE_PORT_OPTIMISED_TASK_SELECTION
 	#define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 #endif
 
 #if configUSE_PORT_OPTIMISED_TASK_SELECTION == 1
-
-	/* Generic helper function. */
-	__attribute__( ( always_inline ) ) static inline uint8_t ucPortCountLeadingZeros( uint32_t ulBitmap )
-	{
-	uint8_t ucReturn;
-
-		__asm volatile ( "clz %0, %1" : "=r" ( ucReturn ) : "r" ( ulBitmap ) );
-		return ucReturn;
-	}
 
 	/* Check the configuration. */
 	#if( configMAX_PRIORITIES > 32 )
@@ -181,10 +165,16 @@ not necessary for to use this port.  They are defined so the common demo files
 
 	/*-----------------------------------------------------------*/
 
-	#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities ) uxTopPriority = ( 31 - ucPortCountLeadingZeros( ( uxReadyPriorities ) ) )
+	#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities ) uxTopPriority = ( 31 - __clz( ( uxReadyPriorities ) ) )
 
-#endif /* configUSE_PORT_OPTIMISED_TASK_SELECTION */
+#endif /* taskRECORD_READY_PRIORITY */
+/*-----------------------------------------------------------*/
 
+/* Task function macros as described on the FreeRTOS.org WEB site.  These are
+not necessary for to use this port.  They are defined so the common demo files
+(which build with all the ports) will build. */
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 /*-----------------------------------------------------------*/
 
 #ifdef configASSERT
