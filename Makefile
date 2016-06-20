@@ -7,11 +7,12 @@ TARGETNAME:=main
 SYSINC:=common
 U8GPATH:=u8g
 FREERTOSPATH=FreeRTOS
+FREERTOSGCCPATH=FreeRTOS/gcc
 LDSCRIPTDIR:=$(SYSINC)
 SRC:=$(wildcard *.c)
 MCPU:=cortex-m3
 
-STARTUP:=$(wildcard $(SYSINC)/*.S)
+STARTUP:=$(wildcard $(SYSINC)/gcc*.S)
 
 SYSSRC:=$(wildcard $(LDSCRIPTDIR)/*.c)
 LDSCRIPT:=$(wildcard $(LDSCRIPTDIR)/*.ld)
@@ -22,13 +23,14 @@ LDSCRIPT:=$(wildcard $(LDSCRIPTDIR)/*.ld)
 # U8G Source files
 U8GSRC:=$(wildcard $(U8GPATH)/*.c)
 FREETROSSRC:=$(wildcard $(FREERTOSPATH)/*.c)
+FREETROSGCCSRC:=$(wildcard $(FREERTOSGCCPATH)/*.c)
 # Internal Variable Names
 ELFNAME:=$(TARGETNAME).elf
 BINNAME:=$(TARGETNAME).bin
 HEXNAME:=$(TARGETNAME).hex
 DISNAME:=$(TARGETNAME).dis
 MAPNAME:=$(TARGETNAME).map
-OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(FREETROSSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
+OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(FREETROSSRC:.c=.o) $(FREETROSGCCSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
 OBJSMALL:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(STARTUP:.S=.o)
 
 # Replace standard build tools by avr tools
@@ -42,10 +44,10 @@ SIZE:=$(GCCPATH)/bin/arm-none-eabi-size
 # Common flags
 COMMON_FLAGS = -mthumb -mcpu=$(MCPU)
 COMMON_FLAGS += -g
-COMMON_FLAGS += -Wall -I. -I$(SYSINC) -I$(U8GPATH) -I$(FREERTOSPATH)
+COMMON_FLAGS += -Wall -I. -I$(SYSINC) -I$(U8GPATH) -I$(FREERTOSPATH) -I$(FREERTOSGCCPATH)
 # default stack size is 0x0c00
 COMMON_FLAGS += -D__STACK_SIZE=0x0a00
-COMMON_FLAGS += -Os -flto 
+COMMON_FLAGS += -Os -flto
 COMMON_FLAGS += -ffunction-sections -fdata-sections
 # Assembler flags
 ASFLAGS:=$(COMMON_FLAGS) -D__STARTUP_CLEAR_BSS -D__START=main
@@ -78,8 +80,8 @@ all: $(DISNAME) $(HEXNAME) $(BINNAME)
 
 .PHONY: upload
 upload: $(DISNAME) $(HEXNAME) $(ELFNAME)
-	$(FLASHTOOL) HEXFILE\($(HEXNAME),NOCHECKSUMS,FILL,PROTECTISP\) COM\(5,38400\) DEVICE\($(FLASHMAGICDEVICE),12.000,0\)
-	$(SIZE) $(ELFNAME)
+#	$(FLASHTOOL) HEXFILE\($(HEXNAME),NOCHECKSUMS,FILL,PROTECTISP\) COM\(5,38400\) DEVICE\($(FLASHMAGICDEVICE),12.000,0\)
+#	$(SIZE) $(ELFNAME)
 
 .PHONY: clean
 clean:
@@ -111,7 +113,8 @@ cleansmall:
 # explicit rules
 $(ELFNAME): $(OBJ) 
 	@echo -e "\e[1;37mLINKING \e[0m*.o > $@\e[1;37m"
-	@$(LINK.o) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
+	$(LINK.o) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 $(DISNAME): $(ELFNAME)
 	@$(OBJDUMP) -S $< > $@	
+
