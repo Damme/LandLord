@@ -87,11 +87,11 @@ upload: $(DISNAME) $(HEXNAME) $(ELFNAME)
 clean:
 	@echo -e "\e[1;37mRemoving all files...\e[0m\e[1;37m"
 	@$(RM) $(OBJ) $(HEXNAME) $(BINNAME) $(ELFNAME) $(DISNAME) $(MAPNAME)
-	
+
 cleansmall:
 	@echo -e "\e[1;37mRemoving some files...\e[0m\e[1;37m"
 	@$(RM) $(OBJSMALL) $(HEXNAME) $(BINNAME) $(ELFNAME) $(DISNAME) $(MAPNAME)
-	
+
 # implicit rules
 %.o: %.c
 	@echo -e "\e[1;37mCC \e[0m$< > $@\e[1;33m"
@@ -103,7 +103,7 @@ cleansmall:
 	@$(PREPROCESS.S) $(COMMON_FLAGS) $(patsubst %.s,%.S,$<) > tmp.s
 	@$(COMPILE.s) -c -o $@ tmp.s
 	@$(RM) tmp.s
-	
+
 .elf.hex:
 	@$(OBJCOPY) -O ihex $< $@
 
@@ -111,10 +111,11 @@ cleansmall:
 	@$(OBJCOPY) -O binary $< $@
 
 # explicit rules
-$(ELFNAME): $(OBJ) 
+$(ELFNAME): $(OBJ)
 	@echo -e "\e[1;37mLINKING \e[0m*.o > $@\e[1;37m"
-	$(LINK.o) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
+	@$(LINK.o) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 $(DISNAME): $(ELFNAME)
-	@$(OBJDUMP) -S $< > $@	
+	@$(OBJDUMP) -S $< > $@
+
 
