@@ -47,6 +47,7 @@ extern volatile uint32_t ADC5;
 extern volatile uint32_t ADC6;
 extern volatile uint32_t ADC7;
 
+int _write(int fd, char *ptr, int len);
 void delayuS(uint32_t uS);
 
 #endif
