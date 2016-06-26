@@ -223,10 +223,6 @@ HeapRegion_t xHeapRegions[] = {
 int main(void)
 {
     vPortDefineHeapRegions(xHeapRegions);
-#ifdef debugSemohosting
-    initialise_monitor_handles();
-#endif
-
 
     //NVIC_SetPriorityGrouping(5); ??
 
