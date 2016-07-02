@@ -1,4 +1,15 @@
+#include <stdio.h>
+
 #include "keypad.h"
+#include "define.h"
+#include "FreeRTOS.h"
+#include "timers.h"
+#include "queue.h"
+#include "powermgmt.h"
+#include "motorctrl.h"
+
+#define xDelay25   ((TickType_t)25 / portTICK_PERIOD_MS)
+#define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
 
 const uint8_t tblKey[4][4] = {
     { KEY8,     KEY9,  KEY0,    KEYSTART },
@@ -154,4 +165,29 @@ uint8_t keypadGetKey()
 uint8_t keypadGetTime()
 {
     return keyPessTime;
+}
+
+static void task_Keypad(void *pvParameters)
+{
+    // Init keypad
+    KeypadSetRow(0);
+
+		for (;;) {
+        vTaskDelay(xDelay100);
+        keypadProcessTask();
+        if (keypadGetKey() == KEYSTOP) {
+						xMotorCtrlMsg msg;
+						msg.xType = COMMAND_STOP;
+						xQueueSend(xMotorCtrlMsgQueue, &msg, (TickType_t)0);
+        }
+        if (keypadGetKey() == KEYPWR && keypadGetTime() > 6) {
+            // TODO: Shut down motor! break etc, draws current from battery even in cpu-off!
+            // TODO: display shutdown counter! (doesn't shutdown until released (hardware feature))
+            // CPU in sleep??
+						xPowerMgmtMsg msg;
+						msg.xType = COMMAND_SHUTDOWN;
+						msg.shutdown.xDelay = xDelay100;
+						xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
+        }
+    }
 }

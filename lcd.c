@@ -1,4 +1,12 @@
 #include "lcd.h"
+#include "screen.h"
+#include "define.h"
+
+#include "FreeRTOS.h"
+#include "timers.h"
+
+#define xDelay25   ((TickType_t)25 / portTICK_PERIOD_MS)
+#define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
 
 void spi_out(uint8_t data)
 {
@@ -9,17 +17,17 @@ void spi_out(uint8_t data)
 
 void u8g_Delay(uint16_t val)
 {
-    delayuS(1000UL * (uint32_t)val);
+    vTaskDelay((uint32_t)val / portTICK_PERIOD_MS);
 }
 
 void u8g_MicroDelay(void)
 {
-    delayuS(1);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
 }
 
 void u8g_10MicroDelay(void)
 {
-    delayuS(10);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr)
@@ -65,4 +73,32 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
             break;
     }
     return 1;
+}
+
+static void task_LCD(void *pvParameters)
+{
+    TickType_t xLastTime;
+    xLastTime = xTaskGetTickCount();
+
+	  // Configure LCD backligt
+    LPC_GPIO1->FIODIR |= PIN(20);               // P1.20 output mode.
+    LPC_GPIO1->FIOPIN |= PIN(20);               // p1.20 LCD backlight ON
+
+    // Configure SPI (LCD)
+    LPC_SC->PCONP |= PCONP_PCSPI;               // power up SPI
+    LPC_SC->PCLKSEL0 |= PCLK_SPI(CCLK_DIV1);    // set SPI CCLK
+
+    LPC_GPIO0->FIODIR |= PIN(rstb);             // p0.19 output mode.
+    LPC_GPIO0->FIODIR |= PIN(csb);              // p0.16 output mode.
+    LPC_GPIO0->FIODIR |= PIN(a0);               // p0.20 output mode.
+
+    LPC_PINCON->PINSEL0 |= ((uint32_t)3 << 30); // p0.15 -> sck
+    LPC_PINCON->PINSEL1 |= (0xc | 0x30);        // p0.17 & p0.18 miso / mosi (no miso??)
+
+    LPC_SPI->SPCR |= SPCR_MSTR;                 // SPI operates in Master mode.
+
+		for (;;) {
+        vTaskDelayUntil(&xLastTime, xDelay100);
+        lcdUpdate();
+    }
 }

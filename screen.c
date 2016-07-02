@@ -1,4 +1,7 @@
 #include "screen.h"
+#include "define.h"
+#include <stdio.h>
+#include <string.h>
 
 char buffer[50];
 
@@ -33,7 +36,7 @@ void lcdPrintDebug()
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-    sprintf(buffer, "Kdn:%u d1:%u d2:%u d3:%u d4:%u", keypadGetKey(), debug1, debug2, debug3, debug4);
+//    sprintf(buffer, "Kdn:%u d1:%u d2:%u d3:%u d4:%u", keypadGetKey(), debug1, debug2, debug3, debug4);
     // binary debug
     u8g_DrawStr(&u8g,  0, 10, buffer);
     u8g_DrawStr(&u8g,  0, 20, "01234567890123456789012345678901");
@@ -71,7 +74,7 @@ void lcdPrintDebug()
     buffer[32] = 0x0;
     u8g_DrawStr(&u8g,  0, 48, buffer);
 
-
+/*
     sprintf(buffer, "A");
     sprintf(buffer + strlen(buffer), "0:%04u ", ADC0);
     sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
@@ -86,6 +89,7 @@ void lcdPrintDebug()
     buffer[32] = 0x0;
 
     u8g_DrawStr(&u8g,  0, 64, buffer);
+*/
 }
 
 void lcdPrintSensor()
@@ -94,13 +98,13 @@ void lcdPrintSensor()
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-    sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
+//    sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
     u8g_DrawStr(&u8g,  0, 10, buffer);
 
-    sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
+//    sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
     u8g_DrawStr(&u8g,  0, 20, buffer);
 
-    sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
+//    sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
     u8g_DrawStr(&u8g,  0, 30, buffer);
 }
 
@@ -184,7 +188,7 @@ void menuListfnc(void *ptr)
 void testfunc(void)
 {
     // useful function! :P
-#ifdef debugSemohosting
+#ifdef debugSemihosting
     printf("func! Parm: %u\r\n", (int)currentDisplay.parm); // check if null
 #endif
     currentDisplay.command = NULL;
@@ -205,54 +209,9 @@ void motortest(void)
     if (keypadGetKey() == KEYSTART && !keypressed) {
         keypressed = true;
 
-        // Configure PWM gpio2.0-2 as pwm1.1-3 Works but hangs (still doing pwm)
-        //LPC_PINCON->PINSEL3 |= (1 << 9);      //LED Backlight  **TEST** PWM1.2
-
-
-        LPC_PINCON->PINSEL4 |= (1 << 0);      //PWM1.1
-        LPC_PINCON->PINSEL4 |= (1 << 2);      //PWM1.2
-        LPC_PINCON->PINSEL4 |= (1 << 4);      //PWM1.3
-        //LPC_PINCON->PINMODE4 |= (3 << 4);
-        //LPC_PINCON->PINMODE_OD2 |= (1 << 2);
-
-
-
-        //http://www.ocfreaks.com/lpc2148-pwm-programming-tutorial/
-
-        LPC_PWM1->PCR = 0;
-        LPC_PWM1->PR = 12; // The TC is incremented every PR+1 cycles of PCLK.
-
-        LPC_PWM1->MR0 = 1000; // 2khz
-        LPC_PWM1->MR1 = 0; // PWM1
-        LPC_PWM1->MR2 = 0; // PWM2
-        LPC_PWM1->MR3 = 0; // PWM3
-        LPC_PWM1->MCR = BIT(1);             // Reset on PWMMR0
-        LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
-
-        LPC_PWM1->PCR = BIT(9) | BIT(10) | BIT(11); // PWMENA1 | PWMENA2 | PWMENA3
-        LPC_PWM1->TCR = BIT(1);             // Counter Reset
-
-        LPC_PWM1->TCR = BIT(0) | BIT(3);    //Counter Enable | PWM Enable
-
-        //Spindle
-        LPC_GPIO2->FIODIR |= PIN(13);
-        LPC_GPIO3->FIODIR |= PIN(25);
-        LPC_GPIO3->FIODIR |= PIN(26);
-
-        //Right
-        LPC_GPIO2->FIODIR |= PIN(9);
-        LPC_GPIO2->FIODIR |= PIN(8);
-        LPC_GPIO0->FIODIR |= PIN(0);
-
-        // Right
-        LPC_GPIO2->FIODIR |= PIN(4);
-        LPC_GPIO2->FIODIR |= PIN(5);
-        LPC_GPIO2->FIODIR |= PIN(6);
-
         // test
         LPC_GPIO0->FIODIR |= PIN(11);
         LPC_GPIO1->FIODIR |= PIN(23);
-
     }
 
     if ((int)currentDisplay.parm == 1) {
@@ -398,7 +357,7 @@ void motortest(void)
     }
 
     u8g_SetFont(&u8g, u8g_font_4x6);
-    sprintf(buffer, "pwm:%u a1:%u a1:%u a3:%u a4:%u", pwmtest, a1, a2, a3, a4);
+    sprintf(buffer, "pwm:%u a1:%u a2:%u a3:%u a4:%u", pwmtest, a1, a2, a3, a4);
     u8g_DrawStr(&u8g,  0, (8 * 2), buffer);
 
     tmp[1] = 0x0;
@@ -423,7 +382,7 @@ void motortest(void)
     tmp[0] = (a3 ? 0x31 : 0x30);
     sprintf(buffer + strlen(buffer), " - F/R(3): %s", tmp);
     u8g_DrawStr(&u8g,  0, (8 * 5), buffer);
-
+/*
     sprintf(buffer, "0:%04u ", ADC0);
     sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
     sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
@@ -435,6 +394,7 @@ void motortest(void)
     sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
     sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
     u8g_DrawStr(&u8g,  0, (8 * 8), buffer);
+*/
 }
 
 void menuBootfnc(void)
