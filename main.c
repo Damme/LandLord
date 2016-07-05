@@ -91,7 +91,7 @@ int main(void)
 	{
 		xTaskCreate(task_DigitalTest, "Digital", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 		xTaskCreate(task_Console, "Console", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
-		//        xTaskCreate(task_Keypad, "Keypad", configMINIMAL_STACK_SIZE, NULL, 6, NULL);
+		xTaskCreate(task_Keypad, "Keypad", configMINIMAL_STACK_SIZE, NULL, 6, NULL);
 		//        xTaskCreate(task_LCD, "LCD", 1024, NULL, 8, NULL);
 		xTaskCreate(task_Sensor, "Sensor", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 		xTaskCreate(task_PowerMgmt, "PowerMgmt", configMINIMAL_STACK_SIZE, NULL, 5, NULL);

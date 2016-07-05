@@ -167,7 +167,7 @@ uint8_t keypadGetTime()
     return keyPessTime;
 }
 
-static void task_Keypad(void *pvParameters)
+void task_Keypad(void *pvParameters)
 {
     // Init keypad
     KeypadSetRow(0);

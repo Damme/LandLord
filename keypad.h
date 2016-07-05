@@ -10,6 +10,6 @@ uint8_t keypadGetState(void);
 uint8_t keypadGetKey(void);
 uint8_t keypadGetTime(void);
 
-static void task_Keypad(void *pvParameters);
+void task_Keypad(void *pvParameters);
 
 #endif

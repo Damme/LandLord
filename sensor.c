@@ -5,6 +5,7 @@
 #include "timers.h"
 #include "event_groups.h"
 
+#define xDelay10  ((TickType_t)10 / portTICK_PERIOD_MS)
 #define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
 #define xDelay1000  ((TickType_t)1000 / portTICK_PERIOD_MS)
 
@@ -155,7 +156,9 @@ int32_t convert_temp(uint16_t raw_temp)
 
 void task_Sensor(void *pvParameters)
 {
-  vTaskDelay(xDelay100);
+	xSensorEventGroup = xEventGroupCreate();
+
+  vTaskDelay(xDelay10);
 
 	ADC0 = 0; // not in use??
 	ADC1 = 0; // volt batt? ~ 3600
@@ -213,8 +216,6 @@ void task_Sensor(void *pvParameters)
 	LPC_GPIO0->FIODIR |= (1<<4) | (1<<5);
 	LPC_GPIO0->FIOSET |= (1<<4) | (1<<5);	// MUX=3 - Bat. Temp.
 
-	xSensorEventGroup = xEventGroupCreate();
-
 	xADCTriggerTimer = xTimerCreate("ADCTriggerTimer", xDelay1000*5, pdTRUE, ( void * ) 0, vADCTriggerTimerCallback);	
 	if ((xADCTriggerTimer != NULL) && (xTimerStart(xADCTriggerTimer, 0) == pdPASS))
 		printf("ADC Trigger Timer started\r\n");
@@ -232,15 +233,15 @@ void task_Sensor(void *pvParameters)
 			int32_t accy = convertAcc(ADC2);
 			int32_t accz;
 			
-			printf("\r\nADC: %04u %04u %04u %04u %04u %04u %04u %04u\r\n", ADC0, ADC1, ADC2, ADC3, ADC4, ADC5, ADC6, ADC7);
+			//printf("\r\nADC: %04u %04u %04u %04u %04u %04u %04u %04u\r\n", ADC0, ADC1, ADC2, ADC3, ADC4, ADC5, ADC6, ADC7);
 			
-			printf("Acc X (g): ");
+			//printf("Acc X (g): ");
 			printAcc(accx);
-			printf("Acc Y (g): ");
+			//printf("Acc Y (g): ");
 			printAcc(accy);
 	
 			ulMuxState = (LPC_GPIO0->FIOPIN & ((1<<4) | (1<<5))) >> 4;
-			printf("Mux: %01u\r\n", ulMuxState);
+			//printf("Mux: %01u\r\n", ulMuxState);
 			switch (ulMuxState)
 			{
 				case 0:
@@ -255,16 +256,18 @@ void task_Sensor(void *pvParameters)
 					break;
 				case 2:
 					accz = convertAcc(ADC4);
-					//printf("Acc Z (raw): %04u", ADC4);
-					printf("Acc Z (g): ");
+					//printf("Acc Z (g): ");
 					printAcc(accz);
 					break;
 			}
-			LPC_GPIO0->FIOPIN = (LPC_GPIO0->FIOPIN & ~((1<<4) | (1<<5))) | (((ulMuxState + 1) % 4) << 4);
+			/* iterate over all mux choices */
+			//LPC_GPIO0->FIOPIN = (LPC_GPIO0->FIOPIN & ~((1<<4) | (1<<5))) | (((ulMuxState + 1) % 4) << 4);
+			/* just toggle between choices 'b10' (Z-axis) and 'b11' (Bat. Temp.) */
+			LPC_GPIO0->FIOPIN = (LPC_GPIO0->FIOPIN & ~(1<<4)) | (1<<5) | (((ulMuxState + 1) % 2) << 4);
 			
-			printf("Spindle I: %04u\r\n", ADC5);
-			printf("Right motor I: %04u\r\n", ADC6);
-			printf("Left motor I: %04u\r\n", ADC7);
+			//printf("Spindle I: %04u\r\n", ADC5);
+			//printf("Right motor I: %04u\r\n", ADC6);
+			//printf("Left motor I: %04u\r\n", ADC7);
 
 			msg.xType = MEASUREMENT_BATTERY;
 			/* https://hackaday.io/project/6717-project-landlord/discussion-58892 */
@@ -285,18 +288,18 @@ void task_Sensor(void *pvParameters)
 
 int32_t convertAcc(uint16_t adc)
 {
-	return ((int32_t)adc - 2060) * 1024 / (2720 - 2060);
+	return ((int32_t)adc - 2060) * 1000 / (2720 - 2060);
 }
 
 void printAcc(int32_t acc)
 {
 	if (acc >= 0)
 	{
-		printf(" %01d.%03u\r\n", acc >> 10, acc & 0x3ff);
+		printf(" %01d.%03u\r\n", acc / 1000, acc % 1000);
 	}
 	else
 	{
 		acc = ~acc;
-		printf("-%01d.%03u\r\n", acc >> 10, acc & 0x3ff);
+		printf("-%01d.%03u\r\n", acc / 1000, acc % 1000);
 	}
 }

@@ -86,6 +86,7 @@ typedef enum
 	COMMAND_STOP,
 } xMessageType;
 
+#if (0)
 typedef enum
 {
 	CHARGE_CURRENT = 0,
@@ -120,5 +121,6 @@ typedef struct
 		double valueFloat;
 	};
 } MessageSensor;
+#endif
 
 #endif // DEFINES_H
