@@ -36,7 +36,7 @@ void lcdPrintDebug()
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-//    sprintf(buffer, "Kdn:%u d1:%u d2:%u d3:%u d4:%u", keypadGetKey(), debug1, debug2, debug3, debug4);
+    //    sprintf(buffer, "Kdn:%u d1:%u d2:%u d3:%u d4:%u", keypadGetKey(), debug1, debug2, debug3, debug4);
     // binary debug
     u8g_DrawStr(&u8g,  0, 10, buffer);
     u8g_DrawStr(&u8g,  0, 20, "01234567890123456789012345678901");
@@ -74,22 +74,22 @@ void lcdPrintDebug()
     buffer[32] = 0x0;
     u8g_DrawStr(&u8g,  0, 48, buffer);
 
-/*
-    sprintf(buffer, "A");
-    sprintf(buffer + strlen(buffer), "0:%04u ", ADC0);
-    sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
-    sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
-    sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
-    u8g_DrawStr(&u8g,  0, 56, buffer);
-    sprintf(buffer, "B");
-    sprintf(buffer + strlen(buffer), "4:%04u ", ADC4);
-    sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
-    sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
-    sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
-    buffer[32] = 0x0;
+    /*
+        sprintf(buffer, "A");
+        sprintf(buffer + strlen(buffer), "0:%04u ", ADC0);
+        sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
+        sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
+        sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
+        u8g_DrawStr(&u8g,  0, 56, buffer);
+        sprintf(buffer, "B");
+        sprintf(buffer + strlen(buffer), "4:%04u ", ADC4);
+        sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
+        sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
+        sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
+        buffer[32] = 0x0;
 
-    u8g_DrawStr(&u8g,  0, 64, buffer);
-*/
+        u8g_DrawStr(&u8g,  0, 64, buffer);
+    */
 }
 
 void lcdPrintSensor()
@@ -98,13 +98,13 @@ void lcdPrintSensor()
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-//    sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
+    //    sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
     u8g_DrawStr(&u8g,  0, 10, buffer);
 
-//    sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
+    //    sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
     u8g_DrawStr(&u8g,  0, 20, buffer);
 
-//    sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
+    //    sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
     u8g_DrawStr(&u8g,  0, 30, buffer);
 }
 
@@ -188,7 +188,7 @@ void menuListfnc(void *ptr)
 void testfunc(void)
 {
     // useful function! :P
-#ifdef debugSemihosting
+#ifdef debugPrintf
     printf("func! Parm: %u\r\n", (int)currentDisplay.parm); // check if null
 #endif
     currentDisplay.command = NULL;
@@ -382,19 +382,19 @@ void motortest(void)
     tmp[0] = (a3 ? 0x31 : 0x30);
     sprintf(buffer + strlen(buffer), " - F/R(3): %s", tmp);
     u8g_DrawStr(&u8g,  0, (8 * 5), buffer);
-/*
-    sprintf(buffer, "0:%04u ", ADC0);
-    sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
-    sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
-    sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
-    u8g_DrawStr(&u8g,  0, (8 * 7), buffer);
+    /*
+        sprintf(buffer, "0:%04u ", ADC0);
+        sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
+        sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
+        sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
+        u8g_DrawStr(&u8g,  0, (8 * 7), buffer);
 
-    sprintf(buffer, "4:%04u ", ADC4);
-    sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
-    sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
-    sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
-    u8g_DrawStr(&u8g,  0, (8 * 8), buffer);
-*/
+        sprintf(buffer, "4:%04u ", ADC4);
+        sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
+        sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
+        sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
+        u8g_DrawStr(&u8g,  0, (8 * 8), buffer);
+    */
 }
 
 void menuBootfnc(void)
@@ -413,7 +413,7 @@ void menuBootWarnfnc(void)
     uint8_t h;
     //             12345678901234567890123456789012
 
-  	char *line1 = "  REMOVE KNIVES BEFORE RUNNING";
+    char *line1 = "  REMOVE KNIVES BEFORE RUNNING";
     char *line2 = "This firmware might cut";
     char *line3 = "all your fingers off, kill";
     char *line4 = "your cat or spontaneous combust!";

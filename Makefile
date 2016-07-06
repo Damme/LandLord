@@ -46,7 +46,7 @@ COMMON_FLAGS = -mthumb -mcpu=$(MCPU)
 COMMON_FLAGS += -g
 COMMON_FLAGS += -Wall -I. -I$(SYSINC) -I$(U8GPATH) -I$(FREERTOSPATH) -I$(FREERTOSGCCPATH)
 # default stack size is 0x0c00
-COMMON_FLAGS += -D__STACK_SIZE=0x0a00
+COMMON_FLAGS += -D__STACK_SIZE=0x0a00 -DdebugPrintf
 COMMON_FLAGS += -Os -flto
 COMMON_FLAGS += -ffunction-sections -fdata-sections
 # Assembler flags

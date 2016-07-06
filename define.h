@@ -3,11 +3,20 @@
 
 #include <stdint.h>
 
+#if __GNUC__
+    #pragma message ("Using GNUC compiler")
+#endif
+
+#if __KEIL__
+    #pragma message ("Using KEIL compiler")
+#endif
+
 #define mainQUEUE_LENGTH          ( 10 )
 
 #define TicksPerMS configTICK_RATE_HZ/1000
 
 #define PCONP_PCTIM1    ((uint32_t)(1<<2))
+#define PCONP_PCTIM2    ((uint32_t)(1<<22))
 #define PCONP_PCUART1   ((uint32_t)(1<<4))
 #define PCONP_PCSPI     ((uint32_t)(1<<8))
 #define PCONP_PCADC     ((uint32_t)(1<<12))
@@ -16,6 +25,7 @@
 #define SPCR_MSTR       ((uint32_t)(1<<5))
 
 #define PCLK_TIMER1(n)  ((uint32_t)(n<<4))
+#define PCLK_TIMER2(n)  ((uint32_t)(n<<12))
 #define PCLK_SPI(n)     ((uint32_t)(n<<16))
 #define PCLK_ADC(n)     ((uint32_t)(n<<24))
 
@@ -58,68 +68,63 @@
 
 */
 
-#define KEY0 		0
-#define KEY1 		1
-#define KEY2 		2
-#define KEY3 		3
-#define KEY4 		4
-#define KEY5 		5
-#define KEY6		6
-#define KEY7 		7
-#define KEY8		8
-#define KEY9 		9
-#define KEYHOME 	10
-#define KEYUP 		22
-#define KEYDOWN		21
-#define KEYBACK 	91
-#define KEYOK 		90
-#define KEYSTART	99
-#define KEYPWR 		100
-#define KEYSTOP		199
+#define KEY0        0
+#define KEY1        1
+#define KEY2        2
+#define KEY3        3
+#define KEY4        4
+#define KEY5        5
+#define KEY6        6
+#define KEY7        7
+#define KEY8        8
+#define KEY9        9
+#define KEYHOME     10
+#define KEYUP       22
+#define KEYDOWN     21
+#define KEYBACK     91
+#define KEYOK       90
+#define KEYSTART    99
+#define KEYPWR      100
+#define KEYSTOP     199
 
 
-typedef enum
-{
-	MEASUREMENT_BATTERY = 0,
-	MEASUREMENT_MOTORCURRENT,
-	COMMAND_SHUTDOWN,
-	COMMAND_STOP,
+typedef enum {
+    MEASUREMENT_BATTERY = 0,
+    MEASUREMENT_MOTORCURRENT,
+    COMMAND_SHUTDOWN,
+    COMMAND_STOP,
 } xMessageType;
 
 #if (0)
-typedef enum
-{
-	CHARGE_CURRENT = 0,
-	BATTERY_VOLTAGE,
-	ACCELERATION_X,
-	ACCELERATION_Y,
-	ACCELERATION_Z,
-	BATTERY_TEMPERATURE,
-	SPINDLE_CURRENT,
-	MOTOR_RIGHT_CURRENT,
-	MOTOR_LEFT_CURRENT,
+typedef enum {
+    CHARGE_CURRENT = 0,
+    BATTERY_VOLTAGE,
+    ACCELERATION_X,
+    ACCELERATION_Y,
+    ACCELERATION_Z,
+    BATTERY_TEMPERATURE,
+    SPINDLE_CURRENT,
+    MOTOR_RIGHT_CURRENT,
+    MOTOR_LEFT_CURRENT,
 } SensorSource;
 
-typedef enum
-{
-	CURRENT = 0, /* in mA (unsigned int) */
-	VOLTAGE, /* in mV (unsigned int) */
-	ACCELERATION, /* in g (double) */
-	TEMPERATURE, /* in °C (double) */
+typedef enum {
+    CURRENT = 0, /* in mA (unsigned int) */
+    VOLTAGE, /* in mV (unsigned int) */
+    ACCELERATION, /* in g (double) */
+    TEMPERATURE, /* in °C (double) */
 } DataFormat;
 
 #pragma anon_unions
-typedef struct
-{
-	xMessageType type;
-	uint32_t length;
-	SensorSource source;
-	DataFormat format;
-	union
-	{
-		int32_t value;
-		double valueFloat;
-	};
+typedef struct {
+    xMessageType type;
+    uint32_t length;
+    SensorSource source;
+    DataFormat format;
+    union {
+        int32_t value;
+        double valueFloat;
+    };
 } MessageSensor;
 #endif
 
