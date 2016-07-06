@@ -98,7 +98,7 @@ int main(void)
         xTaskCreate(task_LCD, "LCD", 1024, NULL, 8, NULL);
 #endif
         xTaskCreate(task_Sensor, "Sensor", 256, NULL, 5, NULL);
-        xTaskCreate(task_PowerMgmt, "PowerMgmt", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
+        xTaskCreate(task_PowerMgmt, "PowerMgmt", 128, NULL, 5, NULL);
         xTaskCreate(task_MotorCtrl, "MotorCtrl", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 
         vTaskStartScheduler();
