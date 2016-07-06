@@ -361,9 +361,9 @@
             <useXO>0</useXO>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define></Define>
+              <Define>DEBUGCONSOLE</Define>
               <Undefine></Undefine>
-              <IncludePath>.;.\FreeRTOS;.\u8g;.\FreeRTOS\FreeRTOS-Plus-CLI;.\FreeRTOS\FreeRTOS-Plus-IO\Include;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\SupportedBoards;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\lpc17xx.cmsis.driver.library\Include</IncludePath>
+              <IncludePath>.;.\FreeRTOS;.\FreeRTOS\keil;.\u8g;.\FreeRTOS\FreeRTOS-Plus-CLI;.\FreeRTOS\FreeRTOS-Plus-IO\Include;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\SupportedBoards;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\lpc17xx.cmsis.driver.library\Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -494,7 +494,7 @@
             <File>
               <FileName>port.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\FreeRTOS\port.c</FilePath>
+              <FilePath>.\FreeRTOS\keil\port.c</FilePath>
             </File>
             <File>
               <FileName>queue.c</FileName>
@@ -1077,7 +1077,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>.;.\FreeRTOS;.\u8g;.\FreeRTOS\FreeRTOS-Plus-CLI;.\FreeRTOS\FreeRTOS-Plus-IO\Include;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\SupportedBoards;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\lpc17xx.cmsis.driver.library\Include</IncludePath>
+              <IncludePath>.;.\FreeRTOS;.\FreeRTOS\keil;.\u8g;.\FreeRTOS\FreeRTOS-Plus-CLI;.\FreeRTOS\FreeRTOS-Plus-IO\Include;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\SupportedBoards;.\FreeRTOS\FreeRTOS-Plus-IO\Device\LPC17xx\lpc17xx.cmsis.driver.library\Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1208,7 +1208,7 @@
             <File>
               <FileName>port.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\FreeRTOS\port.c</FilePath>
+              <FilePath>.\FreeRTOS\keil\port.c</FilePath>
             </File>
             <File>
               <FileName>queue.c</FileName>
