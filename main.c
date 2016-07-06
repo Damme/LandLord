@@ -29,10 +29,6 @@ void SystemSetupStuff(void)
     LPC_GPIO1->FIODIR |= PIN(25);               // p1.25 Pwr on set output
     LPC_GPIO1->FIOPIN |= PIN(25);               // p1.25 Keep pwr on
 
-    // Configure Timer0 used for µs delay in lcd
-    //LPC_SC->PCONP |= PCONP_PCTIM1;              // power up Timer (def on)
-    //LPC_SC->PCLKSEL0 |= PCLK_TIMER1(CCLK_DIV1); // set Timer0 clock1
-
     // Configure Power button
     LPC_PINCON->PINMODE3 |= (PINMODE_PULLDOWN << 24);      // Pullup
 }
@@ -94,14 +90,14 @@ int main(void)
     xQueue = xQueueCreate(mainQUEUE_LENGTH, sizeof(unsigned long));
 
     if (xQueue != NULL) {
-        xTaskCreate(task_DigitalTest, "Digital", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
+        //        xTaskCreate(task_DigitalTest, "Digital", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
         xTaskCreate(task_Keypad, "Keypad", configMINIMAL_STACK_SIZE, NULL, 6, NULL);
 #if DEBUGCONSOLE
         xTaskCreate(task_Console, "Console", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 #else
         xTaskCreate(task_LCD, "LCD", 1024, NULL, 8, NULL);
 #endif
-        xTaskCreate(task_Sensor, "Sensor", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
+        xTaskCreate(task_Sensor, "Sensor", 256, NULL, 5, NULL);
         xTaskCreate(task_PowerMgmt, "PowerMgmt", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
         xTaskCreate(task_MotorCtrl, "MotorCtrl", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 

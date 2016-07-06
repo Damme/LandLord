@@ -5,6 +5,7 @@
 #include "timers.h"
 #include "event_groups.h"
 
+
 #define xDelay10  ((TickType_t)10 / portTICK_PERIOD_MS)
 #define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
 #define xDelay1000  ((TickType_t)1000 / portTICK_PERIOD_MS)
@@ -12,7 +13,9 @@
 #define BIT_ADC_DONE    ( 1 << 0 )
 #define BIT_DIG_INT    ( 1 << 1 )
 
+
 EventGroupHandle_t xSensorEventGroup;
+xQueueHandle xBoundaryMsgQueue;
 TimerHandle_t xADCTriggerTimer;
 
 uint32_t ADC0;
@@ -108,20 +111,28 @@ void ADC_IRQHandler(void)
     return;
 }
 
+
 void EINT3_IRQHandler(void)
 {
     portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-    NVIC_ClearPendingIRQ(EINT3_IRQn);
+    NVIC_DisableIRQ(EINT3_IRQn);
 
-    //eint3 trgd
     uint32_t timer = LPC_TIM2->TC; // Get µs counter
     if (timer == 0) LPC_TIM2->TCR = 1; // start if 0
 
-    // xQueueSendFromISR -> timer with edge and pol
+    xQueueSendFromISR(xBoundaryMsgQueue, &timer, xHigherPriorityTaskWoken);
 
     // also need muxing p0.21 & p0.22 for distance and left/right -> outside int in task-sensor
 
     xEventGroupSetBitsFromISR(xSensorEventGroup, BIT_DIG_INT, &xHigherPriorityTaskWoken);
+
+    // Important! If not cleared system freezes
+    LPC_GPIOINT->IO0IntClr = PIN(7) | PIN(8) | PIN(9) | PIN(10);
+    NVIC_ClearPendingIRQ(EINT3_IRQn);
+    NVIC_EnableIRQ(EINT3_IRQn);
+
+
+
     portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
     return;
 }
@@ -134,7 +145,7 @@ void vADCTriggerTimerCallback(TimerHandle_t xTimer)
 int32_t convert_temp(uint16_t raw_temp)
 {
     /* table holds 110 entries from -10°C to 100°C in full °C */
-    int32_t fullDegree;	/* full degrees */
+    int32_t fullDegree; /* full degrees */
     int32_t tenthDegree; /* 1/10th-degrees */
     for (fullDegree = 0; fullDegree < (sizeof(tempCalTbl) / sizeof(uint16_t)); fullDegree++) {
         if (tempCalTbl[fullDegree] < raw_temp) { /* just one above */
@@ -159,6 +170,8 @@ out:
 void task_Sensor(void *pvParameters)
 {
     xSensorEventGroup = xEventGroupCreate();
+
+    xBoundaryMsgQueue = xQueueCreate(20, sizeof(uint32_t));
 
     vTaskDelay(xDelay10);
 
@@ -193,7 +206,7 @@ void task_Sensor(void *pvParameters)
     LPC_ADC->ADCR = 255 | (1 << 21);
 
     // Enable burst mode / Disable power-down
-    //		LPC_ADC->ADCR |= (1 << 16) | (1 << 21);
+    //      LPC_ADC->ADCR |= (1 << 16) | (1 << 21);
 
     portENTER_CRITICAL();
     NVIC_SetPriority(ADC_IRQn, 5);
@@ -220,7 +233,7 @@ void task_Sensor(void *pvParameters)
     LPC_PINCON->PINSEL0 &= ~(3 << 8);
     LPC_PINCON->PINSEL0 &= ~(3 << 10);
     LPC_GPIO0->FIODIR |= (1 << 4) | (1 << 5);
-    LPC_GPIO0->FIOSET |= (1 << 4) | (1 << 5);	// MUX=3 - Bat. Temp.
+    LPC_GPIO0->FIOSET |= (1 << 4) | (1 << 5);   // MUX=3 - Bat. Temp.
 
     xADCTriggerTimer = xTimerCreate("ADCTriggerTimer", xDelay1000 * 5, pdTRUE, (void *) 0, vADCTriggerTimerCallback);
     if ((xADCTriggerTimer != NULL) && (xTimerStart(xADCTriggerTimer, 0) == pdPASS))
@@ -283,8 +296,12 @@ void task_Sensor(void *pvParameters)
             xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
         }
         if (event & BIT_DIG_INT) {
-            printf("DIG\r\n");
+            printf("DIG %u\r\n", uxQueueMessagesWaiting(xBoundaryMsgQueue));
         }
+#if LOWSTACKWARNING
+        int stack = uxTaskGetStackHighWaterMark(NULL);
+        if (stack < 50) printf("Task task_Sensor has %u words left in stack.\r\n", stack);
+#endif
     }
 }
 

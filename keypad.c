@@ -17,9 +17,9 @@ const uint8_t tblKey[4][4] = {
     { KEYBACK,  KEYUP, KEY4,    KEY5 },
     { KEYHOME,  KEY1,  KEY2,    KEY3 },
 };
+
 uint8_t keyState, keyLastState = 0;
 uint8_t keyPessTime = 0;
-
 uint8_t keypadRow, keypadCol, keypadPressedKey;
 
 void KeypadSetRow(bool row)
@@ -72,11 +72,11 @@ void KeypadSetRow(bool row)
 bool keypadIsPressed()
 {
     uint8_t ret = 0;
-    if (LPC_GPIO1->FIOPIN & (1 << 17)) { // stop
+    if (LPC_GPIO1->FIOPIN & (1 << 17)) { // Stop
         ret = 1;
         goto ret;
     }
-    if (!(LPC_GPIO1->FIOPIN & (1 << 28))) { //Power
+    if (!(LPC_GPIO1->FIOPIN & (1 << 28))) { // Power
         ret = 1;
         goto ret;
     }
@@ -98,23 +98,23 @@ uint8_t keypadProcessKey()
         ret = KEYPWR;
         goto ret;
     }
-    if (LPC_GPIO1->FIOPIN & (1<<0))
+    if (LPC_GPIO1->FIOPIN & (1 << 0))
         keypadRow = 0;
-    else if (LPC_GPIO1->FIOPIN & (1<<1))
+    else if (LPC_GPIO1->FIOPIN & (1 << 1))
         keypadRow = 1;
-    else if (LPC_GPIO1->FIOPIN & (1<<4))
+    else if (LPC_GPIO1->FIOPIN & (1 << 4))
         keypadRow = 2;
-    else if (LPC_GPIO1->FIOPIN & (1<<8))
+    else if (LPC_GPIO1->FIOPIN & (1 << 8))
         keypadRow = 3;
     KeypadSetRow(1);
     vTaskDelay(xDelay25);
-    if (LPC_GPIO1->FIOPIN & (1<<9))
+    if (LPC_GPIO1->FIOPIN & (1 << 9))
         keypadCol = 0;
-    else if (LPC_GPIO1->FIOPIN & (1<<10))
+    else if (LPC_GPIO1->FIOPIN & (1 << 10))
         keypadCol = 1;
-    else if (LPC_GPIO1->FIOPIN & (1<<14))
+    else if (LPC_GPIO1->FIOPIN & (1 << 14))
         keypadCol = 2;
-    else if (LPC_GPIO1->FIOPIN & (1<<15))
+    else if (LPC_GPIO1->FIOPIN & (1 << 15))
         keypadCol = 3;
     KeypadSetRow(0);
     ret = tblKey[keypadRow][keypadCol];
@@ -159,7 +159,7 @@ uint8_t keypadGetKey()
     if (keyState > 0) {
         return keypadPressedKey;
     }
-    return 255;
+    return KEYNULL;
 }
 
 uint8_t keypadGetTime()
@@ -172,22 +172,27 @@ void task_Keypad(void *pvParameters)
     // Init keypad
     KeypadSetRow(0);
 
-		for (;;) {
+    for (;;) {
         vTaskDelay(xDelay100);
         keypadProcessTask();
         if (keypadGetKey() == KEYSTOP) {
-						xMotorCtrlMsg msg;
-						msg.xType = COMMAND_STOP;
-						xQueueSend(xMotorCtrlMsgQueue, &msg, (TickType_t)0);
+            xMotorCtrlMsg msg;
+            msg.xType = COMMAND_STOP;
+            xQueueSend(xMotorCtrlMsgQueue, &msg, (TickType_t)0);
         }
         if (keypadGetKey() == KEYPWR && keypadGetTime() > 6) {
             // TODO: Shut down motor! break etc, draws current from battery even in cpu-off!
             // TODO: display shutdown counter! (doesn't shutdown until released (hardware feature))
             // CPU in sleep??
-						xPowerMgmtMsg msg;
-						msg.xType = COMMAND_SHUTDOWN;
-						msg.shutdown.xDelay = xDelay100;
-						xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
+            xPowerMgmtMsg msg;
+            msg.xType = COMMAND_SHUTDOWN;
+            msg.shutdown.xDelay = xDelay100;
+            xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
         }
+#if LOWSTACKWARNING
+        int stack = uxTaskGetStackHighWaterMark(NULL);
+        if (stack < 50) printf("Task task_Keypad has %u words left in stack.\r\n", stack);
+#endif
+
     }
 }

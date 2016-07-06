@@ -86,6 +86,7 @@
 #define KEYSTART    99
 #define KEYPWR      100
 #define KEYSTOP     199
+#define KEYNULL     255
 
 
 typedef enum {
