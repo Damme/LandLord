@@ -1,11 +1,14 @@
+#ifndef DEFINES_H
+#define DEFINES_H
 
-//#define debugSemohosting
+#include <stdint.h>
 
 #define mainQUEUE_LENGTH          ( 10 )
 
 #define TicksPerMS configTICK_RATE_HZ/1000
 
 #define PCONP_PCTIM1    ((uint32_t)(1<<2))
+#define PCONP_PCUART1   ((uint32_t)(1<<4))
 #define PCONP_PCSPI     ((uint32_t)(1<<8))
 #define PCONP_PCADC     ((uint32_t)(1<<12))
 #define PCONP_PCGPIO    ((uint32_t)(1<<15))
@@ -73,3 +76,51 @@
 #define KEYSTART	99
 #define KEYPWR 		100
 #define KEYSTOP		199
+
+
+typedef enum
+{
+	MEASUREMENT_BATTERY = 0,
+	MEASUREMENT_MOTORCURRENT,
+	COMMAND_SHUTDOWN,
+	COMMAND_STOP,
+} xMessageType;
+
+#if (0)
+typedef enum
+{
+	CHARGE_CURRENT = 0,
+	BATTERY_VOLTAGE,
+	ACCELERATION_X,
+	ACCELERATION_Y,
+	ACCELERATION_Z,
+	BATTERY_TEMPERATURE,
+	SPINDLE_CURRENT,
+	MOTOR_RIGHT_CURRENT,
+	MOTOR_LEFT_CURRENT,
+} SensorSource;
+
+typedef enum
+{
+	CURRENT = 0, /* in mA (unsigned int) */
+	VOLTAGE, /* in mV (unsigned int) */
+	ACCELERATION, /* in g (double) */
+	TEMPERATURE, /* in °C (double) */
+} DataFormat;
+
+#pragma anon_unions
+typedef struct
+{
+	xMessageType type;
+	uint32_t length;
+	SensorSource source;
+	DataFormat format;
+	union
+	{
+		int32_t value;
+		double valueFloat;
+	};
+} MessageSensor;
+#endif
+
+#endif // DEFINES_H

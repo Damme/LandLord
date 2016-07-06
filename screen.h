@@ -1,7 +1,6 @@
 #include "keypad.h"
 #include "lcd.h"
 #include "sensor.h"
-#include "global.h"
 
 #ifndef SCREEN_H
 #define SCREEN_H
