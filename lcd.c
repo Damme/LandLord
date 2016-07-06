@@ -8,6 +8,21 @@
 #define xDelay25   ((TickType_t)25 / portTICK_PERIOD_MS)
 #define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
 
+/*
+void delayuS(uint32_t uS)
+{
+    LPC_TIM1->TCR = 0x02;                // reset timer
+    LPC_TIM1->PR  = 0x00;                // set prescaler to zero
+    LPC_TIM1->MR0 = uS * (SystemCoreClock / 1000000) - 1; // 23980 = 1ms
+    LPC_TIM1->IR  = 0xff;                // reset all interrrupts
+    LPC_TIM1->MCR = 0x04;                // stop timer on match
+    LPC_TIM1->TCR = 0x01;                // start timer
+
+    // wait until delay time has elapsed
+    while (LPC_TIM1->TCR & 0x01);
+}
+*/
+
 void spi_out(uint8_t data)
 {
     LPC_SPI->SPDR = data;
@@ -80,7 +95,7 @@ void task_LCD(void *pvParameters)
     TickType_t xLastTime;
     xLastTime = xTaskGetTickCount();
 
-	  // Configure LCD backligt
+    // Configure LCD backligt
     LPC_GPIO1->FIODIR |= PIN(20);               // P1.20 output mode.
     LPC_GPIO1->FIOPIN |= PIN(20);               // p1.20 LCD backlight ON
 
@@ -97,7 +112,7 @@ void task_LCD(void *pvParameters)
 
     LPC_SPI->SPCR |= SPCR_MSTR;                 // SPI operates in Master mode.
 
-		for (;;) {
+    for (;;) {
         vTaskDelayUntil(&xLastTime, xDelay100);
         lcdUpdate();
     }

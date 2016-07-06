@@ -8,7 +8,9 @@
 #else
     #include "lcd.h"
 #endif
-
+#if debugPrintf
+    #include "redirect.h"
+#endif
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -70,9 +72,9 @@ static void task_DigitalTest(void *pvParameters)
         LPC_GPIO1->FIOCLR |= PIN(20);               // p1.20 LCD backlight OFF
         vTaskDelay(xDelay200);
         LPC_GPIO1->FIOSET |= PIN(20);               // p1.20 LCD backlight ON
-        LPC_GPIO0->FIOSET |= PIN(18);							// WAHRSCHEINLICH pin 6 auf JST GHR-08V-S
-        LPC_GPIO0->FIOSET |= PIN(19);							// pin 3 auf JST GHR-08V-S
-        LPC_GPIO0->FIOSET |= PIN(20);							// pin 4 auf JST GHR-08V-S
+        LPC_GPIO0->FIOSET |= PIN(18);                           // WAHRSCHEINLICH pin 6 auf JST GHR-08V-S
+        LPC_GPIO0->FIOSET |= PIN(19);                           // pin 3 auf JST GHR-08V-S
+        LPC_GPIO0->FIOSET |= PIN(20);                           // pin 4 auf JST GHR-08V-S
         vTaskDelay(xDelay100);
         LPC_GPIO0->FIOCLR |= PIN(18);
         vTaskDelay(xDelay100);
