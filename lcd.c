@@ -62,7 +62,7 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
             break;
 
         case U8G_COM_MSG_CHIP_SELECT:
-            GPIO_SET_PIN_VAL(LCD_CSB, arg_val);
+            GPIO_SET_PIN_VAL(LCD_CSB, !arg_val);
 
             u8g_MicroDelay();
             break;
