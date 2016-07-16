@@ -30,13 +30,13 @@ void task_PowerMgmt(void *pvParameters)
     // P1.21 - Charger connected (input, high active)
     // for approx. 2sec after connected to charger (led turns red), it is high
     LPC_PINCON->PINMODE3 &= ~(3 << ((21 - 16) * 2));
-    LPC_PINCON->PINMODE3 |= (2 << ((21 - 16) * 2));	// no pullup/-down
+    LPC_PINCON->PINMODE3 |= (2 << ((21 - 16) * 2)); // no pullup/-down
     LPC_PINCON->PINSEL3 &= ~(3 << ((21 - 16) * 2)); // plain gpio
     LPC_GPIO1->FIODIR &= ~(1 << 21); // input
 
     // P1.23 - Enable charger (output, high active)
     LPC_PINCON->PINMODE3 &= ~(3 << ((23 - 16) * 2));
-    LPC_PINCON->PINMODE3 |= (2 << ((23 - 16) * 2));	// no pullup/-down
+    LPC_PINCON->PINMODE3 |= (2 << ((23 - 16) * 2)); // no pullup/-down
     LPC_PINCON->PINSEL3 &= ~(3 << ((23 - 16) * 2)); // plain gpio
     LPC_GPIO1->FIODIR |= (1 << 23); // output
     DISABLE_CHARGER();
@@ -49,13 +49,13 @@ void task_PowerMgmt(void *pvParameters)
                         /* https://hackaday.io/project/6717-project-landlord/discussion-58892 */
                         if (msg.measurement.lChargeCurrent != INT32_MIN) {
                             lChargeCurrent = msg.measurement.lChargeCurrent;
-                            printf("Charge I: %4umA\r\n", lChargeCurrent);
+                            printf("Charge I: %4lumA\r\n", lChargeCurrent);
                         }
                         if (msg.measurement.lBatteryVoltage != INT32_MIN) {
                             // orig fw: v16_batteryLowV = 237; - 23.7V (fixed point) - 3.386V per cell
                             // orig fw: v18_batteryFullCharge = 287; - 28.7V (fixed point) - 4.1V per cell
                             lBatteryVoltage = msg.measurement.lBatteryVoltage;
-                            printf("Battery U: %2u.%01uV\r\n", lBatteryVoltage / 10, lBatteryVoltage % 10);
+                            printf("Battery U: %2lu.%01luV\r\n", lBatteryVoltage / 10, lBatteryVoltage % 10);
                             if ((lBatteryVoltage < BATTERY_MIN_VOLTAGE) && !IS_CHARGER_CONNECTED()) { /* below 23.7V - switch off to protect battery! */
                                 /* issue shutdown to self */
                                 xPowerMgmtMsg msg;
@@ -77,10 +77,10 @@ void task_PowerMgmt(void *pvParameters)
                                 xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
                             }
                             if (lBatteryTemperature >= 0) {
-                                printf("Battery T: %3u.%01u%cC\r\n", lBatteryTemperature / 10, lBatteryTemperature % 10, '\xB0');
+                                printf("Battery T: %3lu.%01lu%cC\r\n", lBatteryTemperature / 10, lBatteryTemperature % 10, '\xB0');
                             } else {
                                 lBatteryTemperature = ~lBatteryTemperature;
-                                printf("Battery T: -%3u.%01u%cC\r\n", lBatteryTemperature / 10, lBatteryTemperature % 10, '\xB0');
+                                printf("Battery T: -%3lu.%01lu%cC\r\n", lBatteryTemperature / 10, lBatteryTemperature % 10, '\xB0');
                             }
 
                         }

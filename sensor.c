@@ -15,7 +15,7 @@
 
 
 EventGroupHandle_t xSensorEventGroup;
-xQueueHandle xBoundaryMsgQueue;
+xQueueHandle xDIGMsgQueue;
 TimerHandle_t xADCTriggerTimer;
 
 uint32_t ADC0;
@@ -92,7 +92,7 @@ void printAcc(int32_t acc);
 
 void ADC_IRQHandler(void)
 {
-    volatile uint32_t gdr;
+    //volatile uint32_t gdr;
     portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 
     LPC_ADC->ADCR &= ~(1 << 16);
@@ -111,16 +111,37 @@ void ADC_IRQHandler(void)
     return;
 }
 
+typedef enum {
+    DIG_POS_RAISING = 0,
+    DIG_POS_FALLING,
+    DIG_NEG_RAISING,
+    DIG_NEG_FALLING,
+} DIGEdge;
+
+typedef enum {
+    a = 0,
+    b,
+    c,
+    d,
+} DIGMux;
+
+typedef struct {
+    uint8_t id;
+    uint32_t time;
+    DIGMux mux;
+    DIGEdge edge;
+} MessageDIG;
 
 void EINT3_IRQHandler(void)
 {
     portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+    uint32_t timer = LPC_TIM2->TC; // Get µs counter
+
     NVIC_DisableIRQ(EINT3_IRQn);
 
-    uint32_t timer = LPC_TIM2->TC; // Get µs counter
     if (timer == 0) LPC_TIM2->TCR = 1; // start if 0
 
-    xQueueSendFromISR(xBoundaryMsgQueue, &timer, xHigherPriorityTaskWoken);
+    xQueueSendFromISR(xDIGMsgQueue, &timer, &xHigherPriorityTaskWoken);
 
     // also need muxing p0.21 & p0.22 for distance and left/right -> outside int in task-sensor
 
@@ -171,7 +192,7 @@ void task_Sensor(void *pvParameters)
 {
     xSensorEventGroup = xEventGroupCreate();
 
-    xBoundaryMsgQueue = xQueueCreate(20, sizeof(uint32_t));
+    xDIGMsgQueue = xQueueCreate(10, sizeof(MessageDIG));
 
     vTaskDelay(xDelay10);
 
@@ -296,7 +317,7 @@ void task_Sensor(void *pvParameters)
             xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
         }
         if (event & BIT_DIG_INT) {
-            printf("DIG %u\r\n", uxQueueMessagesWaiting(xBoundaryMsgQueue));
+            printf("DIG %ld\r\n", uxQueueMessagesWaiting(xDIGMsgQueue));
         }
 #if LOWSTACKWARNING
         int stack = uxTaskGetStackHighWaterMark(NULL);
@@ -313,9 +334,9 @@ int32_t convertAcc(uint16_t adc)
 void printAcc(int32_t acc)
 {
     if (acc >= 0) {
-        printf(" %01d.%03u\r\n", acc / 1000, acc % 1000);
+        printf(" %01ld.%03lu\r\n", acc / 1000, acc % 1000);
     } else {
         acc = ~acc;
-        printf("-%01d.%03u\r\n", acc / 1000, acc % 1000);
+        printf("-%01ld.%03lu\r\n", acc / 1000, acc % 1000);
     }
 }

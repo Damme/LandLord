@@ -44,7 +44,8 @@ SIZE:=$(GCCPATH)/bin/arm-none-eabi-size
 # Common flags
 COMMON_FLAGS = -mthumb -mcpu=$(MCPU)
 COMMON_FLAGS += -g
-COMMON_FLAGS += -Wall -I. -I$(SYSINC) -I$(U8GPATH) -I$(FREERTOSPATH) -I$(FREERTOSGCCPATH)
+COMMON_FLAGS += -Wall -Wno-unknown-pragmas
+COMMON_FLAGS += -I. -I$(SYSINC) -I$(U8GPATH) -I$(FREERTOSPATH) -I$(FREERTOSGCCPATH)
 # default stack size is 0x0c00
 COMMON_FLAGS += -D__STACK_SIZE=0x0a00 -DdebugPrintf -DLOWSTACKWARNING
 COMMON_FLAGS += -Os -flto

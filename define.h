@@ -2,14 +2,22 @@
 #define DEFINES_H
 
 #include <stdint.h>
+#include "LPC17xx.h"
 
+
+#define DO_PRAGMA(x) _Pragma (#x)
+#define TODO(x) DO_PRAGMA(message ("TODO - " #x))
+//Usage : TODO("stuff")
+
+/*
 #if __GNUC__
-    #pragma message ("Using GNUC compiler")
+    TODO("Using GNUC compiler")
 #endif
 
 #if __KEIL__
-    #pragma message ("Using KEIL compiler")
+    TODO("Using KEIL compiler")
 #endif
+*/
 
 #define mainQUEUE_LENGTH          ( 10 )
 
@@ -54,6 +62,38 @@
 
 #define PIN(n) ((uint32_t)(1 << (n)))
 #define BIT(n) ((uint32_t)(1 << (n)))
+
+
+
+typedef struct gpioPin_s {
+    LPC_GPIO_TypeDef * addr;
+    uint8_t bit;
+} gpioPin_t;
+
+#define GPIO_TYPE(addr, pin)   ((gpioPin_t) { ((LPC_GPIO_TypeDef *)(addr)), ((uint8_t)(pin)) })
+
+#define GPIO_PIN(gpio)      ((gpio.addr)->FIOPIN)
+#define GPIO_DIR(gpio)      ((gpio.addr)->FIODIR)
+#define GPIO_BIT(gpio)      ((uint32_t)(1 << gpio.bit))
+#define GPIO_PINNR(gpio)    ((uint32_t)gpio.bit)
+
+#define GPIO_DIR_OUT(gpio)       ((GPIO_DIR(gpio)) |= (GPIO_BIT(gpio)))
+#define GPIO_DIR_IN(gpio)        ((GPIO_DIR(gpio)) &= ~(GPIO_BIT(gpio)))
+
+#define GPIO_SET_PIN(gpio)       ((GPIO_PIN(gpio)) |= (GPIO_BIT(gpio)))
+#define GPIO_CLR_PIN(gpio)       ((GPIO_PIN(gpio)) &= ~(GPIO_BIT(gpio)))
+#define GPIO_TGL_PIN(gpio)       ((GPIO_PIN(gpio)) ^= (GPIO_BIT(gpio)))
+#define GPIO_CHK_PIN(gpio)       ((GPIO_PIN(gpio)) & (GPIO_BIT(gpio)))
+
+#define GPIO_SET_PIN_VAL(gpio,val)   ( (GPIO_PIN(gpio)) ^= (-val ^ (GPIO_PIN(gpio)) ) & (GPIO_BIT(gpio)))
+
+#define LCD_BACKLIGHT      (GPIO_TYPE(LPC_GPIO1, 20U))
+
+#define LCD_A0             (GPIO_TYPE(LPC_GPIO0, 20U))
+#define LCD_RSTB           (GPIO_TYPE(LPC_GPIO0, 19U))
+#define LCD_SDA            (GPIO_TYPE(LPC_GPIO0, 18U))
+#define LCD_CSB            (GPIO_TYPE(LPC_GPIO0, 16U))
+#define LCD_SCLK           (GPIO_TYPE(LPC_GPIO0, 15U))
 
 
 /* Advanced define with if...

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "lcd.h"
 #include "screen.h"
 #include "define.h"
@@ -56,17 +57,18 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
 
         case U8G_COM_MSG_ADDRESS:                     /* define cmd (arg_val = 0) or data mode (arg_val = 1) */
             //u8g_10MicroDelay();
-            if (arg_val) { LPC_GPIO0->FIOSET = (1 << a0); } else { LPC_GPIO0->FIOCLR = (1 << a0); }
+            GPIO_SET_PIN_VAL(LCD_A0, arg_val);
             u8g_MicroDelay();
             break;
 
         case U8G_COM_MSG_CHIP_SELECT:
-            if (!arg_val) { LPC_GPIO0->FIOSET = (1 << csb); } else { LPC_GPIO0->FIOCLR = (1 << csb); }
+            GPIO_SET_PIN_VAL(LCD_CSB, arg_val);
+
             u8g_MicroDelay();
             break;
 
         case U8G_COM_MSG_RESET:
-            if (arg_val) { LPC_GPIO0->FIOSET = (1 << rstb); } else { LPC_GPIO0->FIOCLR = (1 << rstb); }
+            GPIO_SET_PIN_VAL(LCD_RSTB, arg_val);
             u8g_MicroDelay();
             break;
 
@@ -94,8 +96,12 @@ void task_LCD(void *pvParameters)
     xLastTime = xTaskGetTickCount();
 
     // Configure LCD backligt
-    LPC_GPIO1->FIODIR |= PIN(20);               // P1.20 output mode.
-    LPC_GPIO1->FIOPIN |= PIN(20);               // p1.20 LCD backlight ON
+    GPIO_DIR_OUT(LCD_BACKLIGHT);
+    GPIO_SET_PIN(LCD_BACKLIGHT);
+
+    GPIO_DIR_OUT(LCD_RSTB);
+    GPIO_DIR_OUT(LCD_CSB);
+    GPIO_DIR_OUT(LCD_A0);
 
     // Configure Timer1 used for µs delay in lcd
     LPC_SC->PCONP |= PCONP_PCTIM1;              // power up Timer (def on)
@@ -104,10 +110,6 @@ void task_LCD(void *pvParameters)
     // Configure SPI (LCD)
     LPC_SC->PCONP |= PCONP_PCSPI;               // power up SPI
     LPC_SC->PCLKSEL0 |= PCLK_SPI(CCLK_DIV1);    // set SPI CCLK
-
-    LPC_GPIO0->FIODIR |= PIN(rstb);             // p0.19 output mode.
-    LPC_GPIO0->FIODIR |= PIN(csb);              // p0.16 output mode.
-    LPC_GPIO0->FIODIR |= PIN(a0);               // p0.20 output mode.
 
     LPC_PINCON->PINSEL0 |= ((uint32_t)3 << 30); // p0.15 -> sck
     LPC_PINCON->PINSEL1 |= (0xc | 0x30);        // p0.17 & p0.18 miso / mosi (no miso??)

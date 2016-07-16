@@ -46,37 +46,36 @@ static void task_DigitalTest(void *pvParameters)
     // Configure LCD backligt
     LPC_GPIO1->FIODIR |= PIN(20);               // P1.20 output mode.
     LPC_GPIO1->FIOSET |= PIN(20);               // p1.20 LCD backlight ON
+    /*
+        LPC_GPIO0->FIODIR |= PIN(18);               // p0.20 output mode.
+        LPC_GPIO0->FIODIR |= PIN(19);               // p0.20 output mode.
+        LPC_GPIO0->FIODIR |= PIN(20);               // p0.20 output mode.
 
-    LPC_GPIO0->FIODIR |= PIN(18);               // p0.20 output mode.
-    LPC_GPIO0->FIODIR |= PIN(19);               // p0.20 output mode.
-    LPC_GPIO0->FIODIR |= PIN(20);               // p0.20 output mode.
+        LPC_PINCON->PINSEL0 &= ~((uint32_t)3 << 30);
+        LPC_PINCON->PINSEL1 &= ~(3 << 0);
+        LPC_PINCON->PINSEL1 &= ~(3 << 4);
+        LPC_PINCON->PINSEL1 &= ~(3 << 6);
+        LPC_PINCON->PINSEL1 &= ~(3 << 8);
 
-    LPC_PINCON->PINSEL0 &= ~((uint32_t)3 << 30);
-    LPC_PINCON->PINSEL1 &= ~(3 << 0);
-    LPC_PINCON->PINSEL1 &= ~(3 << 4);
-    LPC_PINCON->PINSEL1 &= ~(3 << 6);
-    LPC_PINCON->PINSEL1 &= ~(3 << 8);
-
-    LPC_PINCON->PINMODE1 &= ~(3 << 4);
-    LPC_PINCON->PINMODE1 |= (2 << 4);
-    LPC_PINCON->PINMODE1 &= ~(3 << 6);
-    LPC_PINCON->PINMODE1 |= (2 << 6);
-    LPC_PINCON->PINMODE1 &= ~(3 << 8);
-    LPC_PINCON->PINMODE1 |= (2 << 8);
-
+        LPC_PINCON->PINMODE1 &= ~(3 << 4);
+        LPC_PINCON->PINMODE1 |= (2 << 4);
+        LPC_PINCON->PINMODE1 &= ~(3 << 6);
+        LPC_PINCON->PINMODE1 |= (2 << 6);
+        LPC_PINCON->PINMODE1 &= ~(3 << 8);
+        LPC_PINCON->PINMODE1 |= (2 << 8);
+    */
     for (;;) {
-        LPC_GPIO1->FIOCLR |= PIN(20);               // p1.20 LCD backlight OFF
+        GPIO_SET_PIN(LCD_BACKLIGHT);
+        vTaskDelay(xDelay500);
+        GPIO_SET_PIN(LCD_BACKLIGHT);
+        vTaskDelay(xDelay500);
+
+        GPIO_SET_PIN(LCD_BACKLIGHT);
         vTaskDelay(xDelay200);
-        LPC_GPIO1->FIOSET |= PIN(20);               // p1.20 LCD backlight ON
-        LPC_GPIO0->FIOSET |= PIN(18);                           // WAHRSCHEINLICH pin 6 auf JST GHR-08V-S
-        LPC_GPIO0->FIOSET |= PIN(19);                           // pin 3 auf JST GHR-08V-S
-        LPC_GPIO0->FIOSET |= PIN(20);                           // pin 4 auf JST GHR-08V-S
-        vTaskDelay(xDelay100);
-        LPC_GPIO0->FIOCLR |= PIN(18);
-        vTaskDelay(xDelay100);
-        LPC_GPIO0->FIOCLR |= PIN(19);
-        vTaskDelay(xDelay100);
-        LPC_GPIO0->FIOCLR |= PIN(20);
+        GPIO_SET_PIN(LCD_BACKLIGHT);
+        vTaskDelay(xDelay200);
+
+
     }
 }
 
@@ -87,10 +86,12 @@ int main(void)
     SystemCoreClockUpdate();
     SystemSetupStuff();
 
+
+
     xQueue = xQueueCreate(mainQUEUE_LENGTH, sizeof(unsigned long));
 
     if (xQueue != NULL) {
-        //        xTaskCreate(task_DigitalTest, "Digital", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
+        //xTaskCreate(task_DigitalTest, "Digital", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
         xTaskCreate(task_Keypad, "Keypad", configMINIMAL_STACK_SIZE, NULL, 6, NULL);
 #if DEBUGCONSOLE
         xTaskCreate(task_Console, "Console", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
@@ -98,7 +99,7 @@ int main(void)
         xTaskCreate(task_LCD, "LCD", 1024, NULL, 8, NULL);
 #endif
         xTaskCreate(task_Sensor, "Sensor", 256, NULL, 5, NULL);
-        xTaskCreate(task_PowerMgmt, "PowerMgmt", 128, NULL, 5, NULL);
+        xTaskCreate(task_PowerMgmt, "PowerMgmt", 160, NULL, 5, NULL);
         xTaskCreate(task_MotorCtrl, "MotorCtrl", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 
         vTaskStartScheduler();
