@@ -127,19 +127,59 @@ void lcdPrintDebug() {
 */
 
     if (keypad_GetKey() == KEY1 && !keypressed) {
-/*#define TESTTEST       (GPIO_TYPE(PORT_3, PIN_11, FUNC_0, 0)) // watchdog?
-        GPIO_DIR_OUT(TESTTEST);
-        GPIO_TGL_PIN(TESTTEST);
-*/
         keypressed = true;
+        // TODO : Fix pwm!
+        
+        GPIO_PIN_FNC(LCD_BACKLIGHT_PWM);
+        //LPC_IOCON->P2_1 &= ~(3 << 0);
+        //LPC_IOCON->P2_1 |= (1 << 0);
+        // mr0 = 1000 pr = 59 : ~1001 hz
+        // mr0 = 1000 pr = 12 : ~4635 hz
+        // mr0 = 1000 pr = 5 : ~10024 hz
+        // mr0 = 1000 pr = 2 : ~20048 hz
+        a1=12;
+        LPC_PWM1->MR0 = 1000;
+        LPC_PWM1->MR2 = 0x90;
+        LPC_PWM1->PR = a1;
+        pwmtest=0x90;
+
+// Interrupts: See registers PWMMCR (Table 557) and PWMCCR (Table 558) for match
+// and capture events. Interrupts are enabled in the NVIC using the appropriate Interrupt
+// Set Enable register.
+        
+        LPC_PWM1->LER |= (1 << 0) | (1 << 2); //Enable PWM Match 0 Latch | Enable PWM Match 2 Latch
+        LPC_PWM1->PCR |= (1 << 10); // PWMENA2
+        LPC_PWM1->MCR |= (1 << 1); // PWMMR0R
+        LPC_PWM1->TCR |= (1 << 0) | (1 << 3); // Counter Enable | PWM Enable
     }
+
     if (keypad_GetKey() == KEY2 && !keypressed) {
         keypressed = true;
-        printf("Key 2!\n");
+        pwmtest = pwmtest + 25;
+        if (pwmtest > 1000) pwmtest = 1000;
+        //ADC5=pwmtest;
+        LPC_PWM1->MR0 = 1000;
+    	LPC_PWM1->MR2 = pwmtest;
+	    LPC_PWM1->PR = a1;
+	    LPC_PWM1->LER |= (1<<0)|(1<<2);
+	    LPC_PWM1->TCR |= (1<<1);
+	    LPC_PWM1->TCR &= ~(1<<1);
     }
+
     if (keypad_GetKey() == KEY3 && !keypressed) {
         keypressed = true;
+        pwmtest = pwmtest - 25;
+        if (pwmtest < 0) pwmtest = 0;
+        //ADC5=pwmtest;
+        //ADC6=a1;
+        LPC_PWM1->MR0 = 1000;
+    	LPC_PWM1->MR2 = pwmtest;
+	    LPC_PWM1->PR = a1;
+	    LPC_PWM1->LER |= (1<<0)|(1<<2);
+	    LPC_PWM1->TCR |= (1<<1);
+	    LPC_PWM1->TCR &= ~(1<<1);
     }
+
     
     if (keypad_GetKey() == KEY4 && !keypressed) {
         keypressed = true;
