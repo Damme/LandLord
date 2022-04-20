@@ -10,7 +10,7 @@ int32_t lMotorLeftCurrent;
 int32_t lMotorRightCurrent;
 int32_t lSpindleCurrent;
 
-void task_MotorCtrl(void *pvParameters)
+void motorCtrl_Task(void *pvParameters)
 {
     xMotorCtrlMsgQueue = xQueueCreate(20, sizeof(xMotorCtrlMsg));
     lMotorLeftCurrent = INT32_MIN;

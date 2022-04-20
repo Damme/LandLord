@@ -3,6 +3,6 @@
 
 #include "FreeRTOS.h"
 
-void task_Sensor(void *pvParameters);
+void sensor_Task(void *pvParameters);
 
 #endif // SENSOR_H

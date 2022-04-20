@@ -26,8 +26,8 @@ typedef struct currentDisp_s {
     uint8_t value;
 } currentDisp_t;
 
-void LCDInit(void);
-void lcdUpdate(void);
+void LCD_Init(void);
+void LCD_Update(void);
 void testfunc(void);
 void motortest(void);
 

@@ -12,10 +12,20 @@ LDSCRIPTDIR:=$(SYSINC)
 SRC:=$(wildcard *.c)
 MCPU:=cortex-m3
 
-STARTUP:=$(wildcard $(SYSINC)/gcc*.S)
+ifeq ($(cpu),1788)
+	TARGETCPU:=LPC177x_8x
+else
+	TARGETCPU:=LPC175x_6x
+endif
 
-SYSSRC:=$(wildcard $(LDSCRIPTDIR)/*.c)
-LDSCRIPT:=$(wildcard $(LDSCRIPTDIR)/*.ld)
+SYSSRC:=$(wildcard $(SYSINC)/*.c)
+SYSCPUSRC:=$(wildcard $(SYSINC)/$(TARGETCPU)/*.c)
+STARTUP:=$(SYSINC)/$(TARGETCPU)/gcc_startup_$(TARGETCPU).S
+LDSCRIPT:=$(LDSCRIPTDIR)/$(TARGETCPU)/$(TARGETCPU).ld
+
+#ifndef cpu
+#	cpu=lpc1768
+#endif
 
 #================================================
 # Main part of the Makefile starts here. Usually no changes are needed.
@@ -30,7 +40,7 @@ BINNAME:=$(TARGETNAME).bin
 HEXNAME:=$(TARGETNAME).hex
 DISNAME:=$(TARGETNAME).dis
 MAPNAME:=$(TARGETNAME).map
-OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(FREETROSSRC:.c=.o) $(FREETROSGCCSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
+OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(SYSCPUSRC:.c=.o) $(FREETROSSRC:.c=.o) $(FREETROSGCCSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
 OBJSMALL:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(STARTUP:.S=.o)
 
 # Replace standard build tools by avr tools
@@ -45,9 +55,9 @@ SIZE:=$(GCCPATH)/bin/arm-none-eabi-size
 COMMON_FLAGS = -mthumb -mcpu=$(MCPU)
 COMMON_FLAGS += -g
 COMMON_FLAGS += -Wall -Wno-unknown-pragmas
-COMMON_FLAGS += -I. -I$(SYSINC) -I$(U8GPATH) -I$(FREERTOSPATH) -I$(FREERTOSGCCPATH)
+COMMON_FLAGS += -I. -I$(SYSINC) -I$(SYSINC)/$(TARGETCPU) -I$(U8GPATH) -I$(FREERTOSPATH) -I$(FREERTOSGCCPATH)
 # default stack size is 0x0c00
-COMMON_FLAGS += -D__STACK_SIZE=0x0a00 -DdebugPrintf -DLOWSTACKWARNING
+COMMON_FLAGS += -D__STACK_SIZE=0x0a00 -DdebugPrintf -DLOWSTACKWARNING -D$(TARGETCPU)
 COMMON_FLAGS += -Os -flto
 COMMON_FLAGS += -ffunction-sections -fdata-sections
 # Assembler flags
@@ -79,6 +89,13 @@ all: $(DISNAME) $(HEXNAME) $(BINNAME)
 	@echo -e "\e[0m"
 #	cp $(BINNAME) /cygdrive/c/Prog/Dev/openOCD/share/openocd/scripts/main.bin
 
+test:
+	@echo -e "This is a test... $@ cpu is $(TARGETCPU)"
+
+.PHONY: help
+help:
+	@echo -e "This is (no) help..."
+
 .PHONY: upload
 upload: $(DISNAME) $(HEXNAME) $(ELFNAME)
 #	$(FLASHTOOL) HEXFILE\($(HEXNAME),NOCHECKSUMS,FILL,PROTECTISP\) COM\(5,38400\) DEVICE\($(FLASHMAGICDEVICE),12.000,0\)
@@ -96,7 +113,7 @@ cleansmall:
 # implicit rules
 %.o: %.c
 	@echo -e "\e[1;37mCC \e[0m$< > $@\e[1;33m"
-	@$(CC) $(CFLAGS) -c -o $@ $< 2>&1
+	$(CC) $(CFLAGS) -c -o $@ $< 2>&1
 # | sed -e 's/error/\\e[1;31merror\\e[0m/g' -e 's/warning/\\e[1;33mwarning\\e[0m/g'
 
 .S.o:
@@ -114,7 +131,7 @@ cleansmall:
 # explicit rules
 $(ELFNAME): $(OBJ)
 	@echo -e "\e[1;37mLINKING \e[0m*.o > $@\e[1;37m"
-	@$(LINK.o) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
+	$(LINK.o) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 $(DISNAME): $(ELFNAME)
 	@$(OBJDUMP) -S $< > $@

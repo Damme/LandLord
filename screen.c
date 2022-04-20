@@ -1,7 +1,8 @@
 #include "screen.h"
-#include "define.h"
+#include "common.h"
 #include <stdio.h>
 #include <string.h>
+#include "global.h"
 
 char buffer[50];
 
@@ -15,12 +16,16 @@ const menuItem_t M0;
 const menuItem_t M1;
 const menuItem_t M2;
 
+uint32_t counter = 0;
+
 currentDisp_t currentDisplay;
 
-void LCDInit(void)
-{
+int pwmtest, a1, a2, a3, a4, a5, a6, a7, a8, a9 = 0;
+bool keypressed = false; // move to keypad and implement repeat key?
+
+void LCD_Init(void) {
     u8g_InitComFn(&u8g, &u8g_dev_st7565_nhd_c12864_2x_hw_spi, u8g_com_hw_spi_fn);
-    u8g_SetContrast(&u8g, 4);
+    u8g_SetContrast(&u8g, LCD_CONTRAST);
     u8g_SetDefaultBackgroundColor(&u8g);
     u8g_SetRot180(&u8g);
     u8g_FirstPage(&u8g);
@@ -29,50 +34,142 @@ void LCDInit(void)
     u8g_SetDefaultForegroundColor(&u8g);
 }
 
-void lcdPrintDebug()
-{
+void lcdPrintDebug() {
     uint8_t i;
     u8g_SetDefaultBackgroundColor(&u8g);
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-    //    sprintf(buffer, "Kdn:%u d1:%u d2:%u d3:%u d4:%u", keypadGetKey(), debug1, debug2, debug3, debug4);
+    //    sprintf(buffer, "Kdn:%u d1:%u d2:%u d3:%u d4:%u", keypad_GetKey(), debug1, debug2, debug3, debug4);
     // binary debug
-    u8g_DrawStr(&u8g,  0, 10, buffer);
-    u8g_DrawStr(&u8g,  0, 20, "01234567890123456789012345678901");
+    //u8g_DrawStr(&u8g,  0, 10, buffer);
     for (i = 0 ; i < 32 ; i++) {
-        if ((LPC_GPIO0->FIOPIN >> i) & 1) {
+        if ((LPC_GPIO0->PIN >> i) & 1) {
             buffer[i] = 0x31;
         } else {
-            buffer[i] = 0x30;
+            buffer[i] = 0x2e;
+        }
+    }
+    buffer[32] = 0x0;
+    u8g_DrawStr(&u8g,  0, 10, buffer);
+    for (i = 0 ; i < 32 ; i++) {
+        if ((LPC_GPIO1->PIN >> i) & 1) {
+            buffer[i] = 0x31;
+        } else {
+            buffer[i] = 0x2e;
+        }
+    }
+    buffer[32] = 0x0;
+    u8g_DrawStr(&u8g,  0, 20, buffer);
+    for (i = 0 ; i < 32 ; i++) {
+        if ((LPC_GPIO2->PIN >> i) & 1) {
+            buffer[i] = 0x31;
+        } else {
+            buffer[i] = 0x2e;
         }
     }
     buffer[32] = 0x0;
     u8g_DrawStr(&u8g,  0, 30, buffer);
     for (i = 0 ; i < 32 ; i++) {
-        if ((LPC_GPIO1->FIOPIN >> i) & 1) {
+        if ((LPC_GPIO3->PIN >> i) & 1) {
             buffer[i] = 0x31;
         } else {
-            buffer[i] = 0x30;
+            buffer[i] = 0x2e;
         }
     }
     buffer[32] = 0x0;
     u8g_DrawStr(&u8g,  0, 40, buffer);
     for (i = 0 ; i < 32 ; i++) {
-        if ((LPC_GPIO2->FIOPIN >> i) & 1) {
+        if ((LPC_GPIO4->PIN >> i) & 1) {
+            buffer[i] = 0x31;
+        } else {
+            buffer[i] = 0x2e;
+        }
+    }
+    buffer[32] = 0x0;
+#ifdef LPC177x_8x // DB504
+    u8g_DrawStr(&u8g,  0, 50, buffer);
+    for (i = 0 ; i < 4 ; i++) {
+        if ((LPC_GPIO5->PIN >> i) & 1) {
+            buffer[i] = 0x31;
+        } else {
+            buffer[i] = 0x2e;
+        }
+    }
+    buffer[5] = 0x0;
+    u8g_DrawStr(&u8g,  0, 60, buffer);
+#endif
+/*
+    sprintf(buffer, "c: %i 0x%.8lx", counter, keypad_GetKey());
+    u8g_DrawStr(&u8g,  0, 50, buffer);
+    counter++;
+    
+    //#define KEYPAD_POWER2       (GPIO_TYPE(PORT_1, PIN_28, FUNC_0, 0))
+    uint32_t t1, t2, t3;
+/*
+    GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLDOWN);
+    vTaskDelay(xDelay25);
+    t1 = LPC_PINCON->PINMODE2;
+    
+    GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLUP);
+    vTaskDelay(xDelay25);
+    t2 = LPC_PINCON->PINMODE2;
+
+    GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLDOWN);
+    vTaskDelay(xDelay25);
+    t3 = LPC_PINCON->PINMODE2;
+  
+  */  
+    
+/*    sprintf(buffer, "0x%.8lx 0x%.8lx 0x%.8lx", 0, keypad_GetState(), keypad_GetTime());
+    u8g_DrawStr(&u8g,  0, 60, buffer);
+    // allt på port 1 0x%.8lx
+*/
+
+    if (keypad_GetKey() == KEY1 && !keypressed) {
+/*#define TESTTEST       (GPIO_TYPE(PORT_3, PIN_11, FUNC_0, 0)) // watchdog?
+        GPIO_DIR_OUT(TESTTEST);
+        GPIO_TGL_PIN(TESTTEST);
+*/
+        keypressed = true;
+    }
+    if (keypad_GetKey() == KEY2 && !keypressed) {
+        keypressed = true;
+        printf("Key 2!\n");
+    }
+    if (keypad_GetKey() == KEY3 && !keypressed) {
+        keypressed = true;
+    }
+    
+    if (keypad_GetKey() == KEY4 && !keypressed) {
+        keypressed = true;
+    }
+    if (keypad_GetKey() == KEY5 && !keypressed) {
+        keypressed = true;
+    }
+
+    if (keypad_GetKey() == KEY6 && !keypressed) {
+        keypressed = true;
+    }
+    
+    /*
+
+    for (i = 0 ; i < 32 ; i++) {
+        if ((LPC_GPIO4->PIN >> i) & 1) {
             buffer[i] = 0x31;
         } else {
             buffer[i] = 0x30;
         }
         if (i >= 14) buffer[i] = 0x5f;
 
-        if (i == 20) buffer[i] = ((LPC_GPIO3->FIOPIN >> 25) & 1) ? 0x31 : 0x30;
-        if (i == 21) buffer[i] = ((LPC_GPIO3->FIOPIN >> 26) & 1) ? 0x31 : 0x30;
-        if (i == 23) buffer[i] = ((LPC_GPIO4->FIOPIN >> 28) & 1) ? 0x31 : 0x30;
-        if (i == 24) buffer[i] = ((LPC_GPIO4->FIOPIN >> 29) & 1) ? 0x31 : 0x30;
+        if (i == 20) buffer[i] = ((LPC_GPIO4->PIN >> 25) & 1) ? 0x31 : 0x30;
+        if (i == 21) buffer[i] = ((LPC_GPIO4->PIN >> 26) & 1) ? 0x31 : 0x30;
+        if (i == 23) buffer[i] = ((LPC_GPIO4->PIN >> 28) & 1) ? 0x31 : 0x30;
+        if (i == 24) buffer[i] = ((LPC_GPIO4->PIN >> 29) & 1) ? 0x31 : 0x30;
     }
     buffer[32] = 0x0;
-    u8g_DrawStr(&u8g,  0, 48, buffer);
+    */
+    //u8g_DrawStr(&u8g,  0, 48, buffer);
 
     /*
         sprintf(buffer, "A");
@@ -92,20 +189,109 @@ void lcdPrintDebug()
     */
 }
 
-void lcdPrintSensor()
-{
+void lcdPrintSensor() {
+    xSensorMsgType sensor;
+    xQueuePeek(xSensorQueue, &sensor, 0);
+
     u8g_SetDefaultBackgroundColor(&u8g);
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-    //    sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
-    u8g_DrawStr(&u8g,  0, 10, buffer);
+    //sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
+    //sprintf(buffer, "%ld %ld %ld", ADC[0], ADC[1], ADC[2]);
+    //u8g_DrawStr(&u8g,  0, 10, buffer);
+    
+    //sprintf(buffer, "%ld %ld %ld", ADC[3], ADC[4], ADC[5]);
+    //sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
+    //u8g_DrawStr(&u8g,  0, 20, buffer);
+    
+    //sprintf(buffer, "%ld %ld", ADC[6], ADC[7]);
+    //sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
+    //u8g_DrawStr(&u8g,  0, 30, buffer);
+    
+    
+    sprintf(buffer, "Battery: %iC %imV %imA", sensor.batteryTemp, sensor.batteryVolt, sensor.batteryChargeCurrent);
+    u8g_DrawStr(&u8g,  0, 50, buffer);
 
-    //    sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
-    u8g_DrawStr(&u8g,  0, 20, buffer);
 
-    //    sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
-    u8g_DrawStr(&u8g,  0, 30, buffer);
+    /*sprintf(buffer, "0x%.8lx %ic %iv", TESTADC1, TESTADC2, (ADC[6]/131));
+    u8g_DrawStr(&u8g,  0, 60, buffer);
+*/
+
+    if (keypad_GetKey() == KEY0 && !keypressed) {
+    //    pwmtest = 0;
+        keypressed = true;
+        GPIO_TGL_PIN(LCD_BACKLIGHT);
+        //*pwmPort = pwmtest;
+        //LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
+
+
+
+    }
+    if (keypad_GetKey() == KEY1 && !keypressed) {
+        keypressed = true;
+        // TODO : Fix pwm!
+        
+        GPIO_PIN_FNC(LCD_BACKLIGHT_PWM);
+        //LPC_IOCON->P2_1 &= ~(3 << 0);
+        //LPC_IOCON->P2_1 |= (1 << 0);
+        // mr0 = 1000 pr = 59 : ~1001 hz
+        // mr0 = 1000 pr = 12 : ~4635 hz
+        // mr0 = 1000 pr = 5 : ~10024 hz
+        // mr0 = 1000 pr = 2 : ~20048 hz
+        a1=12;
+        LPC_PWM1->MR0 = 1000;
+        LPC_PWM1->MR2 = 0x90;
+        LPC_PWM1->PR = a1;
+        pwmtest=0x90;
+
+// Interrupts: See registers PWMMCR (Table 557) and PWMCCR (Table 558) for match
+// and capture events. Interrupts are enabled in the NVIC using the appropriate Interrupt
+// Set Enable register.
+        
+        LPC_PWM1->LER |= (1 << 0) | (1 << 2); //Enable PWM Match 0 Latch | Enable PWM Match 2 Latch
+        LPC_PWM1->PCR |= (1 << 10); // PWMENA2
+        LPC_PWM1->MCR |= (1 << 1); // PWMMR0R
+        LPC_PWM1->TCR |= (1 << 0) | (1 << 3); // Counter Enable | PWM Enable
+    }
+
+    if (keypad_GetKey() == KEY2 && !keypressed) {
+        keypressed = true;
+        pwmtest = pwmtest + 25;
+        if (pwmtest > 1000) pwmtest = 1000;
+        //ADC5=pwmtest;
+        LPC_PWM1->MR0 = 1000;
+    	LPC_PWM1->MR2 = pwmtest;
+	    LPC_PWM1->PR = a1;
+	    LPC_PWM1->LER |= (1<<0)|(1<<2);
+	    LPC_PWM1->TCR |= (1<<1);
+	    LPC_PWM1->TCR &= ~(1<<1);
+    }
+
+    if (keypad_GetKey() == KEY3 && !keypressed) {
+        keypressed = true;
+        pwmtest = pwmtest - 25;
+        if (pwmtest < 0) pwmtest = 0;
+        //ADC5=pwmtest;
+        //ADC6=a1;
+        LPC_PWM1->MR0 = 1000;
+    	LPC_PWM1->MR2 = pwmtest;
+	    LPC_PWM1->PR = a1;
+	    LPC_PWM1->LER |= (1<<0)|(1<<2);
+	    LPC_PWM1->TCR |= (1<<1);
+	    LPC_PWM1->TCR &= ~(1<<1);
+    }
+    if (keypad_GetKey() == KEY5 && !keypressed) {
+        keypressed = true;
+        a1++;
+        //ADC6=a1;
+    }
+    if (keypad_GetKey() == KEY6 && !keypressed) {
+        keypressed = true;
+        a1--;
+        //ADC6=a1;
+    }
+
 }
 
 const listItem_t mainMenuList[7] = {
@@ -132,13 +318,12 @@ const menuItem_t M0 = {/*0, SCREEN,*/ "Boot", menuBootfnc, NULL};
 const menuItem_t M1 = {/*1, SCREEN,*/ "WARNING!", menuBootWarnfnc, NULL};
 const menuItem_t M2 = {/*1, SCREEN,*/ "Main", menuListfnc, &mainMenuList};
 
-currentDisp_t currentDisplay = {&M0, NULL, NULL, 0};
+currentDisp_t currentDisplay = {&M2, &lcdPrintDebug, NULL, 0}; // Startscreen
 
 uint8_t lcdCounter = 0;
-bool keypressed = false; // move to keypad and implement repeat key?
 
-void menuListfnc(void *ptr)
-{
+
+void menuListfnc(void *ptr) {
     uint8_t h, w, count;
     uint8_t *curItem;
 
@@ -150,15 +335,15 @@ void menuListfnc(void *ptr)
     count = 0;
     curItem = &currentDisplay.value;
 
-    if (keypadGetKey() == KEYDOWN && !keypressed) {
+    if (keypad_GetKey() == KEYDOWN && !keypressed) {
         if ((thisItem + *curItem + 1)->itemName != NULL)(*curItem)++;
         keypressed = true;
     }
-    if (keypadGetKey() == KEYUP && !keypressed) {
+    if (keypad_GetKey() == KEYUP && !keypressed) {
         if (*curItem != 0)(*curItem)--;
         keypressed = true;
     }
-    if (keypadGetKey() == KEYOK && !keypressed) {
+    if (keypad_GetKey() == KEYOK && !keypressed) {
         if ((thisItem + *curItem)->command != NULL) {
             currentDisplay.command = (thisItem + *curItem)->command;
         }
@@ -168,7 +353,7 @@ void menuListfnc(void *ptr)
         keypressed = true;
     }
 
-    //Hold down for repeated press  || (keypressed && keypadGetTime() % 2)
+    //Hold down for repeated press  || (keypressed && keypad_GetTime() % 2)
 
     while ((thisItem + count)->itemName != NULL) {
         u8g_SetDefaultForegroundColor(&u8g);
@@ -185,8 +370,7 @@ void menuListfnc(void *ptr)
 
 }
 
-void testfunc(void)
-{
+void testfunc(void) {
     // useful function! :P
 #ifdef debugPrintf
     printf("func! Parm: %u\r\n", (int)currentDisplay.parm); // check if null
@@ -195,10 +379,9 @@ void testfunc(void)
     currentDisplay.parm = NULL;
 }
 
-int pwmtest, a1, a2, a3, a4, a5, a6, a7, a8, a9 = 0;
 
-void motortest(void)
-{
+
+void motortest(void) {
     // useful function! :P
 
     int enb, brk, dir = 0;
@@ -206,61 +389,61 @@ void motortest(void)
 
     char tmp[2] = "";
 
-    if (keypadGetKey() == KEYSTART && !keypressed) {
+    if (keypad_GetKey() == KEYSTART && !keypressed) {
         keypressed = true;
 
         // test
-        LPC_GPIO0->FIODIR |= PIN(11);
-        LPC_GPIO1->FIODIR |= PIN(23);
+        LPC_GPIO0->DIR |= PIN(11);
+        LPC_GPIO1->DIR |= PIN(23);
     }
 
     if ((int)currentDisplay.parm == 1) {
         //Spindle
-        enbPort = (int*) &LPC_GPIO2->FIOPIN;
+        enbPort = (int*) &LPC_GPIO2->PIN;
         enb = PIN(13);
-        brkPort = (int*) &LPC_GPIO3->FIOPIN;
+        brkPort = (int*) &LPC_GPIO3->PIN;
         brk = PIN(25);
-        dirPort = (int*) &LPC_GPIO3->FIOPIN;
+        dirPort = (int*) &LPC_GPIO3->PIN;
         dir = PIN(26);
         pwmPort = (int*) &LPC_PWM1->MR3;
     }
     if ((int)currentDisplay.parm == 2) {
         //Left
-        enbPort = (int*) &LPC_GPIO2->FIOPIN;
+        enbPort = (int*) &LPC_GPIO2->PIN;
         enb = PIN(9);
-        brkPort = (int*) &LPC_GPIO2->FIOPIN;
+        brkPort = (int*) &LPC_GPIO2->PIN;
         brk = PIN(8);
-        dirPort = (int*) &LPC_GPIO0->FIOPIN;
+        dirPort = (int*) &LPC_GPIO0->PIN;
         dir = PIN(0);
         pwmPort = (int*) &LPC_PWM1->MR2;
     }
     if ((int)currentDisplay.parm == 3) {
         //Right
-        enbPort = (int*) &LPC_GPIO2->FIOPIN;
+        enbPort = (int*) &LPC_GPIO2->PIN;
         enb = PIN(4);
-        brkPort = (int*) &LPC_GPIO2->FIOPIN;
+        brkPort = (int*) &LPC_GPIO2->PIN;
         brk = PIN(5);
-        dirPort = (int*) &LPC_GPIO2->FIOPIN;
+        dirPort = (int*) &LPC_GPIO2->PIN;
         dir = PIN(6);
         pwmPort = (int*) &LPC_PWM1->MR1;
     }
 
 
-    if (keypadGetKey() == KEY0 && !keypressed) {
+    if (keypad_GetKey() == KEY0 && !keypressed) {
         pwmtest = 0;
         keypressed = true;
         *pwmPort = pwmtest;
         LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
     }
 
-    if (keypadGetKey() == KEYUP && !keypressed) {
+    if (keypad_GetKey() == KEYUP && !keypressed) {
         pwmtest = pwmtest + 50;
         if (pwmtest > 1000) pwmtest = 1000;
         keypressed = true;
         *pwmPort = pwmtest;
         LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
     }
-    if (keypadGetKey() == KEYDOWN && !keypressed) {
+    if (keypad_GetKey() == KEYDOWN && !keypressed) {
         pwmtest = pwmtest - 50;
         if (pwmtest < 0) pwmtest = 0;
         keypressed = true;
@@ -268,7 +451,7 @@ void motortest(void)
         LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
     }
 
-    if (keypadGetKey() == KEY1 && !keypressed) {
+    if (keypad_GetKey() == KEY1 && !keypressed) {
         keypressed = true;
         if (!a1) {
             a1 = 1;
@@ -279,7 +462,7 @@ void motortest(void)
         }
 
     }
-    if (keypadGetKey() == KEY2 && !keypressed) {
+    if (keypad_GetKey() == KEY2 && !keypressed) {
         keypressed = true;
         if (!a2) {
             a2 = 1;
@@ -290,7 +473,7 @@ void motortest(void)
         }
 
     }
-    if (keypadGetKey() == KEY3 && !keypressed) {
+    if (keypad_GetKey() == KEY3 && !keypressed) {
         keypressed = true;
         if (!a3) {
             a3 = 1;
@@ -302,27 +485,27 @@ void motortest(void)
     }
 
 
-    if (keypadGetKey() == KEY4 && !keypressed) {
+    if (keypad_GetKey() == KEY4 && !keypressed) {
         keypressed = true;
         if (!a4) {
             a4 = 1;
-            LPC_GPIO0->FIOPIN |= PIN(11);
+            LPC_GPIO0->PIN |= PIN(11);
         } else {
             a4 = 0;
-            LPC_GPIO0->FIOPIN &= ~PIN(11);
+            LPC_GPIO0->PIN &= ~PIN(11);
         }
     }
-    if (keypadGetKey() == KEY5 && !keypressed) {
+    if (keypad_GetKey() == KEY5 && !keypressed) {
         keypressed = true;
         if (!a5) {
             a5 = 1;
-            LPC_GPIO1->FIOPIN |= PIN(23);
+            LPC_GPIO1->PIN |= PIN(23);
         } else {
             a5 = 0;
-            LPC_GPIO1->FIOPIN &= ~PIN(23);
+            LPC_GPIO1->PIN &= ~PIN(23);
         }
     }
-    if (keypadGetKey() == KEY6 && !keypressed) {
+    if (keypad_GetKey() == KEY6 && !keypressed) {
         keypressed = true;
         if (!a6) {
             a6 = 1;
@@ -331,7 +514,7 @@ void motortest(void)
         }
     }
 
-    if (keypadGetKey() == KEY7 && !keypressed) {
+    if (keypad_GetKey() == KEY7 && !keypressed) {
         keypressed = true;
         if (!a7) {
             a7 = 1;
@@ -339,7 +522,7 @@ void motortest(void)
             a7 = 0;
         }
     }
-    if (keypadGetKey() == KEY8 && !keypressed) {
+    if (keypad_GetKey() == KEY8 && !keypressed) {
         keypressed = true;
         if (!a7) {
             a8 = 1;
@@ -347,7 +530,7 @@ void motortest(void)
             a8 = 0;
         }
     }
-    if (keypadGetKey() == KEY9 && !keypressed) {
+    if (keypad_GetKey() == KEY9 && !keypressed) {
         keypressed = true;
         if (!a9) {
             a9 = 1;
@@ -361,17 +544,17 @@ void motortest(void)
     u8g_DrawStr(&u8g,  0, (8 * 2), buffer);
 
     tmp[1] = 0x0;
-    tmp[0] = ((LPC_GPIO0->FIOPIN >> 10) & 1) ? 0x31 : 0x30;
+    tmp[0] = ((LPC_GPIO0->PIN >> 10) & 1) ? 0x31 : 0x30;
     sprintf(buffer, "p0.10: %s", tmp);
-    tmp[0] = ((LPC_GPIO0->FIOPIN >> 27) & 1) ? 0x31 : 0x30;
+    tmp[0] = ((LPC_GPIO0->PIN >> 27) & 1) ? 0x31 : 0x30;
     sprintf(buffer + strlen(buffer), " - p0.27: %s", tmp);
     u8g_DrawStr(&u8g,  0, (8 * 3), buffer);
 
-    tmp[0] = ((LPC_GPIO0->FIOPIN >> 7) & 1) ? 0x31 : 0x30;
+    tmp[0] = ((LPC_GPIO0->PIN >> 7) & 1) ? 0x31 : 0x30;
     sprintf(buffer, "p0.7: %s", tmp);
-    tmp[0] = ((LPC_GPIO0->FIOPIN >> 8) & 1) ? 0x31 : 0x30;
+    tmp[0] = ((LPC_GPIO0->PIN >> 8) & 1) ? 0x31 : 0x30;
     sprintf(buffer + strlen(buffer), " - p0.8: %s", tmp);
-    tmp[0] = ((LPC_GPIO0->FIOPIN >> 9) & 1) ? 0x31 : 0x30;
+    tmp[0] = ((LPC_GPIO0->PIN >> 9) & 1) ? 0x31 : 0x30;
     sprintf(buffer + strlen(buffer), " - p0.9 %s", tmp);
     u8g_DrawStr(&u8g,  0, (8 * 4), buffer);
 
@@ -395,10 +578,10 @@ void motortest(void)
         sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
         u8g_DrawStr(&u8g,  0, (8 * 8), buffer);
     */
+
 }
 
-void menuBootfnc(void)
-{
+void menuBootfnc(void) {
     lcdCounter++;
     if (lcdCounter > 100) {
         currentDisplay.selected = &M1;
@@ -408,8 +591,7 @@ void menuBootfnc(void)
     }
 }
 
-void menuBootWarnfnc(void)
-{
+void menuBootWarnfnc(void) {
     uint8_t h;
     //             12345678901234567890123456789012
 
@@ -431,7 +613,7 @@ void menuBootWarnfnc(void)
     u8g_DrawStr(&u8g,  0, (24 + h * 4), line5);
     u8g_DrawStr(&u8g,  0, (24 + h * 5), line6);
     u8g_DrawStr(&u8g,  0, (28 + h * 6), line7);
-    if (keypadGetKey() == KEYOK && keypadGetTime() > 6) {
+    if (keypad_GetKey() == KEYOK && keypad_GetTime() > 6) {
         currentDisplay.selected = &M2; // TODO next menu
         currentDisplay.command = NULL;
         currentDisplay.parm = NULL;
@@ -440,8 +622,7 @@ void menuBootWarnfnc(void)
 
 }
 
-void lcdUpdate(void)
-{
+void LCD_Update(void) {
     uint8_t w;
     /*
     TODO: Check if screen really needs update!!!
@@ -469,13 +650,13 @@ void lcdUpdate(void)
         currentDisplay.command(currentDisplay.parm);
 
 
-        if (keypadGetKey() == KEYBACK && !keypressed) {
+        if (keypad_GetKey() == KEYBACK && !keypressed) {
             //TODO: prev scrn
             currentDisplay.parm = NULL;
             currentDisplay.command = NULL;
             keypressed = true;
         }
-        if (!keypadGetState()) {
+        if (!keypad_GetState()) {
             keypressed = false;
             // TODO: resetKeyTime fnc keypad.c
         }

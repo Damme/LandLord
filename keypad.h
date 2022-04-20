@@ -1,15 +1,14 @@
 #ifndef KEYPAD_H
-#define KEYPAD_H
+    #define KEYPAD_H
 
-#include <stdint.h>
-#include <stdbool.h>
+    #include <stdint.h>
+    #include <stdbool.h>
 
-void KeypadSetRow(bool row);
-uint8_t keypadProcessTask(void);
-uint8_t keypadGetState(void);
-uint8_t keypadGetKey(void);
-uint8_t keypadGetTime(void);
+    uint8_t keypad_ProcessTask(void);
+    uint8_t keypad_GetState(void);
+    uint8_t keypad_GetKey(void);
+    uint8_t keypad_GetTime(void);
 
-void task_Keypad(void *pvParameters);
+    void keypad_Task(void *pvParameters);
 
 #endif

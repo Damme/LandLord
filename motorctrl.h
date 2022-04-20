@@ -3,7 +3,7 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
-#include "define.h"
+#include "global.h"
 
 #pragma anon_unions
 typedef struct
@@ -29,6 +29,6 @@ typedef struct
 
 extern xQueueHandle xMotorCtrlMsgQueue;
 
-void task_MotorCtrl(void *pvParameters);
+void motorCtrl_Task(void *pvParameters);
 
 #endif // MOTORCTRL_H

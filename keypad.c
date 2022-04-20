@@ -1,15 +1,13 @@
 #include <stdio.h>
 
 #include "keypad.h"
-#include "define.h"
+#include "common.h"
 #include "FreeRTOS.h"
 #include "timers.h"
 #include "queue.h"
 #include "powermgmt.h"
-#include "motorctrl.h"
-
-#define xDelay25   ((TickType_t)25 / portTICK_PERIOD_MS)
-#define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
+//#include "motorctrl.h"
+#include "global.h"
 
 const uint8_t tblKey[4][4] = {
     { KEY8,     KEY9,  KEY0,    KEYSTART },
@@ -18,115 +16,94 @@ const uint8_t tblKey[4][4] = {
     { KEYHOME,  KEY1,  KEY2,    KEY3 },
 };
 
-uint8_t keyState, keyLastState = 0;
-uint8_t keyPessTime = 0;
-uint8_t keypadRow, keypadCol, keypadPressedKey;
+uint8_t keyState, keyLastState, keyPessTime = 0;
+uint8_t keypadRow, keypadCol, keypadPressedKey, keypadIsRow = 0;
 
-void KeypadSetRow(bool row)
-{
+void keypad_SetRow(bool row) {
     if (row) {
-        LPC_GPIO1->FIODIR |= (PIN(0) | PIN(1) | PIN(4) | PIN(8));
-        LPC_GPIO1->FIODIR &= ~(PIN(9) | PIN(10) | PIN(14) | PIN(15));
+        keypadIsRow = 1;
+        GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLDOWN);
+        GPIO_FNC_PULL(KEYPAD_COL1, PINMODE_PULLDOWN);
+        GPIO_FNC_PULL(KEYPAD_COL2, PINMODE_PULLDOWN);
+        GPIO_FNC_PULL(KEYPAD_COL3, PINMODE_PULLDOWN);
+        GPIO_FNC_PULL(KEYPAD_ROW0, PINMODE_PULLUP);
+        GPIO_FNC_PULL(KEYPAD_ROW1, PINMODE_PULLUP);
+        GPIO_FNC_PULL(KEYPAD_ROW2, PINMODE_PULLUP);
+        GPIO_FNC_PULL(KEYPAD_ROW3, PINMODE_PULLUP);
 
-        // TODO: needs cleanup
-
-        LPC_PINCON->PINMODE2 &= ~(3 << 0);
-        LPC_PINCON->PINMODE2 &= ~(3 << 2);
-        LPC_PINCON->PINMODE2 &= ~(3 << 8);
-        LPC_PINCON->PINMODE2 &= ~(3 << 16);
-
-        LPC_PINCON->PINMODE2 |= (3 << 18);
-        LPC_PINCON->PINMODE2 |= (3 << 20);
-        LPC_PINCON->PINMODE2 |= (3 << 28);
-        LPC_PINCON->PINMODE2 |= ((uint32_t)3 << 30);
-
-        LPC_GPIO1->FIOPIN &= ~0xC600;
-        LPC_GPIO1->FIOPIN |= 0x113;
     } else {
-        LPC_GPIO1->FIODIR |= (1 << 9);
-        LPC_GPIO1->FIODIR |= (1 << 10);
-        LPC_GPIO1->FIODIR |= (1 << 14);
-        LPC_GPIO1->FIODIR |= (1 << 15);
-
-        LPC_GPIO1->FIODIR &= ~(1 << 0);
-        LPC_GPIO1->FIODIR &= ~(1 << 1);
-        LPC_GPIO1->FIODIR &= ~(1 << 4);
-        LPC_GPIO1->FIODIR &= ~(1 << 8);
-
-        LPC_PINCON->PINMODE2 &= ~(3 << 18);
-        LPC_PINCON->PINMODE2 &= ~(3 << 20);
-        LPC_PINCON->PINMODE2 &= ~(3 << 28);
-        LPC_PINCON->PINMODE2 &= ~((uint32_t)3 << 30);
-
-        LPC_PINCON->PINMODE2 |= (3 << 0);
-        LPC_PINCON->PINMODE2 |= (3 << 2);
-        LPC_PINCON->PINMODE2 |= (3 << 8);
-        LPC_PINCON->PINMODE2 |= (3 << 16);
-
-        LPC_GPIO1->FIOPIN &= ~0x113;
-        LPC_GPIO1->FIOPIN |= 0xC600;
+        keypadIsRow = 0;
+        GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLUP);
+        GPIO_FNC_PULL(KEYPAD_COL1, PINMODE_PULLUP);
+        GPIO_FNC_PULL(KEYPAD_COL2, PINMODE_PULLUP);
+        GPIO_FNC_PULL(KEYPAD_COL3, PINMODE_PULLUP);
+        GPIO_FNC_PULL(KEYPAD_ROW0, PINMODE_PULLDOWN);
+        GPIO_FNC_PULL(KEYPAD_ROW1, PINMODE_PULLDOWN);
+        GPIO_FNC_PULL(KEYPAD_ROW2, PINMODE_PULLDOWN);
+        GPIO_FNC_PULL(KEYPAD_ROW3, PINMODE_PULLDOWN);
     }
+    vTaskDelay(xDelay25);
 }
 
 
-bool keypadIsPressed()
-{
+bool keypad_IsPressed() {
     uint8_t ret = 0;
-    if (LPC_GPIO1->FIOPIN & (1 << 17)) { // Stop
+    if (GPIO_CHK_PIN(KEYPAD_STOP1)) { // Stop
         ret = 1;
         goto ret;
+
     }
-    if (!(LPC_GPIO1->FIOPIN & (1 << 28))) { // Power
+    if (GPIO_CHK_PIN(KEYPAD_POWER)) { // Power
         ret = 1;
         goto ret;
+
     }
-    if (!(LPC_GPIO1->FIODIR & 1)) {
-        ret = ((LPC_GPIO1->FIOPIN & 0x113) > 0);
+    if (!keypadIsRow) {
+        ret = ((GPIO_CHK_PIN(KEYPAD_COL0) | GPIO_CHK_PIN(KEYPAD_COL1) |
+                GPIO_CHK_PIN(KEYPAD_COL2) | GPIO_CHK_PIN(KEYPAD_COL3)) > 0);
         goto ret;
     }
 ret:
     return ret;
 }
 
-uint8_t keypadProcessKey()
-{
+uint8_t keypad_ProcessKey() {
     uint8_t ret = 0;
-    if (LPC_GPIO1->FIOPIN & (1 << 17)) { // stop
+    if (GPIO_CHK_PIN(KEYPAD_STOP1)) { // stop
         ret = KEYSTOP;
         goto ret;
-    } else if (!(LPC_GPIO1->FIOPIN & (1 << 28))) { //Power
+
+    } else if (GPIO_CHK_PIN(KEYPAD_POWER)) { //Power
         ret = KEYPWR;
         goto ret;
-    }
-    if (LPC_GPIO1->FIOPIN & (1 << 0))
-        keypadRow = 0;
-    else if (LPC_GPIO1->FIOPIN & (1 << 1))
-        keypadRow = 1;
-    else if (LPC_GPIO1->FIOPIN & (1 << 4))
-        keypadRow = 2;
-    else if (LPC_GPIO1->FIOPIN & (1 << 8))
-        keypadRow = 3;
-    KeypadSetRow(1);
-    vTaskDelay(xDelay25);
-    if (LPC_GPIO1->FIOPIN & (1 << 9))
+
+    } else if (GPIO_CHK_PIN(KEYPAD_COL0))
         keypadCol = 0;
-    else if (LPC_GPIO1->FIOPIN & (1 << 10))
+    else if (GPIO_CHK_PIN(KEYPAD_COL1))
         keypadCol = 1;
-    else if (LPC_GPIO1->FIOPIN & (1 << 14))
+    else if (GPIO_CHK_PIN(KEYPAD_COL2))
         keypadCol = 2;
-    else if (LPC_GPIO1->FIOPIN & (1 << 15))
+    else if (GPIO_CHK_PIN(KEYPAD_COL3))
         keypadCol = 3;
-    KeypadSetRow(0);
-    ret = tblKey[keypadRow][keypadCol];
+    keypad_SetRow(1);
+    if (GPIO_CHK_PIN(KEYPAD_ROW0))
+        keypadRow = 0;
+    else if (GPIO_CHK_PIN(KEYPAD_ROW1))
+        keypadRow = 1;
+    else if (GPIO_CHK_PIN(KEYPAD_ROW2))
+        keypadRow = 2;
+    else if (GPIO_CHK_PIN(KEYPAD_ROW3))
+        keypadRow = 3;
+    keypad_SetRow(0);
+    ret = tblKey[keypadCol][keypadRow];
 ret:
     return ret;
 }
 
-uint8_t keypadProcessTask()
-{
-    if (keypadIsPressed()) {
+uint8_t keypad_ProcessTask() {
+    if (keypad_IsPressed()) {
         if (keyLastState == 0) {
-            keypadPressedKey = keypadProcessKey();
+            keypadPressedKey = keypad_ProcessKey();
             keyState = 1;
             goto ret;
         }
@@ -149,38 +126,58 @@ ret:
     return keyState;
 }
 
-uint8_t keypadGetState()
-{
+uint8_t keypad_GetState() {
     return keyState;
 }
 
-uint8_t keypadGetKey()
-{
+uint8_t keypad_GetKey() {
     if (keyState > 0) {
         return keypadPressedKey;
     }
     return KEYNULL;
 }
 
-uint8_t keypadGetTime()
-{
+uint8_t keypad_GetTime() {
     return keyPessTime;
 }
 
-void task_Keypad(void *pvParameters)
-{
+void keypad_Task(void *pvParameters) {
     // Init keypad
-    KeypadSetRow(0);
+    GPIO_DIR_IN(KEYPAD_COL0);
+    GPIO_DIR_IN(KEYPAD_COL1);
+    GPIO_DIR_IN(KEYPAD_COL2);
+    GPIO_DIR_IN(KEYPAD_COL3);
+    GPIO_DIR_IN(KEYPAD_ROW0);
+    GPIO_DIR_IN(KEYPAD_ROW1);
+    GPIO_DIR_IN(KEYPAD_ROW2);
+    GPIO_DIR_IN(KEYPAD_ROW3);
+
+    GPIO_FNC_INV(KEYPAD_COL0, PINMODE_INV);
+    GPIO_FNC_INV(KEYPAD_COL1, PINMODE_INV);
+    GPIO_FNC_INV(KEYPAD_COL2, PINMODE_INV);
+    GPIO_FNC_INV(KEYPAD_COL3, PINMODE_INV);
+    GPIO_FNC_INV(KEYPAD_ROW0, PINMODE_INV);
+    GPIO_FNC_INV(KEYPAD_ROW1, PINMODE_INV);
+    GPIO_FNC_INV(KEYPAD_ROW2, PINMODE_INV);
+    GPIO_FNC_INV(KEYPAD_ROW3, PINMODE_INV);
+
+    GPIO_FNC_INV(KEYPAD_POWER, PINMODE_INV);
+
+    keypad_SetRow(0);
+
 
     for (;;) {
+
         vTaskDelay(xDelay100);
-        keypadProcessTask();
-        if (keypadGetKey() == KEYSTOP) {
-            xMotorCtrlMsg msg;
+        keypad_ProcessTask();
+
+        if (keypad_GetKey() == KEYSTOP) {
+            /*xMotorCtrlMsg msg;
             msg.xType = COMMAND_STOP;
-            xQueueSend(xMotorCtrlMsgQueue, &msg, (TickType_t)0);
+            xQueueSend(xMotorCtrlMsgQueue, &msg, (TickType_t)0);*/
+
         }
-        if (keypadGetKey() == KEYPWR && keypadGetTime() > 6) {
+        if (keypad_GetKey() == KEYPWR && keypad_GetTime() > 6) {
             // TODO: Shut down motor! break etc, draws current from battery even in cpu-off!
             // TODO: display shutdown counter! (doesn't shutdown until released (hardware feature))
             // CPU in sleep??

@@ -66,11 +66,14 @@
 
     1 tab == 4 spaces!
 */
-
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
-#include "LPC17xx.h"
+#ifdef LPC177x_8x // DB504
+    #include "LPC177x_8x.h"
+#else
+    #include "LPC175x_6x.h"
+#endif
 #include "FreeRTOS.h"
 
 /*-----------------------------------------------------------
@@ -86,9 +89,12 @@
  *----------------------------------------------------------*/
 
 #define configUSE_PREEMPTION            1
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 0 // 10.4
+#define configUSE_TICKLESS_IDLE                 0 // 10.4
 #define configUSE_IDLE_HOOK             0
 #define configUSE_TICK_HOOK             0
 #define configCPU_CLOCK_HZ              ( ( unsigned long ) 120000000 )
+//#define configSYSTICK_CLOCK_HZ          1000000 // 10.4  - wrong value, settings this freezes rtos.
 #define configTICK_RATE_HZ              ( ( TickType_t ) 1000 )
 #define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 80 )
 #define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 20480 ) )
@@ -102,33 +108,41 @@
 #define configUSE_RECURSIVE_MUTEXES     0
 #define configQUEUE_REGISTRY_SIZE       10
 #define configGENERATE_RUN_TIME_STATS   0
-#define configUSE_TIMERS               	1
-#define configTIMER_TASK_PRIORITY				( configMAX_PRIORITIES - 1 )
-#define configTIMER_TASK_STACK_DEPTH		( configMINIMAL_STACK_SIZE * 2 )
-#define configTIMER_QUEUE_LENGTH				10
+#define configUSE_TIMERS                1
+#define configTIMER_TASK_PRIORITY       ( configMAX_PRIORITIES - 1 )
+#define configTIMER_TASK_STACK_DEPTH    ( configMINIMAL_STACK_SIZE * 2 )
+#define configTIMER_QUEUE_LENGTH        10
 
-#define configMAX_PRIORITIES        ( 10 )
+#define configMAX_PRIORITIES            ( 10 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */
-
-#define INCLUDE_vTaskPrioritySet            1
-#define INCLUDE_uxTaskPriorityGet           1
-#define INCLUDE_vTaskDelete                 1
-#define INCLUDE_vTaskCleanUpResources       0
-#define INCLUDE_vTaskSuspend                1
-#define INCLUDE_vTaskDelayUntil             1
-#define INCLUDE_vTaskDelay                  1
-#define INCLUDE_uxTaskGetStackHighWaterMark 1
-#define INCLUDE_eTaskGetState               1
-#define INCLUDE_xTimerPendFunctionCall			1
+/* Optional functions - most linkers will remove unused functions anyway. */
+#define INCLUDE_vTaskPrioritySet                1
+#define INCLUDE_uxTaskPriorityGet               1
+#define INCLUDE_vTaskDelete                     1
+#define INCLUDE_vTaskSuspend                    1
+#define INCLUDE_vTaskCleanUpResources           0
+#define INCLUDE_xResumeFromISR                  1
+#define INCLUDE_vTaskDelayUntil                 1
+#define INCLUDE_vTaskDelay                      1
+#define INCLUDE_xTaskGetSchedulerState          1
+#define INCLUDE_xTaskGetCurrentTaskHandle       1
+#define INCLUDE_uxTaskGetStackHighWaterMark     1
+#define INCLUDE_xTaskGetIdleTaskHandle          0
+#define INCLUDE_eTaskGetState                   1
+#define INCLUDE_xEventGroupSetBitFromISR        1
+#define INCLUDE_xTimerPendFunctionCall          1
+#define INCLUDE_xTaskAbortDelay                 0
+#define INCLUDE_xTaskGetHandle                  0
+#define INCLUDE_xTaskResumeFromISR              1
 
 /* Use the system definition, if there is one */
 #ifdef __NVIC_PRIO_BITS
-    #define configPRIO_BITS       __NVIC_PRIO_BITS
+    #define configPRIO_BITS             __NVIC_PRIO_BITS
 #else
-    #define configPRIO_BITS       5        /* 32 priority levels */
+    #define configPRIO_BITS             5        /* 32 priority levels */
 #endif
 
 /* The lowest priority. */
@@ -138,7 +152,9 @@ to exclude the API function. */
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY    ( 3 << (8 - configPRIO_BITS) )
 
-#define configASSERT( x )     if( ( x ) == 0 ) { __disable_irq(); for( ;; ); }
+/* Define to trap errors during development. */
+//#define configASSERT( x )               if( ( x ) == 0 ) { __disable_irq(); for( ;; ); }
+#define configASSERT( x )           if( ( x ) == 0 ) vAssertCalled( __FILE__, __LINE__ )
 
 #define vPortSVCHandler      SVC_Handler
 #define xPortPendSVHandler   PendSV_Handler

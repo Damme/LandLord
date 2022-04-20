@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "lcd.h"
 #include "screen.h"
-#include "define.h"
+#include "global.h"
 
 #include "FreeRTOS.h"
 #include "timers.h"
@@ -9,9 +9,8 @@
 #define xDelay25   ((TickType_t)25 / portTICK_PERIOD_MS)
 #define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
 
-
-void delayuS(uint32_t uS)
-{
+/*
+void delay_uS(uint32_t uS) {
     LPC_TIM1->TCR = 0x02;                // reset timer
     LPC_TIM1->PR  = 0x00;                // set prescaler to zero
     LPC_TIM1->MR0 = uS * (SystemCoreClock / 1000000) - 1;
@@ -21,31 +20,44 @@ void delayuS(uint32_t uS)
     // wait until delay time has elapsed
     while (LPC_TIM1->TCR & 0x01);
 }
+*/
 
-
-void spi_out(uint8_t data)
-{
+void spi_out(uint8_t data) {
+#ifdef LPC177x_8x // DB504
+    // DB504 dont use hw spi, so we'll have to bit bang it!
+    for (uint8_t i = 0; i < 8; i++) {
+        // consider leftmost bit
+        // set line high if bit is 1, low if bit is 0
+        if (data & 0x80)
+            GPIO_SET_PIN(LCD_SDA);
+        else
+            GPIO_CLR_PIN(LCD_SDA);
+        // pulse clock to indicate that bit value should be read
+        GPIO_SET_PIN(LCD_SCLK);
+        GPIO_CLR_PIN(LCD_SCLK);
+        // shift byte left so next bit will be leftmost
+        data <<= 1;
+    }
+#else
     LPC_SPI->SPDR = data;
     while (((LPC_SPI->SPSR >> 7) & 1) == 0);
+#endif
+
 }
 
-void u8g_Delay(uint16_t val)
-{
-    delayuS(1000UL * (uint32_t)val);
+void u8g_Delay(uint16_t val) {
+    delay_uS(1000UL * (uint32_t)val);
 }
 
-void u8g_MicroDelay(void)
-{
-    delayuS(1);
+void u8g_MicroDelay(void) {
+    delay_uS(1);
 }
 
-void u8g_10MicroDelay(void)
-{
-    delayuS(10);
+void u8g_10MicroDelay(void) {
+    delay_uS(10);
 }
 
-uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr)
-{
+uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr) {
     switch (msg) {
         case U8G_COM_MSG_STOP:
             break;
@@ -79,19 +91,18 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
 
         case U8G_COM_MSG_WRITE_SEQ:
         case U8G_COM_MSG_WRITE_SEQ_P: {
-                register uint8_t *ptr = arg_ptr;
-                while (arg_val > 0) {
-                    spi_out(*ptr++);
-                    arg_val--;
-                }
+            register uint8_t *ptr = arg_ptr;
+            while (arg_val > 0) {
+                spi_out(*ptr++);
+                arg_val--;
             }
-            break;
+        }
+        break;
     }
     return 1;
 }
 
-void task_LCD(void *pvParameters)
-{
+void LCD_Task(void *pvParameters) {
     TickType_t xLastTime;
     xLastTime = xTaskGetTickCount();
 
@@ -99,11 +110,13 @@ void task_LCD(void *pvParameters)
     GPIO_DIR_OUT(LCD_BACKLIGHT);
     GPIO_SET_PIN(LCD_BACKLIGHT);
 
+    // Configure SPI
     GPIO_DIR_OUT(LCD_RSTB);
     GPIO_DIR_OUT(LCD_CSB);
     GPIO_DIR_OUT(LCD_A0);
 
     // Configure Timer1 used for µs delay in lcd
+#ifdef LPC175x_6x
     LPC_SC->PCONP |= PCONP_PCTIM1;              // power up Timer (def on)
     LPC_SC->PCLKSEL0 |= PCLK_TIMER1(CCLK_DIV1); // set Timer0 clock1
 
@@ -115,12 +128,13 @@ void task_LCD(void *pvParameters)
     LPC_PINCON->PINSEL1 |= (0xc | 0x30);        // p0.17 & p0.18 miso / mosi (no miso??)
 
     LPC_SPI->SPCR |= SPCR_MSTR;                 // SPI operates in Master mode.
+#endif
 
-    LCDInit();
+    LCD_Init();
 
     for (;;) {
         vTaskDelayUntil(&xLastTime, xDelay100);
-        lcdUpdate();
+        LCD_Update();
 #if LOWSTACKWARNING
         int stack = uxTaskGetStackHighWaterMark(NULL);
         if (stack < 50) printf("Task task_LCD has %u words left in stack.\r\n", stack);

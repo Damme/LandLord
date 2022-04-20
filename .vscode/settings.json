@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "common.h": "c",
+        "timers.h": "c",
+        "lpc177x_8x.h": "c",
+        "lpc177x_8x_hal.h": "c",
+        "system_lpc177x_8x.h": "c",
+        "system_lpc175x_6x.h": "c",
+        "portable.h": "c"
+    },
+
+}

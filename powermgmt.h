@@ -3,7 +3,7 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
-#include "define.h"
+#include "common.h"
 
 #pragma anon_unions
 typedef struct
@@ -15,7 +15,7 @@ typedef struct
 		{
 			int32_t lChargeCurrent; /* mA */
 			int32_t lBatteryVoltage; /* mV */
-			int32_t lBatteryTemperature; /* 1/100°C */
+			int32_t lBatteryTemperature; /* 1/100ï¿½C */
 		} measurement;
 		struct
 		{
@@ -26,6 +26,6 @@ typedef struct
 
 extern xQueueHandle xPowerMgmtMsgQueue;
 
-void task_PowerMgmt(void *pvParameters);
+void powerMgmt_Task(void *pvParameters);
 
 #endif // POWERMGMT_H

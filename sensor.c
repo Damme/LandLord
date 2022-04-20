@@ -1,32 +1,21 @@
 #include <stdio.h>
+#include "common.h"
 #include "sensor.h"
 #include "powermgmt.h"
-#include "define.h"
+#include "common.h"
 #include "timers.h"
 #include "event_groups.h"
+#include "global.h"
 
-
-#define xDelay10  ((TickType_t)10 / portTICK_PERIOD_MS)
-#define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
-#define xDelay1000  ((TickType_t)1000 / portTICK_PERIOD_MS)
-
-#define BIT_ADC_DONE    ( 1 << 0 )
-#define BIT_DIG_INT    ( 1 << 1 )
-
+//#define BIT_ADC_DONE    ( 1 << 0 )
+//#define BIT_DIG_INT    ( 1 << 1 )
 
 EventGroupHandle_t xSensorEventGroup;
 xQueueHandle xDIGMsgQueue;
 TimerHandle_t xADCTriggerTimer;
 
-uint32_t ADC0;
-uint32_t ADC1;
-uint32_t ADC2;
-uint32_t ADC3;
-uint32_t ADC4;
-uint32_t ADC5;
-uint32_t ADC6;
-uint32_t ADC7;
 
+// Rewrite temperature conversion to something better.. This is just wierd.
 const uint16_t tempCalTbl[110] = {
     0xCF3, 0xCD6, 0xCB9, 0xC9B, 0xC7C, 0xC5A, 0xC3B, 0xC1B, 0xBFB, 0xBDB,
     0xBB5, 0xB93, 0xB72, 0xB50, 0xB2E, 0xB01, 0xADE, 0xABA, 0xA97, 0xA73,
@@ -41,131 +30,8 @@ const uint16_t tempCalTbl[110] = {
     0x1CC, 0x1C4, 0x1BB, 0x1B3, 0x1AB, 0x198, 0x191, 0x18A, 0x183, 0x17C,
 };
 
-void vProcessDigitalInputs(void *pvParameter1, uint32_t ulParameter2)
-{
-    /* ...Perform the processing here... */
-
-    /*
-    bool sensorFront()
-    {
-        return LPC_GPIO4->FIOPIN & PIN(29);
-    }
-    bool sensorRain()
-    {
-        return LPC_GPIO1->FIOPIN & PIN(29);
-    }
-    bool sensorCover()
-    {
-        return LPC_GPIO4->FIOPIN & PIN(28);
-    }
-    bool sensorLift()
-    {
-        return LPC_GPIO1->FIOPIN & PIN(16);
-    }
-    bool sensorCharger()
-    {
-        return LPC_GPIO1->FIOPIN & PIN(21);
-    }
-    uint8_t sensorDIP()
-    {
-        uint8_t val = 0;
-        val = ((LPC_GPIO2->FIOPIN >> 7) & 1) | (((LPC_GPIO2->FIOPIN >> 3) & 1) << 1) | (((LPC_GPIO0->FIOPIN >> 1) & 1) << 2);
-        return val;
-    }
-    uint8_t sensorWireR()
-    {
-        uint8_t val = 0;
-        val = ((LPC_GPIO0->FIOPIN >> 9) & 1) | (((LPC_GPIO0->FIOPIN >> 10) & 1) << 1);
-        return val;
-    }
-    uint8_t sensorWireL()
-    {
-        uint8_t val = 0;
-        val = ((LPC_GPIO0->FIOPIN >> 7) & 1) | (((LPC_GPIO0->FIOPIN >> 8) & 1) << 1);
-        return val;
-    }
-    */
-}
-
-int32_t convertAcc(uint16_t adc);
-void printAcc(int32_t acc);
-
-void ADC_IRQHandler(void)
-{
-    //volatile uint32_t gdr;
-    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-
-    LPC_ADC->ADCR &= ~(1 << 16);
-    ADC0 = (LPC_ADC->ADDR0 >> 4) & 4095;
-    ADC1 = (LPC_ADC->ADDR1 >> 4) & 4095;
-    ADC2 = (LPC_ADC->ADDR2 >> 4) & 4095;
-    ADC3 = (LPC_ADC->ADDR3 >> 4) & 4095;
-    ADC4 = (LPC_ADC->ADDR4 >> 4) & 4095;
-    ADC5 = (LPC_ADC->ADDR5 >> 4) & 4095;
-    ADC6 = (LPC_ADC->ADDR6 >> 4) & 4095;
-    ADC7 = (LPC_ADC->ADDR7 >> 4) & 4095;
-    NVIC_ClearPendingIRQ(ADC_IRQn);
-
-    xEventGroupSetBitsFromISR(xSensorEventGroup, BIT_ADC_DONE, &xHigherPriorityTaskWoken);
-    portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-    return;
-}
-
-typedef enum {
-    DIG_POS_RAISING = 0,
-    DIG_POS_FALLING,
-    DIG_NEG_RAISING,
-    DIG_NEG_FALLING,
-} DIGEdge;
-
-typedef enum {
-    a = 0,
-    b,
-    c,
-    d,
-} DIGMux;
-
-typedef struct {
-    uint8_t id;
-    uint32_t time;
-    DIGMux mux;
-    DIGEdge edge;
-} MessageDIG;
-
-void EINT3_IRQHandler(void)
-{
-    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-    uint32_t timer = LPC_TIM2->TC; // Get 탎 counter
-
-    NVIC_DisableIRQ(EINT3_IRQn);
-
-    if (timer == 0) LPC_TIM2->TCR = 1; // start if 0
-
-    xQueueSendFromISR(xDIGMsgQueue, &timer, &xHigherPriorityTaskWoken);
-
-    // also need muxing p0.21 & p0.22 for distance and left/right -> outside int in task-sensor
-
-    xEventGroupSetBitsFromISR(xSensorEventGroup, BIT_DIG_INT, &xHigherPriorityTaskWoken);
-
-    // Important! If not cleared system freezes
-    LPC_GPIOINT->IO0IntClr = PIN(7) | PIN(8) | PIN(9) | PIN(10);
-    NVIC_ClearPendingIRQ(EINT3_IRQn);
-    NVIC_EnableIRQ(EINT3_IRQn);
-
-
-
-    portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-    return;
-}
-
-void vADCTriggerTimerCallback(TimerHandle_t xTimer)
-{
-    LPC_ADC->ADCR |= (1 << 16);
-}
-
-int32_t convert_temp(uint16_t raw_temp)
-{
-    /* table holds 110 entries from -10캜 to 100캜 in full 캜 */
+int32_t convert_temp(uint16_t raw_temp) {
+    /* table holds 110 entries from -10째C to 100째C in full 째C */
     int32_t fullDegree; /* full degrees */
     int32_t tenthDegree; /* 1/10th-degrees */
     for (fullDegree = 0; fullDegree < (sizeof(tempCalTbl) / sizeof(uint16_t)); fullDegree++) {
@@ -188,155 +54,82 @@ out:
     return tenthDegree + 10 * (fullDegree - 10);
 }
 
-void task_Sensor(void *pvParameters)
-{
-    xSensorEventGroup = xEventGroupCreate();
+/*
+int32_t convertAcc(uint16_t adc);
+void printAcc(int32_t acc);
+*/
+static volatile uint8_t ADC_Interrupt_Done_Flag;
 
-    xDIGMsgQueue = xQueueCreate(10, sizeof(MessageDIG));
+/*
+void ADC_IRQHandler(void) { // DB275 uses IRQ try to use BURST mode as DB504
+    //portENTER_CRITICAL();
+    NVIC_DisableIRQ(ADC_IRQn);
+    //portEXIT_CRITICAL();
+    //LPC_ADC->INTEN &= ~((1 << ADC_Channel)); // channel
 
-    vTaskDelay(xDelay10);
+    ADC_Interrupt_Done_Flag = 1;
+}
+*/
 
-    ADC0 = 0; // not in use??
-    ADC1 = 0; // volt batt? ~ 3600
-    ADC2 = 0; // tilt sideways
-    ADC3 = 0; // tilt forward
-    ADC4 = 0; // high = cold, low = warm?
-    ADC5 = 0; // current spindle?
-    ADC6 = 0; // current left?
-    ADC7 = 0; // current right?
+// DB275 uses interrupt to read front sensor, need work and more testing.
+void EINT3_IRQHandler(void) {
+/*#ifndef LPC177x_8x // DB275
+    uint32_t timer = LPC_TIM2->TC; // Get 쨉s counter
+    NVIC_DisableIRQ(EINT3_IRQn);
 
-    // Configure ADC
-    LPC_SC->PCONP |= PCONP_PCADC;               // power up ADC
+    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 
-    LPC_SC->PCLKSEL0 |= PCLK_ADC(CCLK_DIV8);    // set ADC CCLK/8 = 12.5M
+    if (timer == 0) LPC_TIM2->TCR = 1; // start if 0
 
-    LPC_PINCON->PINSEL1 |= (1 << 14);       // p0.23 -> ad0.0
-    LPC_PINCON->PINSEL1 |= (1 << 16);       // p0.24 -> ad0.1
-    LPC_PINCON->PINSEL1 |= (1 << 18);       // p0.25 -> ad0.2
-    LPC_PINCON->PINSEL1 |= (1 << 20);       // p0.26 -> ad0.3
+    xQueueSendFromISR(xDIGMsgQueue, &timer, &xHigherPriorityTaskWoken);
 
-    LPC_PINCON->PINSEL3 |= (1 << 28);       // p1.30 -> ad0.4
-    LPC_PINCON->PINSEL3 |= (1 << 29);
-    LPC_PINCON->PINSEL3 |= (1 << 30);       // p1.31 -> ad0.5
-    LPC_PINCON->PINSEL3 |= ((uint32_t)1 << 31);
-    LPC_PINCON->PINSEL0 |= (1 << 7);        // p0.3 -> ad0.6
-    LPC_PINCON->PINSEL0 |= (1 << 5);        // p0.2 -> ad0.7
+    // also need muxing p0.21 & p0.22 for distance and left/right -> outside int in task-sensor
 
-    LPC_ADC->ADINTEN = (1 << 7);              // done flag
+    xEventGroupSetBitsFromISR(xSensorEventGroup, BIT_DIG_INT, &xHigherPriorityTaskWoken);
 
-    LPC_ADC->ADCR = 255 | (1 << 21);
-
-    // Enable burst mode / Disable power-down
-    //      LPC_ADC->ADCR |= (1 << 16) | (1 << 21);
-
-    portENTER_CRITICAL();
-    NVIC_SetPriority(ADC_IRQn, 5);
-    NVIC_EnableIRQ(ADC_IRQn);
-    portEXIT_CRITICAL();
-
-    // External INT - only wire sensor P0.7-P0.10
-    LPC_GPIOINT->IO0IntEnR = (1 << 7) | (1 << 9);
-    LPC_GPIOINT->IO0IntEnF = (1 << 8) | (1 << 10);
-    LPC_GPIOINT->IO0IntClr = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
-
-    // Configure Timer2 used for 탎 counter used in eint3 (wire)
-    LPC_SC->PCONP |= PCONP_PCTIM2;              // power up Timer (def on)
-    LPC_SC->PCLKSEL1 |= PCLK_TIMER2(CCLK_DIV1); // set Timer2 clock divider
-
-    portENTER_CRITICAL();
-    NVIC_SetPriority(EINT3_IRQn, 5);
+    // Important! If not cleared system freezes
+    LPC_GPIOINT->IO0IntClr = PIN(7) | PIN(8) | PIN(9) | PIN(10);
+    NVIC_ClearPendingIRQ(EINT3_IRQn);
     NVIC_EnableIRQ(EINT3_IRQn);
-    portEXIT_CRITICAL();
 
-    printf("Sensor interrupts enabled\r\n");
+    portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+#endif*/
+    return;
+}
 
-    // MUX switch - P0.4 + P0.5
-    LPC_PINCON->PINSEL0 &= ~(3 << 8);
-    LPC_PINCON->PINSEL0 &= ~(3 << 10);
-    LPC_GPIO0->FIODIR |= (1 << 4) | (1 << 5);
-    LPC_GPIO0->FIOSET |= (1 << 4) | (1 << 5);   // MUX=3 - Bat. Temp.
-
-    xADCTriggerTimer = xTimerCreate("ADCTriggerTimer", xDelay1000 * 5, pdTRUE, (void *) 0, vADCTriggerTimerCallback);
-    if ((xADCTriggerTimer != NULL) && (xTimerStart(xADCTriggerTimer, 0) == pdPASS))
-        printf("ADC Trigger Timer started\r\n");
-    else
-        printf("ADC Trigger Timer failed\r\n");
+void sensor_Task(void *pvParameters) {
+    sensor_Init();
+    xPowerMgmtMsg msg;
+    xSensorMsgType sensor;
 
     for (;;) {
-        xPowerMgmtMsg msg;
-        EventBits_t event = xEventGroupWaitBits(xSensorEventGroup, BIT_ADC_DONE | BIT_DIG_INT, pdTRUE, pdFALSE, xDelay100);
-        if (event & BIT_ADC_DONE) {
-            uint32_t ulMuxState;
-            int32_t accx = convertAcc(ADC3);
-            int32_t accy = convertAcc(ADC2);
-            int32_t accz;
+        vTaskDelay(xDelay200);
+        if (xQueuePeek(xSensorQueue, &sensor, 0) == pdTRUE) {
 
-            //printf("\r\nADC: %04u %04u %04u %04u %04u %04u %04u %04u\r\n", ADC0, ADC1, ADC2, ADC3, ADC4, ADC5, ADC6, ADC7);
-
-            //printf("Acc X (g): ");
-            printAcc(accx);
-            //printf("Acc Y (g): ");
-            printAcc(accy);
-
-            ulMuxState = (LPC_GPIO0->FIOPIN & ((1 << 4) | (1 << 5))) >> 4;
-            //printf("Mux: %01u\r\n", ulMuxState);
-            switch (ulMuxState) {
-                case 0:
-                    accx = convertAcc(ADC4);
-                    printf("Acc X2 (g): ");
-                    printAcc(accx);
-                    break;
-                case 1:
-                    accy = convertAcc(ADC4);
-                    printf("Acc Y2 (g): ");
-                    printAcc(accy);
-                    break;
-                case 2:
-                    accz = convertAcc(ADC4);
-                    //printf("Acc Z (g): ");
-                    printAcc(accz);
-                    break;
+/*            for (int i = 0; i <= 7; i++) {
+                ADC[i]=ADC_DR_RESULT(LPC_ADC->DR[i]);
             }
-            /* iterate over all mux choices */
-            //LPC_GPIO0->FIOPIN = (LPC_GPIO0->FIOPIN & ~((1<<4) | (1<<5))) | (((ulMuxState + 1) % 4) << 4);
-            /* just toggle between choices 'b10' (Z-axis) and 'b11' (Bat. Temp.) */
-            LPC_GPIO0->FIOPIN = (LPC_GPIO0->FIOPIN & ~(1 << 4)) | (1 << 5) | (((ulMuxState + 1) % 2) << 4);
+*/
 
-            //printf("Spindle I: %04u\r\n", ADC5);
-            //printf("Right motor I: %04u\r\n", ADC6);
-            //printf("Left motor I: %04u\r\n", ADC7);
+            // handle_ADCMuxing(); // For LPC1768! ADC4 is muxed between 4 measurements.        
+            
+            sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
+            sensor.batteryChargeCurrent = ADC_DR_RESULT(ANALOG_BATT_CHARGE_A);
+            sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068;
+            sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
+            sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
+            sensor.motorSCurrent = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
+            sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
+            
+            xQueueOverwrite(xSensorQueue, &sensor);
 
-            msg.xType = MEASUREMENT_BATTERY;
             /* https://hackaday.io/project/6717-project-landlord/discussion-58892 */
-            msg.measurement.lChargeCurrent = ADC0;
-            msg.measurement.lBatteryVoltage = ADC1 * 1000 / 13018; /* 3770 = 28.9V, 28v = 3645, 27.5v = 3580, 27.36v = 3566, 26.74v = 3488 */
-            if (ulMuxState == 3)
-                msg.measurement.lBatteryTemperature = convert_temp(ADC4);
-            else
-                msg.measurement.lBatteryTemperature = INT32_MIN;
+            msg.xType = MEASUREMENT_BATTERY;
+            msg.measurement.lChargeCurrent = sensor.batteryChargeCurrent;
+            msg.measurement.lBatteryVoltage = sensor.batteryVolt;
+            msg.measurement.lBatteryTemperature = sensor.batteryTemp;
             xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
         }
-        if (event & BIT_DIG_INT) {
-            printf("DIG %ld\r\n", uxQueueMessagesWaiting(xDIGMsgQueue));
-        }
-#if LOWSTACKWARNING
-        int stack = uxTaskGetStackHighWaterMark(NULL);
-        if (stack < 50) printf("Task task_Sensor has %u words left in stack.\r\n", stack);
-#endif
     }
 }
 
-int32_t convertAcc(uint16_t adc)
-{
-    return ((int32_t)adc - 2060) * 1000 / (2720 - 2060);
-}
-
-void printAcc(int32_t acc)
-{
-    if (acc >= 0) {
-        printf(" %01ld.%03lu\r\n", acc / 1000, acc % 1000);
-    } else {
-        acc = ~acc;
-        printf("-%01ld.%03lu\r\n", acc / 1000, acc % 1000);
-    }
-}
