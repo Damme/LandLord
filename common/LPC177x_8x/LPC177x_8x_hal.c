@@ -81,3 +81,31 @@ void disable_Charger_Check() {
     GPIO_CLR_PIN(CHARGER_CHECK);
 }
 
+void MotorCtrl_Init() {
+// Kontrollera pullup/pulldown!!
+    GPIO_DIR_OUT(MOTOR_MOSFET);
+    GPIO_CLR_PIN(MOTOR_MOSFET); // Kolla om clr = off
+
+    GPIO_PIN_FNC(MOTOR_LEFT_PWM);
+    GPIO_PIN_FNC(MOTOR_RIGHT_PWM);
+    GPIO_PIN_FNC(MOTOR_BLADE_PWM);
+    
+    GPIO_DIR_OUT(MOTOR_LEFT_ENABLE);
+    GPIO_DIR_OUT(MOTOR_LEFT_BRAKE);
+    GPIO_DIR_OUT(MOTOR_LEFT_FORWARD);
+    
+    GPIO_DIR_OUT(MOTOR_RIGHT_ENABLE);
+    GPIO_DIR_OUT(MOTOR_RIGHT_BRAKE);
+    GPIO_DIR_OUT(MOTOR_RIGHT_FORWARD);
+
+    GPIO_DIR_OUT(MOTOR_BLADE_ENABLE);
+    GPIO_DIR_OUT(MOTOR_BLADE_BRAKE);
+    GPIO_DIR_OUT(MOTOR_BLADE_FORWARD);
+// Set default modes ->  disabled controller, brake on, forward direction
+
+// Setup PWM registers
+
+// Configure PWM 1.1(spindle) 1.4(left) 1.5(right) (and pwm1.2 LCD brightness)
+
+
+}
