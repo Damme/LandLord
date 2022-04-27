@@ -22,6 +22,7 @@
 #define PINMODE_NORMAL ((0))    /**< Pin is in the normal (not open drain) mode */
 #define PINMODE_OPENDRAIN ((1)) /**< Pin is in the open drain mode */
 #define PINMODE_INV ((1))       /**< Pin is inverted polarity */
+#define PINMODE_FILTER ((1 << 8)) // Disable filtering
 
 #define GPIO_PIN(gpio)     ((gpio.addr)->PIN)
 #define GPIO_DIR(gpio)     ((gpio.addr)->DIR)
@@ -91,29 +92,16 @@
 #define KEYPAD_STOP2       (GPIO_TYPE(PORT_1, PIN_26, FUNC_0))
 #define KEYPAD_POWER       (GPIO_TYPE(PORT_3, PIN_14, FUNC_0)) // PULL DOWN
 
-//#define CR 					CR
-//#define PCLKSEL				PCLKSEL
-//#define INTEN				INTEN
-//#define ADC_READ(val)		(( (uint32_t) ( (uint32_t *)(LPC_ADC_BASE + (10 + (val*4))) ) >> 4))
-
 #define ADC_DR_RESULT(n)        ((((n) >> 4) & 0xFFF))
-
-/*
-#define ADC_DR_DONE(n)          (((n) >> 31))
-
-#define ADC_CR_CLKDIV(n)        ((((n) & 0xFF) << 8))
-#define ADC_DR_RESULT(n)        (((n>>4)&0xFFF))
-
-*/
-/*#define ADC_AD0				(GPIO_TYPE(PORT_0, PIN_23, FUNC_1)) // ADC0[0]
-#define ADC_AD1				(GPIO_TYPE(PORT_0, PIN_24, FUNC_1)) // ADC0[1]
-#define ADC_AD2				(GPIO_TYPE(PORT_0, PIN_25, FUNC_1)) // ADC0[2]
-#define ADC_AD3				(GPIO_TYPE(PORT_0, PIN_26, FUNC_1)) // ADC0[3]
-#define ADC_AD4				(GPIO_TYPE(PORT_1, PIN_30, FUNC_3)) // ADC0[4]
-#define ADC_AD5				(GPIO_TYPE(PORT_1, PIN_31, FUNC_3)) // ADC0[5]
-#define ADC_AD6				(GPIO_TYPE(PORT_0, PIN_12, FUNC_3)) // ADC0[6]
-#define ADC_AD7				(GPIO_TYPE(PORT_0, PIN_13, FUNC_3)) // ADC0[7]
-*/
+// Note error in UM10470.pdf - filter should not affect ADC - But it does.
+#define ADC_AD0				(GPIO_TYPE(PORT_0, PIN_23, FUNC_1 | PINMODE_FILTER))
+#define ADC_AD1				(GPIO_TYPE(PORT_0, PIN_24, FUNC_1 | PINMODE_FILTER))
+#define ADC_AD2				(GPIO_TYPE(PORT_0, PIN_25, FUNC_1 | PINMODE_FILTER))
+#define ADC_AD3				(GPIO_TYPE(PORT_0, PIN_26, FUNC_1 | PINMODE_FILTER))
+#define ADC_AD4				(GPIO_TYPE(PORT_1, PIN_30, FUNC_3 | PINMODE_FILTER))
+#define ADC_AD5				(GPIO_TYPE(PORT_1, PIN_31, FUNC_3 | PINMODE_FILTER))
+#define ADC_AD6				(GPIO_TYPE(PORT_0, PIN_12, FUNC_3 | PINMODE_FILTER))
+#define ADC_AD7				(GPIO_TYPE(PORT_0, PIN_13, FUNC_3 | PINMODE_FILTER))
 
 #define ANALOG_BATT_TEMP     (LPC_ADC->DR[0])
 #define ANALOG_MOTOR_R_AMP   (LPC_ADC->DR[1])

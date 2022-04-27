@@ -54,15 +54,15 @@ void sensor_Init() {
     fullAdcRate = 375000 * 33;
     div = ((PeripheralClock * 2 + fullAdcRate) / (fullAdcRate * 2)) - 1;
 
-    LPC_IOCON->P0_12 = (1 << 8) | (3 << 0);
-    LPC_IOCON->P0_13 = (1 << 8) | (3 << 0);
-    LPC_IOCON->P0_23 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P0_24 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P0_25 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P0_26 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P1_30 = (1 << 8) | (3 << 0);
-    LPC_IOCON->P1_31 = (1 << 8) | (3 << 0);
-
+    GPIO_PIN_FNC(ADC_AD0);
+    GPIO_PIN_FNC(ADC_AD1);
+    GPIO_PIN_FNC(ADC_AD2);
+    GPIO_PIN_FNC(ADC_AD3);
+    GPIO_PIN_FNC(ADC_AD4);
+    GPIO_PIN_FNC(ADC_AD5);
+    GPIO_PIN_FNC(ADC_AD6);
+    GPIO_PIN_FNC(ADC_AD7);
+    
     LPC_ADC->CR = (div << 8) | (1 << 21); //div 4 400000hz, enable ADC ändrat till div 8
     LPC_ADC->CR |= ( 0xff ); // enable all adc channels.
     LPC_ADC->CR |= (1UL<<16); // enable Burst mode

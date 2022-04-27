@@ -110,7 +110,7 @@ typedef struct gpioPin_s {
     LPC_GPIO_TypeDef * addr;
     uint32_t * con;
     uint8_t pin;
-    uint8_t pinsel;
+    uint32_t pinsel;
     uint8_t inv;
 } gpioPin_t;
 
