@@ -3,7 +3,6 @@
 
 
 void hardware_Init() {
-
     LPC_SC->PCONP |= PCONP_PCGPIO;              // Power up GPIO
     LPC_SC->PCONP |= PCONP_PCADC;               // Power up ADC
 
@@ -25,26 +24,10 @@ void hardware_Init() {
     GPIO_FNC_PULL(CHARGER_ENABLE, PINMODE_PULLUP);
     GPIO_DIR_IN(CHARGER_ENABLE);*/
 
-
-    GPIO_DIR_OUT(MOTOR_MOSFET);
-
-/*
-#define GPIO_TEST        (GPIO_TYPE(PORT_0, PIN_13, FUNC_0))
-    //GPIO_FNC_PULL(GPIO_TEST, PINMODE_PULLDOWN);
-    GPIO_DIR_OUT(GPIO_TEST);
-    GPIO_SET_PIN(GPIO_TEST);
-*/
-
 //#define GPIO_BATT_BH        (GPIO_TYPE(PORT_3, PIN_13, FUNC_0))
 //#define GPIO_BATT_BS        (GPIO_TYPE(PORT_5, PIN_0, FUNC_0))
     //GPIO_FNC_PULL(GPIO_BATT_BH, PINMODE_PULLUP);
-    //GPIO_FNC_PULL(GPIO_BATT_BS, PINMODE_PULLUP);
-    
-    /*GPIO_FNC_PULL(GPIO_TEST, PINMODE_PULLDOWN);
-    GPIO_DIR_OUT(GPIO_TEST);
-    GPIO_SET_PIN(GPIO_TEST);
-*/
-    //GPIO_FNC_PULL(GPIO_TEST, PINMODE_PULLUP);   
+    //GPIO_FNC_PULL(GPIO_BATT_BS, PINMODE_PULLUP);  
 }
 
 void sensor_Init() {
@@ -103,9 +86,20 @@ void MotorCtrl_Init() {
     GPIO_DIR_OUT(MOTOR_BLADE_FORWARD);
 // Set default modes ->  disabled controller, brake on, forward direction
 
-// Setup PWM registers
-
 // Configure PWM 1.1(spindle) 1.4(left) 1.5(right) (and pwm1.2 LCD brightness)
-
-
+    LPC_PWM1->MR0 = 1000;
+    LPC_PWM1->MR1 = 0;      // Blade
+    LPC_PWM1->MR4 = 0;      // Left
+    LPC_PWM1->MR5 = 0;      // Right
+    LPC_PWM1->MR2 = 1000;   // LCD
+// Setup PWM registers
+    // mr0 = 1000 pr = 59 : ~1k hz
+    // mr0 = 1000 pr = 12 : ~4.6 khz
+    // mr0 = 1000 pr = 5  : ~10 khz
+    // mr0 = 1000 pr = 2  : ~20 khz
+    LPC_PWM1->PR = 12;
+    LPC_PWM1->LER |= (1 << 0) | (1 << 1) | (1 << 2) | (1 << 4) | (1 << 5); //Enable PWM Match 0+1+2+4+5 Latch
+    LPC_PWM1->PCR |= (1 << 10); // PWMENA2
+    LPC_PWM1->MCR |= (1 << 1); // PWMMR0R
+    LPC_PWM1->TCR |= (1 << 0) | (1 << 3); // Counter Enable | PWM Enable
 }
