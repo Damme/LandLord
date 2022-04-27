@@ -82,6 +82,7 @@ void powerMgmt_Task(void *pvParameters) {
                 case (COMMAND_SHUTDOWN): {
                     printf("Shutting down!\r\n");
                     vTaskDelay(msg.shutdown.xDelay);
+                    DISABLE_MOTOR_MOSFET();
                     POWER_OFF();
                     __disable_irq(); for (;;);
                 }
