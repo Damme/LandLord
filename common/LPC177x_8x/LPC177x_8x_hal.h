@@ -116,6 +116,7 @@ void hardware_Init();
 
 void sensor_Init();
 void powerMgmt_Init();
+void MotorCtrl_Init();
 
 void enable_Charger_Check();
 void disable_Charger_Check();

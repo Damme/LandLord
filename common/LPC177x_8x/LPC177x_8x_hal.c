@@ -65,28 +65,7 @@ void disable_Charger_Check() {
 }
 
 void MotorCtrl_Init() {
-// Kontrollera pullup/pulldown!!
-    GPIO_DIR_OUT(MOTOR_MOSFET);
-    GPIO_CLR_PIN(MOTOR_MOSFET); // Kolla om clr = off
-
-    GPIO_PIN_FNC(MOTOR_LEFT_PWM);
-    GPIO_PIN_FNC(MOTOR_RIGHT_PWM);
-    GPIO_PIN_FNC(MOTOR_BLADE_PWM);
-    
-    GPIO_DIR_OUT(MOTOR_LEFT_ENABLE);
-    GPIO_DIR_OUT(MOTOR_LEFT_BRAKE);
-    GPIO_DIR_OUT(MOTOR_LEFT_FORWARD);
-    
-    GPIO_DIR_OUT(MOTOR_RIGHT_ENABLE);
-    GPIO_DIR_OUT(MOTOR_RIGHT_BRAKE);
-    GPIO_DIR_OUT(MOTOR_RIGHT_FORWARD);
-
-    GPIO_DIR_OUT(MOTOR_BLADE_ENABLE);
-    GPIO_DIR_OUT(MOTOR_BLADE_BRAKE);
-    GPIO_DIR_OUT(MOTOR_BLADE_FORWARD);
-// Set default modes ->  disabled controller, brake on, forward direction
-
-// Configure PWM 1.1(spindle) 1.4(left) 1.5(right) (and pwm1.2 LCD brightness)
+// Configure PWM 1.1(Blade) 1.4(left) 1.5(right) (and pwm1.2 LCD brightness)
     LPC_PWM1->MR0 = 1000;
     LPC_PWM1->MR1 = 0;      // Blade
     LPC_PWM1->MR4 = 0;      // Left
@@ -99,7 +78,35 @@ void MotorCtrl_Init() {
     // mr0 = 1000 pr = 2  : ~20 khz
     LPC_PWM1->PR = 12;
     LPC_PWM1->LER |= (1 << 0) | (1 << 1) | (1 << 2) | (1 << 4) | (1 << 5); //Enable PWM Match 0+1+2+4+5 Latch
-    LPC_PWM1->PCR |= (1 << 10); // PWMENA2
+    LPC_PWM1->PCR |= (1 << 9) | (1 << 10) | (1 << 12) | (1 << 13); // PWMENA2
     LPC_PWM1->MCR |= (1 << 1); // PWMMR0R
     LPC_PWM1->TCR |= (1 << 0) | (1 << 3); // Counter Enable | PWM Enable
+
+    GPIO_DIR_OUT(MOTOR_MOSFET);
+    GPIO_CLR_PIN(MOTOR_MOSFET);
+
+    GPIO_PIN_FNC(MOTOR_LEFT_PWM);
+    GPIO_PIN_FNC(MOTOR_RIGHT_PWM);
+    GPIO_PIN_FNC(MOTOR_BLADE_PWM);
+
+    GPIO_DIR_OUT(MOTOR_LEFT_PWM);
+    GPIO_DIR_OUT(MOTOR_RIGHT_PWM);
+    GPIO_DIR_OUT(MOTOR_BLADE_PWM);
+
+    GPIO_DIR_OUT(MOTOR_LEFT_ENABLE);
+    GPIO_DIR_OUT(MOTOR_LEFT_BRAKE);
+    GPIO_DIR_OUT(MOTOR_LEFT_FORWARD);
+    
+    GPIO_DIR_OUT(MOTOR_RIGHT_ENABLE);
+    GPIO_DIR_OUT(MOTOR_RIGHT_BRAKE);
+    GPIO_DIR_OUT(MOTOR_RIGHT_FORWARD);
+
+    GPIO_DIR_OUT(MOTOR_BLADE_ENABLE);
+    GPIO_DIR_OUT(MOTOR_BLADE_BRAKE);
+    GPIO_DIR_OUT(MOTOR_BLADE_FORWARD);
+// Set default modes ->  disabled controller, brake on, forward direction
+    GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
+    GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
+    GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
+
 }

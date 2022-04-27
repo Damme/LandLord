@@ -106,11 +106,6 @@ void sensor_Task(void *pvParameters) {
         vTaskDelay(xDelay200);
         if (xQueuePeek(xSensorQueue, &sensor, 0) == pdTRUE) {
 
-/*            for (int i = 0; i <= 7; i++) {
-                ADC[i]=ADC_DR_RESULT(LPC_ADC->DR[i]);
-            }
-*/
-
             // handle_ADCMuxing(); // For LPC1768! ADC4 is muxed between 4 measurements.        
             
             sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
@@ -121,6 +116,8 @@ void sensor_Task(void *pvParameters) {
             sensor.motorSCurrent = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
             sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
             
+            // adc0.7 = coin cell battery voltage? ANALOG_UNK
+
             xQueueOverwrite(xSensorQueue, &sensor);
 
             /* https://hackaday.io/project/6717-project-landlord/discussion-58892 */

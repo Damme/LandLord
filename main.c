@@ -1,5 +1,6 @@
 //#define DEBUGCONSOLE 1
 //#define debugPrintf 1
+#define LPC177x_8x // to make visual studio understand the code better
 
 #define LOWSTACKWARNING
 
@@ -63,6 +64,8 @@ int main(void) {
     vPortDefineHeapRegions(xHeapRegions);
 
     hardware_Init();
+    MotorCtrl_Init();
+    
 
     xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xSensorMsgType sensor = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };

@@ -40,9 +40,7 @@ void lcdPrintDebug() {
     u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-    //    sprintf(buffer, "Kdn:%u d1:%u d2:%u d3:%u d4:%u", keypad_GetKey(), debug1, debug2, debug3, debug4);
-    // binary debug
-    //u8g_DrawStr(&u8g,  0, 10, buffer);
+
     for (i = 0 ; i < 32 ; i++) {
         if ((LPC_GPIO0->PIN >> i) & 1) {
             buffer[i] = 0x31;
@@ -99,134 +97,69 @@ void lcdPrintDebug() {
     buffer[5] = 0x0;
     u8g_DrawStr(&u8g,  0, 60, buffer);
 #endif
-/*
-    sprintf(buffer, "c: %i 0x%.8lx", counter, keypad_GetKey());
-    u8g_DrawStr(&u8g,  0, 50, buffer);
-    counter++;
-    
-    //#define KEYPAD_POWER2       (GPIO_TYPE(PORT_1, PIN_28, FUNC_0, 0))
-    uint32_t t1, t2, t3;
-/*
-    GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLDOWN);
-    vTaskDelay(xDelay25);
-    t1 = LPC_PINCON->PINMODE2;
-    
-    GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLUP);
-    vTaskDelay(xDelay25);
-    t2 = LPC_PINCON->PINMODE2;
-
-    GPIO_FNC_PULL(KEYPAD_COL0, PINMODE_PULLDOWN);
-    vTaskDelay(xDelay25);
-    t3 = LPC_PINCON->PINMODE2;
-  
-  */  
-    
-/*    sprintf(buffer, "0x%.8lx 0x%.8lx 0x%.8lx", 0, keypad_GetState(), keypad_GetTime());
-    u8g_DrawStr(&u8g,  0, 60, buffer);
-    // allt på port 1 0x%.8lx
-*/
 
     if (keypad_GetKey() == KEY1 && !keypressed) {
         keypressed = true;
-        // TODO : Fix pwm!
         
         GPIO_PIN_FNC(LCD_BACKLIGHT_PWM);
-        //LPC_IOCON->P2_1 &= ~(3 << 0);
-        //LPC_IOCON->P2_1 |= (1 << 0);
-        // mr0 = 1000 pr = 59 : ~1001 hz
-        // mr0 = 1000 pr = 12 : ~4635 hz
-        // mr0 = 1000 pr = 5 : ~10024 hz
-        // mr0 = 1000 pr = 2 : ~20048 hz
-        a1=12;
-        LPC_PWM1->MR0 = 1000;
-        LPC_PWM1->MR2 = 0x90;
-        LPC_PWM1->PR = a1;
-        pwmtest=0x90;
-
-// Interrupts: See registers PWMMCR (Table 557) and PWMCCR (Table 558) for match
-// and capture events. Interrupts are enabled in the NVIC using the appropriate Interrupt
-// Set Enable register.
-        
-        LPC_PWM1->LER |= (1 << 0) | (1 << 2); //Enable PWM Match 0 Latch | Enable PWM Match 2 Latch
-        LPC_PWM1->PCR |= (1 << 10); // PWMENA2
-        LPC_PWM1->MCR |= (1 << 1); // PWMMR0R
-        LPC_PWM1->TCR |= (1 << 0) | (1 << 3); // Counter Enable | PWM Enable
     }
 
     if (keypad_GetKey() == KEY2 && !keypressed) {
         keypressed = true;
-        pwmtest = pwmtest + 25;
+        pwmtest = pwmtest + 100;
         if (pwmtest > 1000) pwmtest = 1000;
-        //ADC5=pwmtest;
-        LPC_PWM1->MR0 = 1000;
     	LPC_PWM1->MR2 = pwmtest;
-	    LPC_PWM1->PR = a1;
-	    LPC_PWM1->LER |= (1<<0)|(1<<2);
-	    LPC_PWM1->TCR |= (1<<1);
-	    LPC_PWM1->TCR &= ~(1<<1);
+	    LPC_PWM1->LER |= (1<<2);
     }
 
     if (keypad_GetKey() == KEY3 && !keypressed) {
         keypressed = true;
-        pwmtest = pwmtest - 25;
+        pwmtest = pwmtest - 100;
         if (pwmtest < 0) pwmtest = 0;
-        //ADC5=pwmtest;
-        //ADC6=a1;
-        LPC_PWM1->MR0 = 1000;
     	LPC_PWM1->MR2 = pwmtest;
-	    LPC_PWM1->PR = a1;
-	    LPC_PWM1->LER |= (1<<0)|(1<<2);
-	    LPC_PWM1->TCR |= (1<<1);
-	    LPC_PWM1->TCR &= ~(1<<1);
+	    LPC_PWM1->LER |= (1<<2);
     }
-
     
     if (keypad_GetKey() == KEY4 && !keypressed) {
         keypressed = true;
+        GPIO_SET_PIN(MOTOR_MOSFET);
+        GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
+        GPIO_CLR_PIN(MOTOR_BLADE_BRAKE); // Release brakes!
+        a1=200;
+        LPC_PWM1->MR1 = a1;
+	    LPC_PWM1->LER |= (1<<1);
     }
     if (keypad_GetKey() == KEY5 && !keypressed) {
         keypressed = true;
+        GPIO_TGL_PIN(MOTOR_BLADE_ENABLE);
     }
 
     if (keypad_GetKey() == KEY6 && !keypressed) {
         keypressed = true;
+        GPIO_TGL_PIN(MOTOR_BLADE_BRAKE);
     }
-    
-    /*
-
-    for (i = 0 ; i < 32 ; i++) {
-        if ((LPC_GPIO4->PIN >> i) & 1) {
-            buffer[i] = 0x31;
-        } else {
-            buffer[i] = 0x30;
-        }
-        if (i >= 14) buffer[i] = 0x5f;
-
-        if (i == 20) buffer[i] = ((LPC_GPIO4->PIN >> 25) & 1) ? 0x31 : 0x30;
-        if (i == 21) buffer[i] = ((LPC_GPIO4->PIN >> 26) & 1) ? 0x31 : 0x30;
-        if (i == 23) buffer[i] = ((LPC_GPIO4->PIN >> 28) & 1) ? 0x31 : 0x30;
-        if (i == 24) buffer[i] = ((LPC_GPIO4->PIN >> 29) & 1) ? 0x31 : 0x30;
+    if (keypad_GetKey() == KEY7 && !keypressed) {
+        keypressed = true;
+        GPIO_TGL_PIN(MOTOR_BLADE_FORWARD);
     }
-    buffer[32] = 0x0;
-    */
-    //u8g_DrawStr(&u8g,  0, 48, buffer);
-
-    /*
-        sprintf(buffer, "A");
-        sprintf(buffer + strlen(buffer), "0:%04u ", ADC0);
-        sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
-        sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
-        sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
-        u8g_DrawStr(&u8g,  0, 56, buffer);
-        sprintf(buffer, "B");
-        sprintf(buffer + strlen(buffer), "4:%04u ", ADC4);
-        sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
-        sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
-        sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
-        buffer[32] = 0x0;
-
-        u8g_DrawStr(&u8g,  0, 64, buffer);
-    */
+    if (keypad_GetKey() == KEY8 && !keypressed) {
+        keypressed = true;
+        a1 = a1 + 100;
+        if (a1 > 1000) a1 = 1000;
+    	LPC_PWM1->MR1 = a1;
+	    LPC_PWM1->LER |= (1<<1);
+    }
+    if (keypad_GetKey() == KEY9 && !keypressed) {
+        keypressed = true;
+        a1 = a1 - 100;
+        if (a1 < 0) a1 = 0;
+    	LPC_PWM1->MR1 = a1;
+	    LPC_PWM1->LER |= (1<<1);
+    }
+    if (keypad_GetKey() == KEY0 && !keypressed) {
+        keypressed = true;
+        GPIO_TGL_PIN(MOTOR_MOSFET);
+    }
 }
 
 void lcdPrintSensor() {
@@ -249,6 +182,8 @@ void lcdPrintSensor() {
     //sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
     //u8g_DrawStr(&u8g,  0, 30, buffer);
     
+    sprintf(buffer, "Motor: %ldA %ldA %ldA", sensor.motorSCurrent, sensor.motorLCurrent, sensor.motorRCurrent);
+    u8g_DrawStr(&u8g,  0, 30, buffer);
     
     sprintf(buffer, "Battery: %iC %imV %imA", sensor.batteryTemp, sensor.batteryVolt, sensor.batteryChargeCurrent);
     u8g_DrawStr(&u8g,  0, 50, buffer);
@@ -259,77 +194,24 @@ void lcdPrintSensor() {
 */
 
     if (keypad_GetKey() == KEY0 && !keypressed) {
-    //    pwmtest = 0;
         keypressed = true;
-        GPIO_TGL_PIN(LCD_BACKLIGHT);
-        //*pwmPort = pwmtest;
-        //LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
-
-
-
     }
     if (keypad_GetKey() == KEY1 && !keypressed) {
         keypressed = true;
-        // TODO : Fix pwm!
-        
-        GPIO_PIN_FNC(LCD_BACKLIGHT_PWM);
-        //LPC_IOCON->P2_1 &= ~(3 << 0);
-        //LPC_IOCON->P2_1 |= (1 << 0);
-        // mr0 = 1000 pr = 59 : ~1001 hz
-        // mr0 = 1000 pr = 12 : ~4635 hz
-        // mr0 = 1000 pr = 5 : ~10024 hz
-        // mr0 = 1000 pr = 2 : ~20048 hz
-        a1=12;
-        LPC_PWM1->MR0 = 1000;
-        LPC_PWM1->MR2 = 0x90;
-        LPC_PWM1->PR = a1;
-        pwmtest=0x90;
-
-// Interrupts: See registers PWMMCR (Table 557) and PWMCCR (Table 558) for match
-// and capture events. Interrupts are enabled in the NVIC using the appropriate Interrupt
-// Set Enable register.
-        
-        LPC_PWM1->LER |= (1 << 0) | (1 << 2); //Enable PWM Match 0 Latch | Enable PWM Match 2 Latch
-        LPC_PWM1->PCR |= (1 << 10); // PWMENA2
-        LPC_PWM1->MCR |= (1 << 1); // PWMMR0R
-        LPC_PWM1->TCR |= (1 << 0) | (1 << 3); // Counter Enable | PWM Enable
     }
 
     if (keypad_GetKey() == KEY2 && !keypressed) {
         keypressed = true;
-        pwmtest = pwmtest + 25;
-        if (pwmtest > 1000) pwmtest = 1000;
-        //ADC5=pwmtest;
-        LPC_PWM1->MR0 = 1000;
-    	LPC_PWM1->MR2 = pwmtest;
-	    LPC_PWM1->PR = a1;
-	    LPC_PWM1->LER |= (1<<0)|(1<<2);
-	    LPC_PWM1->TCR |= (1<<1);
-	    LPC_PWM1->TCR &= ~(1<<1);
     }
 
     if (keypad_GetKey() == KEY3 && !keypressed) {
         keypressed = true;
-        pwmtest = pwmtest - 25;
-        if (pwmtest < 0) pwmtest = 0;
-        //ADC5=pwmtest;
-        //ADC6=a1;
-        LPC_PWM1->MR0 = 1000;
-    	LPC_PWM1->MR2 = pwmtest;
-	    LPC_PWM1->PR = a1;
-	    LPC_PWM1->LER |= (1<<0)|(1<<2);
-	    LPC_PWM1->TCR |= (1<<1);
-	    LPC_PWM1->TCR &= ~(1<<1);
     }
     if (keypad_GetKey() == KEY5 && !keypressed) {
         keypressed = true;
-        a1++;
-        //ADC6=a1;
     }
     if (keypad_GetKey() == KEY6 && !keypressed) {
         keypressed = true;
-        a1--;
-        //ADC6=a1;
     }
 
 }
