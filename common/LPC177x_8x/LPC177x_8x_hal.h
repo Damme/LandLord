@@ -36,7 +36,7 @@
 
 //#define GPIO_PINMODE(gpio) (*(gpio.con) = (uint32_t)((*gpio.con & ~((3 << 3) | (1 << 10) | (1 << 6))) | ((gpio.pinmode << 3) | (gpio.od << 10) | (gpio.inv << 6))))
 
-#define GPIO_PIN_FNC(gpio)  		 (*(gpio.con) = (uint32_t)((*gpio.con & ~(3 << 0)) | (gpio.pinsel << 0)))
+#define GPIO_PIN_FNC(gpio)  	 (*(gpio.con) = (uint32_t)((*gpio.con & ~(3 << 0)) | (gpio.pinsel << 0)))
 #define GPIO_FNC_PULL(gpio, val) (*(gpio.con) = (uint32_t)((*gpio.con & ~(3 << 3)) | (val << 3)))
 #define GPIO_FNC_INV(gpio, val)  (*(gpio.con) = (uint32_t)((*gpio.con & ~(1 << 6)) | (val << 6)))
 #define GPIO_FNC_OD(gpio, val)   (*(gpio.con) = (uint32_t)((*gpio.con & ~(1 << 10)) | (val << 10)))
@@ -118,7 +118,5 @@ void sensor_Init();
 void powerMgmt_Init();
 void MotorCtrl_Init();
 
-void enable_Charger_Check();
-void disable_Charger_Check();
 
 #endif

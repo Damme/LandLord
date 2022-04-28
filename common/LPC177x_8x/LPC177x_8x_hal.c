@@ -36,7 +36,7 @@ void sensor_Init() {
     //fullAdcRate = 400000 * 31;
     fullAdcRate = 375000 * 33;
     div = ((PeripheralClock * 2 + fullAdcRate) / (fullAdcRate * 2)) - 1;
-
+/*
     GPIO_PIN_FNC(ADC_AD0);
     GPIO_PIN_FNC(ADC_AD1);
     GPIO_PIN_FNC(ADC_AD2);
@@ -45,6 +45,15 @@ void sensor_Init() {
     GPIO_PIN_FNC(ADC_AD5);
     GPIO_PIN_FNC(ADC_AD6);
     GPIO_PIN_FNC(ADC_AD7);
+  */  
+    LPC_IOCON->P0_12 = (1 << 8) | (3 << 0);
+    LPC_IOCON->P0_13 = (1 << 8) | (3 << 0);
+    LPC_IOCON->P0_23 = (1 << 8) | (1 << 0);
+    LPC_IOCON->P0_24 = (1 << 8) | (1 << 0);
+    LPC_IOCON->P0_25 = (1 << 8) | (1 << 0);
+    LPC_IOCON->P0_26 = (1 << 8) | (1 << 0);
+    LPC_IOCON->P1_30 = (1 << 8) | (3 << 0);
+    LPC_IOCON->P1_31 = (1 << 8) | (3 << 0);
     
     LPC_ADC->CR = (div << 8) | (1 << 21); //div 4 400000hz, enable ADC ändrat till div 8
     LPC_ADC->CR |= ( 0xff ); // enable all adc channels.
@@ -54,14 +63,6 @@ void sensor_Init() {
 void powerMgmt_Init() {
     GPIO_DIR_OUT(CHARGER_CHECK);
     GPIO_DIR_OUT(CHARGER_ENABLE);
-}
-
-void enable_Charger_Check() {
-    GPIO_SET_PIN(CHARGER_CHECK);
-}
-
-void disable_Charger_Check() {
-    GPIO_CLR_PIN(CHARGER_CHECK);
 }
 
 void MotorCtrl_Init() {
