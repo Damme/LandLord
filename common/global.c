@@ -23,7 +23,10 @@ volatile uint8_t debugState = 0;
 
 volatile uint32_t cpuID = 0;
 
+xQueueHandle xScreenMsgQueue;
+xQueueHandle xMotorMsgQueue;
 xQueueHandle xSensorQueue;
+
 
 void delay_uS(uint32_t uS) {
     LPC_TIM1->TCR = 0x02;                // reset timer

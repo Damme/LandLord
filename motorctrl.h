@@ -5,30 +5,6 @@
 #include "queue.h"
 #include "global.h"
 
-#pragma anon_unions
-typedef struct
-{
-	xMessageType xType;
-	union
-	{
-		struct
-		{
-			int32_t lMotorLeftCurrent; /* mA */
-			int32_t lMotorRightCurrent; /* mA */
-			int32_t lSpindleCurrent; /* mA */
-		} measurement;
-		struct
-		{
-			int32_t lMotorLeftSpeed;
-			int32_t lMotorRightSpeed;
-			int32_t lMotorLeftDistance;
-			int32_t lMotorRightDistance;		
-		} drive;
-	};
-} xMotorCtrlMsg;
-
-extern xQueueHandle xMotorCtrlMsgQueue;
-
 void motorCtrl_Task(void *pvParameters);
 
 #endif // MOTORCTRL_H

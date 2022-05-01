@@ -29,12 +29,26 @@ extern TickType_t xDelay250;
 extern TickType_t xDelay500;
 extern TickType_t xDelay1000;
 
+extern xQueueHandle xSensorQueue;
+extern xQueueHandle xScreenMsgQueue;
+extern xQueueHandle xMotorMsgQueue;
+
+typedef enum {
+    MEASUREMENT_BATTERY = 0,
+    MEASUREMENT_MOTORCURRENT,
+    COMMAND_SHUTDOWN,
+    COMMAND_STOP,
+} xMessageType;
+
 typedef struct debug_s {
     uint32_t portStat;
     uint32_t lastUpdate;
 } debug_t;
 
-extern xQueueHandle xSensorQueue;
+typedef struct {
+    uint32_t time;
+    char text[32];
+} xScreenMsgType;
 
 typedef struct {
     bool stuck;
@@ -53,6 +67,45 @@ typedef struct {
     int32_t motorLCurrent;
     int32_t motorSCurrent;
 } xSensorMsgType;
+
+typedef enum {
+    BRAKE = 0,
+    EMGSTOP,
+    SETSPEED
+} xMotorMessageType;
+
+typedef struct {
+    xMotorMessageType action;
+    int16_t blade;
+    int16_t left;
+    int16_t right;
+} xMotorMsgType;
+
+/*
+#pragma anon_unions
+typedef struct
+{
+	xMessageType xType;
+	union
+	{
+		struct
+		{
+			int32_t lMotorLeftCurrent;
+			int32_t lMotorRightCurrent;
+			int32_t lSpindleCurrent;
+		} measurement;
+		struct
+		{
+			int32_t lMotorLeftSpeed;
+			int32_t lMotorRightSpeed;
+			int32_t lMotorLeftDistance;
+			int32_t lMotorRightDistance;		
+		} drive;
+	};
+} xMotorCtrlMsg;
+
+extern xQueueHandle xMotorCtrlMsgQueue;
+*/
 
 extern volatile debug_t debugArray[5];
 extern volatile uint8_t debugState;

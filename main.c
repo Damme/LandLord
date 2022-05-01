@@ -10,7 +10,7 @@
 #include "keypad.h"
 #include "sensor.h"
 #include "powermgmt.h"
-//#include "motorctrl.h"
+#include "motorctrl.h"
 #include "lcd.h"
 #include "redirect.h"
 #include "FreeRTOS.h"
@@ -66,10 +66,13 @@ int main(void) {
     hardware_Init();
     MotorCtrl_Init();
     
-
+    xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
+    
     xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xSensorMsgType sensor = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
     xQueueOverwrite(xSensorQueue, &sensor);
+
+    xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
     
 /* https://freertos.org/a00125.html
      BaseType_t xTaskCreate(    TaskFunction_t pvTaskCode,
@@ -82,11 +85,12 @@ int main(void) {
 */
 
     //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 5, NULL);
+    xTaskCreate(powerMgmt_Task, "PowerMgmt", 160, NULL, 3, NULL);
     xTaskCreate(keypad_Task, "Keypad", 150, NULL, 6, NULL); // configMINIMAL_STACK_SIZE
     xTaskCreate(LCD_Task, "LCD", 1024, NULL, 8, NULL);
     xTaskCreate(sensor_Task, "Sensor", 512, NULL, 5, NULL);
-    xTaskCreate(powerMgmt_Task, "PowerMgmt", 160, NULL, 5, NULL);
-    //xTaskCreate(task_MotorCtrl, "MotorCtrl", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
+    xTaskCreate(motorCtrl_Task, "MotorCtrl", 150, NULL, 5, NULL);
+
 
     vTaskStartScheduler();
 }
