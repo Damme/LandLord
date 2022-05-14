@@ -1,117 +1,201 @@
 #include <stdio.h>
 #include "powermgmt.h"
 #include "timers.h"
+#include "global.h"
+#include "keypad.h"
 
-#define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
+#define BATTERY_MAX_TEMP  400
+#define BATTERY_MAX_VOLT  28700
+#define BATTERY_MIN_VOLT  23700
+#define BATTERY_MAX_AMP   4000
 
-#define IS_CHARGER_CONNECTED()  GPIO_CHK_PIN(CHARGER_CONNECTED)
-#define IS_CHARGER_ENABLED()    GPIO_CHK_PIN(CHARGER_ENABLE)
-#define IS_CHARGING()           (IS_CHARGER_CONNECTED() && IS_CHARGER_ENABLED())
+/*
+7 x 18650
 
-#define ENABLE_CHARGER()        GPIO_SET_PIN(CHARGER_ENABLE)
-#define DISABLE_CHARGER()       GPIO_CLR_PIN(CHARGER_ENABLE)
-#define ENABLE_MOTOR_MOSFET()   GPIO_SET_PIN(MOTOR_MOSFET)
-#define DISABLE_MOTOR_MOSFET()  GPIO_CLR_PIN(MOTOR_MOSFET)
-#define POWER_OFF()             GPIO_CLR_PIN(POWER)
+3.4 x 7 = 23.8v
+4.1 x 7 = 28.7v
+4.2 x 7 = 29.4v
+2sec until red
+4sec red
+*/
 
-#define BATTERY_MAX_VOLTAGE  287
-#define BATTERY_MIN_VOLTAGE  237
-
-// CHARGER_INIT
-xQueueHandle xPowerMgmtMsgQueue;
-
-int32_t lChargeCurrent;
-int32_t lBatteryVoltage;
-int32_t lBatteryTemperature;
+typedef enum {
+    Startup,
+    Idle,
+    CheckChargerInit,
+    CheckCharger,
+    StartCharging,
+    Charging,
+    ChargingFinnished,
+    ChargingFailed,
+    Shutdown
+} powerStates;
 
 void powerMgmt_Task(void *pvParameters) {
-    xPowerMgmtMsgQueue = xQueueCreate(20, sizeof(xPowerMgmtMsg));
-    lChargeCurrent = INT32_MIN;
-    lBatteryVoltage = INT32_MIN;
-    lBatteryTemperature = INT32_MIN;
-
     powerMgmt_Init();
-
-    DISABLE_CHARGER();
-
+    
+    TickType_t delay = xDelay100;
+    powerStates powerState = Startup;
+    
+    xSensorMsgType sensor;
+    xScreenMsgType screenMsg;
+    uint16_t count = 20;
+    
     for (;;) {
-        xPowerMgmtMsg msg;
-        if (xQueueReceive(xPowerMgmtMsgQueue, &msg, xDelay100) == pdTRUE) {
-            switch (msg.xType) {
-                case (MEASUREMENT_BATTERY): {
-                    /* https://hackaday.io/project/6717-project-landlord/discussion-58892 */
-                    if (msg.measurement.lChargeCurrent != INT32_MIN) {
-                        lChargeCurrent = msg.measurement.lChargeCurrent;
-                        printf("Charge I: %4lumA\r\n", lChargeCurrent);
-                    }
-                    if (msg.measurement.lBatteryVoltage != INT32_MIN) {
-                        // orig fw: v16_batteryLowV = 237; - 23.7V (fixed point) - 3.386V per cell
-                        // orig fw: v18_batteryFullCharge = 287; - 28.7V (fixed point) - 4.1V per cell
-                        lBatteryVoltage = msg.measurement.lBatteryVoltage;
-                        printf("Battery U: %2lu.%01luV\r\n", lBatteryVoltage / 10, lBatteryVoltage % 10);
-                        if ((lBatteryVoltage < BATTERY_MIN_VOLTAGE) && !IS_CHARGER_CONNECTED()) { /* below 23.7V - switch off to protect battery! */
-                            /* issue shutdown to self */
-                            xPowerMgmtMsg msg;
-                            msg.xType = COMMAND_SHUTDOWN;
-                            msg.shutdown.xDelay = xDelay100;
-                            printf("Requesting shutdown to protect battery!\r\n");
-                            xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
-                        } else if (lBatteryVoltage > BATTERY_MAX_VOLTAGE) { /* over 28.7V - stop charging! */
-                        }
-                    }
-                    if (msg.measurement.lBatteryTemperature != INT32_MIN) {
-                        lBatteryTemperature = msg.measurement.lBatteryTemperature;
-                        if (lBatteryTemperature > 400) { /* above 40.0�C - switch off to protect battery! */
-                            /* issue shutdown to self */
-                            xPowerMgmtMsg msg;
-                            msg.xType = COMMAND_SHUTDOWN;
-                            msg.shutdown.xDelay = xDelay100;
-                            printf("Requesting shutdown to protect battery!\r\n");
-                            xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
-                        }
-                        if (lBatteryTemperature >= 0) {
-                            printf("Battery T: %3lu.%01lu%cC\r\n", lBatteryTemperature / 10, lBatteryTemperature % 10, '\xB0');
-                        } else {
-                            lBatteryTemperature = ~lBatteryTemperature;
-                            printf("Battery T: -%3lu.%01lu%cC\r\n", lBatteryTemperature / 10, lBatteryTemperature % 10, '\xB0');
-                        }
+        xQueuePeek(xSensorQueue, &sensor, 0);
+        switch(powerState) {
+            case Startup:
+                // if checking for charger all the time we dont need this forced charging function.
+                if (keypad_GetKey() == KEYHOME) {
+                    powerState = CheckChargerInit;
+                    
+                    screenMsg.time=50;
+                    sprintf(screenMsg.text, "Forced charging");      
+                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                }
+                count--;
+                if (count == 0) powerState = Idle;
+                break;
 
-                    }
-                    break;
+            case Idle:
+                // Why not check for charger all the time? Once every 1s
+                // Todo dim display if idle > x minutes, idle is if lid is closed!
+                delay = xDelay1000;
+                count = 50;
+                powerState = CheckChargerInit;
+                break;
+
+            case CheckChargerInit:
+                // TODO only start charging if volt below xx?
+                delay = xDelay100;
+                GPIO_SET_PIN(CHARGER_CHECK);
+                powerState = CheckCharger;
+                break;
+
+            case CheckCharger:
+                if (GPIO_CHK_PIN(CHARGER_CONNECTED)) {                    
+                    // TODO: send signal "in charger"??
+                    // TODO: Somehow block forward motion
+                    GPIO_CLR_PIN(CHARGER_CHECK);
+                    // All stop! 
+                    GPIO_SET_PIN(MOTOR_MOSFET);
+                    
+                    sensor.incharger = 1;
+                    xQueueOverwrite(xSensorQueue, &sensor);
+                    
+                    powerState = StartCharging;
+                    count = 50;
+                    
+                    screenMsg.time=15;
+                    sprintf(screenMsg.text, "In charger!", keypad_GetTime());
+                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
-                case (COMMAND_SHUTDOWN): {
-                    printf("Shutting down!\r\n");
-                    vTaskDelay(msg.shutdown.xDelay);
-                    DISABLE_MOTOR_MOSFET();
-                    POWER_OFF();
-                    __disable_irq(); for (;;);
+                count--;
+                if (count == 0) {
+                    GPIO_CLR_PIN(CHARGER_CHECK);
+                    GPIO_SET_PIN(MOTOR_MOSFET);
+                    powerState = Idle;
+                    /*
+                    screenMsg.time=50;
+                    sprintf(screenMsg.text, "No charger found!", keypad_GetTime());
+                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);*/
                 }
-                default:
-                    printf("Unknown msg\r\n");
+                break;
+// Catch state connected to charger but charger not ready (For example, start mower with charger already connected)
+// CheckCharger Yes -> StartCharging
+// StartCharging -> Charging
+// 4s elapses -> Charger disconnected! -> ChargingFailed 
+// -> CheckChargerInit -> CheckChargerInit
+
+            case StartCharging:
+                GPIO_SET_PIN(CHARGER_ENABLE);
+                powerState = Charging;
+                break;
+
+            case Charging:
+                if (sensor.batteryChargeCurrent > 100) {
+                    count = 50;
+                    // TODO Count mAh/Wh charged
+                }
+
+                if (sensor.batteryVolt > BATTERY_MAX_VOLT) {
+                    GPIO_SET_PIN(CHARGER_CHECK);
+                    powerState = ChargingFinnished;
+                    
+                    screenMsg.time=15;
+                    sprintf(screenMsg.text, "Charge finnished!", keypad_GetTime());
+                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                }
+
+                count--;
+                if (count == 0) {
+                    powerState = ChargingFailed; // nope wrong goto error / lost charger!
+                    
+                    screenMsg.time=15;
+                    sprintf(screenMsg.text, "Charger disconnected!", keypad_GetTime());
+                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                }
+
+                break;
+
+            case ChargingFinnished:
+                // TODO Signal ROS charge finnished
+                // TODO start charging again when volt < 27700?
+                delay = xDelay1000;
+                GPIO_SET_PIN(CHARGER_ENABLE);
+                vTaskDelay(xDelay100); // 10ms is enough
+                GPIO_CLR_PIN(CHARGER_ENABLE);
+
+                //GPIO_SET_PIN(CHARGER_CHECK);
+                //powerState = ChargerParked; // :(
+                
+                // Lets create a new charger state, pulse charger pin 1/10 of time for floating charging
+                // Unless batt > + 1000 from setpoint then get to stupid mode or left charger.
+
+                /*// powerState = Idle; // Wrong - We want to wait for not in charger before getting back to idle!
+                delay = xDelay1000; //  nope longer wait did not work either*/
+                break;
+
+            case ChargingFailed:
+                delay = xDelay1000;
+                // mains power loss ? retry start charging over and over again until success?
+                powerState = CheckChargerInit;
+                break;
+            /*
+            case ChargerParked: 
+                if (!GPIO_CHK_PIN(CHARGER_CONNECTED)) { // sometimes detects charger, sometimes not - timer maybe? ??
+                    powerState = Idle; // duoble nope --- does not work... 
+                }
+                break;
+*/
+            case Shutdown:
+                GPIO_CLR_PIN(MOTOR_MOSFET);
+                GPIO_CLR_PIN(CHARGER_ENABLE);
+                GPIO_CLR_PIN(LCD_BACKLIGHT);
+                GPIO_CLR_PIN(CHARGER_CHECK);
+                GPIO_CLR_PIN(POWER);
+                HALT;
+                break;
+
+        }
+
+        // TODO Check high temp -> shut down
+        // TODO Check low batt -> signal ROS & need charge!
+        // TODO Check crit batt -> signal ROS & shut down
+        // TODO Pulse charger mosfet if high temp / current? ('slow' Software PWM ?? )
+
+        if (keypad_GetKey() == KEYPWR) {
+            
+            screenMsg.time=1;
+            sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
+            xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+            if (keypad_GetTime() > 15) {
+                powerState = Shutdown;
             }
         }
-        // on each loop (latest every 100ms), check if connected to charger
+        vTaskDelay(delay);
 
-        enable_Charger_Check();
-        if (IS_CHARGER_CONNECTED()) {
-            if (!IS_CHARGER_ENABLED()) {
-                if ((lBatteryVoltage > (BATTERY_MIN_VOLTAGE - 10)) && (lBatteryVoltage < (BATTERY_MAX_VOLTAGE - 10))) {
-                    printf("Start charging\r\n");
-                    ENABLE_CHARGER();
-                }
-            } else {
-                if (lBatteryVoltage >= BATTERY_MAX_VOLTAGE) {
-                    printf("Stop charging\r\n");
-                    DISABLE_CHARGER();
-                }
-            }
-        } else {
-            if (IS_CHARGER_ENABLED()) {
-                printf("Charger disconnected\r\n");
-                DISABLE_CHARGER();
-            }
-        }
-        disable_Charger_Check();
+
 #if LOWSTACKWARNING
         int stack = uxTaskGetStackHighWaterMark(NULL);
         if (stack < 50) printf("Task powerMgmt_Task has %u words left in stack.\r\n", stack);

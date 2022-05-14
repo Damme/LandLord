@@ -134,7 +134,7 @@ void LCD_Task(void *pvParameters) {
 
     for (;;) {
         vTaskDelayUntil(&xLastTime, xDelay100);
-        LCD_Update();
+        screen_Task();
 #if LOWSTACKWARNING
         int stack = uxTaskGetStackHighWaterMark(NULL);
         if (stack < 50) printf("Task task_LCD has %u words left in stack.\r\n", stack);

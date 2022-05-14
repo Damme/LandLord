@@ -55,10 +55,11 @@ typedef struct {
     bool stuck2;
     bool door;
     bool lift;
-    bool collition;
+    bool collision;
     bool stop;
     bool cover; // ???
     bool rain;
+    bool incharger;
     int32_t rainAnalog;
     int32_t batteryTemp;
     int32_t batteryVolt;
@@ -66,6 +67,10 @@ typedef struct {
     int32_t motorRCurrent;
     int32_t motorLCurrent;
     int32_t motorSCurrent;
+    int32_t boardTemp;
+    int16_t AccelX;
+    int16_t AccelY;
+    int16_t AccelZ;
 } xSensorMsgType;
 
 typedef enum {
@@ -81,31 +86,7 @@ typedef struct {
     int16_t right;
 } xMotorMsgType;
 
-/*
-#pragma anon_unions
-typedef struct
-{
-	xMessageType xType;
-	union
-	{
-		struct
-		{
-			int32_t lMotorLeftCurrent;
-			int32_t lMotorRightCurrent;
-			int32_t lSpindleCurrent;
-		} measurement;
-		struct
-		{
-			int32_t lMotorLeftSpeed;
-			int32_t lMotorRightSpeed;
-			int32_t lMotorLeftDistance;
-			int32_t lMotorRightDistance;		
-		} drive;
-	};
-} xMotorCtrlMsg;
 
-extern xQueueHandle xMotorCtrlMsgQueue;
-*/
 
 extern volatile debug_t debugArray[5];
 extern volatile uint8_t debugState;

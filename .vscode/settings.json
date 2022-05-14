@@ -6,7 +6,8 @@
         "lpc177x_8x_hal.h": "c",
         "system_lpc177x_8x.h": "c",
         "system_lpc175x_6x.h": "c",
-        "portable.h": "c"
+        "portable.h": "c",
+        "stdio.h": "c"
     },
 
 }

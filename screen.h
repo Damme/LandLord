@@ -27,7 +27,7 @@ typedef struct currentDisp_s {
 } currentDisp_t;
 
 void LCD_Init(void);
-void LCD_Update(void);
+void screen_Task(void);
 void testfunc(void);
 void motortest(void);
 

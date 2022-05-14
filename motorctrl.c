@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "motorctrl.h"
 #include "timers.h"
-
+#define LPC177x_8x
 /*
 PWM1 BLADE
 PWM4 LEFT
@@ -18,24 +18,30 @@ void setpwm(uint16_t blade, uint16_t left, uint16_t right) {
     LPC_PWM1->MR5 = right;
     LPC_PWM1->LER |= (1<<1) | (1<<4) | (1<<5);    
 }
-void motorCtrl_Task(void *pvParameters)
-{
+
+
+void motorCtrl_Task(void *pvParameters) {
     xMotorMsgType MotorMsg;
-    // Skit i allt kör på! :D
+    
+    MotorCtrl_Init();
+    
     GPIO_SET_PIN(MOTOR_MOSFET);
     setpwm(0, 0, 0);
+// don't think we need the delays    
     vTaskDelay(xDelay50);
     GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
     GPIO_CLR_PIN(MOTOR_LEFT_ENABLE);
     GPIO_CLR_PIN(MOTOR_RIGHT_ENABLE);
     vTaskDelay(xDelay50);
-    GPIO_CLR_PIN(MOTOR_BLADE_BRAKE); // Set = off
-    GPIO_CLR_PIN(MOTOR_LEFT_BRAKE); // Set = off
-    GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE); // Set = off
+// seem to have to cycle brakes once to release them. 
+    GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
+    GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
+    GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
+// might  need this delay
     vTaskDelay(xDelay50);
-    GPIO_SET_PIN(MOTOR_BLADE_BRAKE); // Set = off
-    GPIO_SET_PIN(MOTOR_LEFT_BRAKE); // Set = off
-    GPIO_SET_PIN(MOTOR_RIGHT_BRAKE); // Set = off
+    GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
+    GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
+    GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
     
     for (;;) {
         if (xQueueReceive(xMotorMsgQueue, &MotorMsg, xDelay25) == pdTRUE) {
@@ -66,7 +72,6 @@ void motorCtrl_Task(void *pvParameters)
                 // check direction change
                 
             }
-
         }
     }
 }

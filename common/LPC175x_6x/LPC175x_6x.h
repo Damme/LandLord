@@ -426,41 +426,41 @@ typedef struct {
 /*------------- Inter-Integrated Circuit (I2C) -------------------------------*/
 /** @brief  Inter-Integrated Circuit (I2C) register structure definition */
 typedef struct {
-    __IO uint32_t I2CONSET;
-    __I  uint32_t I2STAT;
-    __IO uint32_t I2DAT;
-    __IO uint32_t I2ADR0;
-    __IO uint32_t I2SCLH;
-    __IO uint32_t I2SCLL;
-    __O  uint32_t I2CONCLR;
+    __IO uint32_t CONSET;
+    __I  uint32_t STAT;
+    __IO uint32_t DAT;
+    __IO uint32_t ADR0;
+    __IO uint32_t SCLH;
+    __IO uint32_t SCLL;
+    __O  uint32_t CONCLR;
     __IO uint32_t MMCTRL;
-    __IO uint32_t I2ADR1;
-    __IO uint32_t I2ADR2;
-    __IO uint32_t I2ADR3;
-    __I  uint32_t I2DATA_BUFFER;
-    __IO uint32_t I2MASK0;
-    __IO uint32_t I2MASK1;
-    __IO uint32_t I2MASK2;
-    __IO uint32_t I2MASK3;
+    __IO uint32_t ADR1;
+    __IO uint32_t ADR2;
+    __IO uint32_t ADR3;
+    __I  uint32_t DATA_BUFFER;
+    __IO uint32_t MASK0;
+    __IO uint32_t MASK1;
+    __IO uint32_t MASK2;
+    __IO uint32_t MASK3;
 } LPC_I2C_TypeDef;
 
 /*------------- Inter IC Sound (I2S) -----------------------------------------*/
 /** @brief  Inter IC Sound (I2S) register structure definition */
 typedef struct {
-    __IO uint32_t I2SDAO;
-    __IO uint32_t I2SDAI;
-    __O  uint32_t I2STXFIFO;
-    __I  uint32_t I2SRXFIFO;
-    __I  uint32_t I2SSTATE;
-    __IO uint32_t I2SDMA1;
-    __IO uint32_t I2SDMA2;
-    __IO uint32_t I2SIRQ;
-    __IO uint32_t I2STXRATE;
-    __IO uint32_t I2SRXRATE;
-    __IO uint32_t I2STXBITRATE;
-    __IO uint32_t I2SRXBITRATE;
-    __IO uint32_t I2STXMODE;
-    __IO uint32_t I2SRXMODE;
+    __IO uint32_t SDAO;
+    __IO uint32_t SDAI;
+    __O  uint32_t STXFIFO;
+    __I  uint32_t SRXFIFO;
+    __I  uint32_t SSTATE;
+    __IO uint32_t SDMA1;
+    __IO uint32_t SDMA2;
+    __IO uint32_t SIRQ;
+    __IO uint32_t STXRATE;
+    __IO uint32_t SRXRATE;
+    __IO uint32_t STXBITRATE;
+    __IO uint32_t SRXBITRATE;
+    __IO uint32_t STXMODE;
+    __IO uint32_t SRXMODE;
 } LPC_I2S_TypeDef;
 
 /*------------- Repetitive Interrupt Timer (RIT) -----------------------------*/

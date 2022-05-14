@@ -92,6 +92,18 @@
 #define KEYPAD_STOP2       (GPIO_TYPE(PORT_1, PIN_26, FUNC_0))
 #define KEYPAD_POWER       (GPIO_TYPE(PORT_3, PIN_14, FUNC_0)) // PULL DOWN
 
+#define SENSORS_SDA        (GPIO_TYPE(PORT_2, PIN_14, FUNC_2))
+#define SENSORS_SDL        (GPIO_TYPE(PORT_2, PIN_15, FUNC_2))
+
+#define SENSOR_STUCK       (GPIO_TYPE(PORT_2, PIN_22, FUNC_0))
+#define SENSOR_STUCK2      (GPIO_TYPE(PORT_1, PIN_22, FUNC_0))
+#define SENSOR_DOOR        (GPIO_TYPE(PORT_4, PIN_20, FUNC_0))
+#define SENSOR_LIFT        (GPIO_TYPE(PORT_2, PIN_16, FUNC_0)) // or Collision
+#define SENSOR_COLLISION   (GPIO_TYPE(PORT_4, PIN_1, FUNC_0)) // Or Lift!
+#define SENSOR_STOP        (GPIO_TYPE(PORT_1, PIN_25, FUNC_0))
+#define SENSOR_COVER       (GPIO_TYPE(PORT_2, PIN_21, FUNC_0))
+#define SENSOR_RAIN        (GPIO_TYPE(PORT_1, PIN_30, FUNC_0)) // ADC!
+
 #define ADC_DR_RESULT(n)        ((((n) >> 4) & 0xFFF))
 // Note error in UM10470.pdf - filter should not affect ADC - But it does.
 #define ADC_AD0				(GPIO_TYPE(PORT_0, PIN_23, FUNC_1 | PINMODE_FILTER))
@@ -110,7 +122,7 @@
 #define ANALOG_RAIN          (LPC_ADC->DR[4])
 #define ANALOG_BATT_CHARGE_A (LPC_ADC->DR[5])
 #define ANALOG_BATT_VOLT     (LPC_ADC->DR[6])
-#define ANALOG_UNK           (LPC_ADC->DR[7])
+#define ANALOG_BOARD_TEMP    (LPC_ADC->DR[7])
 
 void hardware_Init();
 

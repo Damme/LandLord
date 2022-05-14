@@ -31,7 +31,7 @@
 
 #define mainQUEUE_LENGTH          ( 10 )
 
-#define TicksPerMS configTICK_RATE_HZ/1000
+#define TicksPerMS      (configTICK_RATE_HZ/1000)
 
 #define PCONP_PCTIM1    ((uint32_t)(1<<2))
 #define PCONP_PCTIM2    ((uint32_t)(1<<22))
@@ -39,6 +39,11 @@
 #define PCONP_PCSPI     ((uint32_t)(1<<8))
 #define PCONP_PCADC     ((uint32_t)(1<<12))
 #define PCONP_PCGPIO    ((uint32_t)(1<<15))
+
+#define PCONP_PCI2C0    ((uint32_t)(1<<7))
+#define PCONP_PCI2C1    ((uint32_t)(1<<19))
+#define PCONP_PCI2C2    ((uint32_t)(1<<26))
+
 
 #define SPCR_MSTR       ((uint32_t)(1<<5))
 
@@ -154,13 +159,6 @@ typedef struct gpioPin_s {
 #define KEYPWR      100
 #define KEYSTOP     199
 #define KEYNULL     255
-
-typedef enum {
-    MEASUREMENT_BATTERY = 0,
-    MEASUREMENT_MOTORCURRENT,
-    COMMAND_SHUTDOWN,
-    COMMAND_STOP,
-} xMessageType;
 
 #if (0)
 typedef enum {

@@ -6,13 +6,21 @@
 #include "timers.h"
 #include "event_groups.h"
 #include "global.h"
-
-//#define BIT_ADC_DONE    ( 1 << 0 )
-//#define BIT_DIG_INT    ( 1 << 1 )
+#include "i2c.h"
 
 EventGroupHandle_t xSensorEventGroup;
 xQueueHandle xDIGMsgQueue;
 TimerHandle_t xADCTriggerTimer;
+
+typedef struct {
+    uint8_t Status;
+    uint8_t Xh;
+    uint8_t Xl;
+    uint8_t Yh;
+    uint8_t Yl;
+    uint8_t Zh;
+    uint8_t Zl;
+} AccelType;
 
 
 // Rewrite temperature conversion to something better.. This is just wierd.
@@ -54,23 +62,6 @@ out:
     return tenthDegree + 10 * (fullDegree - 10);
 }
 
-/*
-int32_t convertAcc(uint16_t adc);
-void printAcc(int32_t acc);
-*/
-static volatile uint8_t ADC_Interrupt_Done_Flag;
-
-/*
-void ADC_IRQHandler(void) { // DB275 uses IRQ try to use BURST mode as DB504
-    //portENTER_CRITICAL();
-    NVIC_DisableIRQ(ADC_IRQn);
-    //portEXIT_CRITICAL();
-    //LPC_ADC->INTEN &= ~((1 << ADC_Channel)); // channel
-
-    ADC_Interrupt_Done_Flag = 1;
-}
-*/
-
 // DB275 uses interrupt to read front sensor, need work and more testing.
 void EINT3_IRQHandler(void) {
 /*#ifndef LPC177x_8x // DB275
@@ -99,33 +90,60 @@ void EINT3_IRQHandler(void) {
 
 void sensor_Task(void *pvParameters) {
     sensor_Init();
-    xPowerMgmtMsg msg;
     xSensorMsgType sensor;
 
+#ifdef LPC177x_8x
+    I2C1Init();
+#endif
+
+    I2C1_Send_Addr(MMA8452Q, 0x2a, 0x01); // Active mode
+    I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g (?? double check!)
+
+    I2C1_Send_Addr(L3GD20, 0x20, 0xff); // CTRL1 set ??
+    I2C1_Send_Addr(L3GD20, 0x23, 0x10); // CTRL4 set ??
+
+    uint8_t tmp[7];
+
+
+    AccelType accel;
+
     for (;;) {
-        vTaskDelay(xDelay200);
+        vTaskDelay(xDelay100);
         if (xQueuePeek(xSensorQueue, &sensor, 0) == pdTRUE) {
 
             // handle_ADCMuxing(); // For LPC1768! ADC4 is muxed between 4 measurements.        
-            
-            sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
+            sensor.stuck = GPIO_CHK_PIN(SENSOR_STUCK);
+            sensor.stuck2 = GPIO_CHK_PIN(SENSOR_STUCK2);
+            sensor.door = GPIO_CHK_PIN(SENSOR_DOOR); // Might be swapped with Collision
+            sensor.lift = GPIO_CHK_PIN(SENSOR_LIFT); // Might be swapped with LIFT
+            sensor.collision = GPIO_CHK_PIN(SENSOR_COLLISION); 
+            sensor.stop = GPIO_CHK_PIN(SENSOR_STOP);
+            sensor.cover = GPIO_CHK_PIN(SENSOR_COVER); // ???
+            sensor.rain = GPIO_CHK_PIN(SENSOR_RAIN); // TODO ADC value so if value > "wet enough" = rain
+
+            sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP)); // this seem a bit off real temp.
             sensor.batteryChargeCurrent = ADC_DR_RESULT(ANALOG_BATT_CHARGE_A);
             sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068;
             sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
             sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
             sensor.motorSCurrent = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
             sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
-            
-            // adc0.7 = coin cell battery voltage? ANALOG_UNK
+            sensor.boardTemp = convert_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)-1000); // TODO Not using same temperature conversion!
+            //  ~0c = 3750 raw
+            // ~22c = 3090 raw
+            // ~30c = 3000 raw
+
+
+            I2C1_Recv_Addr_Buf(MMA8452Q, 0x00, 1, sizeof(accel), &accel);
+            sensor.AccelX = ((accel.Xh << 8) + accel.Xl) >> 4;
+            sensor.AccelY = ((accel.Yh << 8) + accel.Yl) >> 4;
+            sensor.AccelZ = ((accel.Zh << 5) + accel.Zl) >> 4;
+            if (sensor.AccelX > 2047) sensor.AccelX -= 4096;
+            if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
+            if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
 
             xQueueOverwrite(xSensorQueue, &sensor);
 
-            /* https://hackaday.io/project/6717-project-landlord/discussion-58892 */
-            msg.xType = MEASUREMENT_BATTERY;
-            msg.measurement.lChargeCurrent = sensor.batteryChargeCurrent;
-            msg.measurement.lBatteryVoltage = sensor.batteryVolt;
-            msg.measurement.lBatteryTemperature = sensor.batteryTemp;
-            xQueueSend(xPowerMgmtMsgQueue, &msg, (TickType_t)0);
         }
     }
 }

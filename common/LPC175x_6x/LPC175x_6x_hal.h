@@ -130,11 +130,7 @@
 #define ANALOG_MOTOR_L_AMP   (LPC_ADC->DR[6])
 #define ANALOG_MOTOR_R_AMP   (LPC_ADC->DR[7])
 
-
-
-
 #define ANALOG_RAIN          (LPC_ADC->DR[0])
-#define ANALOG_UNK           (0)
 
 
 

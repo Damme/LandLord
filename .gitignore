@@ -40,3 +40,4 @@ ignore/
 /JLinkSettings.ini
 /LandLord.uvgui.*
 /OriginalFirmware
+.vscode/*

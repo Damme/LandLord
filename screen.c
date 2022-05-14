@@ -10,7 +10,7 @@ u8g_t u8g;
 
 uint8_t lcdCounter;
 const listItem_t mainMenuList[7];
-const listItem_t spindleMenuList[7];
+const listItem_t menuSublist1[7];
 
 const menuItem_t M0;
 const menuItem_t M1;
@@ -100,7 +100,6 @@ void lcdPrintDebug() {
 
     if (keypad_GetKey() == KEY1 && !keypressed) {
         keypressed = true;
-        
         GPIO_PIN_FNC(LCD_BACKLIGHT_PWM);
     }
 
@@ -122,89 +121,65 @@ void lcdPrintDebug() {
     
     if (keypad_GetKey() == KEY4 && !keypressed) {
         keypressed = true;
-        GPIO_SET_PIN(MOTOR_MOSFET);
-        GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
-        GPIO_CLR_PIN(MOTOR_BLADE_BRAKE); // Release brakes!
-        a1=200;
-        LPC_PWM1->MR1 = a1;
-	    LPC_PWM1->LER |= (1<<1);
     }
     if (keypad_GetKey() == KEY5 && !keypressed) {
         keypressed = true;
-        GPIO_TGL_PIN(MOTOR_BLADE_ENABLE);
     }
 
     if (keypad_GetKey() == KEY6 && !keypressed) {
         keypressed = true;
-        GPIO_TGL_PIN(MOTOR_BLADE_BRAKE);
     }
     if (keypad_GetKey() == KEY7 && !keypressed) {
         keypressed = true;
-        GPIO_TGL_PIN(MOTOR_BLADE_FORWARD);
     }
     if (keypad_GetKey() == KEY8 && !keypressed) {
         keypressed = true;
-        a1 = a1 + 100;
-        if (a1 > 1000) a1 = 1000;
-    	LPC_PWM1->MR1 = a1;
-	    LPC_PWM1->LER |= (1<<1);
     }
     if (keypad_GetKey() == KEY9 && !keypressed) {
         keypressed = true;
-        a1 = a1 - 100;
-        if (a1 < 0) a1 = 0;
-    	LPC_PWM1->MR1 = a1;
-	    LPC_PWM1->LER |= (1<<1);
     }
     if (keypad_GetKey() == KEY0 && !keypressed) {
         keypressed = true;
-        GPIO_TGL_PIN(MOTOR_MOSFET);
+    }
+    if (keypad_GetKey() == KEYHOME && !keypressed) {
+        keypressed = true;
     }
 }
+
 
 void lcdPrintSensor() {
     xSensorMsgType sensor;
     xQueuePeek(xSensorQueue, &sensor, 0);
 
-    u8g_SetDefaultBackgroundColor(&u8g);
-    u8g_DrawBox(&u8g, 0, 0, 128, 64);
+    //u8g_SetDefaultBackgroundColor(&u8g);
+    //u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
-    //sprintf(buffer, "Front:%u Rain:%u Cover:%u Lift:%u", sensorFront(), sensorRain(), sensorCover(), sensorLift());
-    //sprintf(buffer, "%ld %ld %ld", ADC[0], ADC[1], ADC[2]);
-    //u8g_DrawStr(&u8g,  0, 10, buffer);
-    
-    //sprintf(buffer, "%ld %ld %ld", ADC[3], ADC[4], ADC[5]);
-    //sprintf(buffer, "DIP:%u, Charger: %u", sensorDIP(), sensorCharger());
-    //u8g_DrawStr(&u8g,  0, 20, buffer);
-    
-    //sprintf(buffer, "%ld %ld", ADC[6], ADC[7]);
-    //sprintf(buffer, "SensorL:%u SensorR:%u", sensorWireL(), sensorWireR());
-    //u8g_DrawStr(&u8g,  0, 30, buffer);
-    
-    sprintf(buffer, "Motor: %ldA %ldA %ldA", sensor.motorSCurrent, sensor.motorLCurrent, sensor.motorRCurrent);
-    u8g_DrawStr(&u8g,  0, 30, buffer);
     
     sprintf(buffer, "Battery: %iC %imV %imA", sensor.batteryTemp, sensor.batteryVolt, sensor.batteryChargeCurrent);
-    u8g_DrawStr(&u8g,  0, 50, buffer);
+    u8g_DrawStr(&u8g,  0, 20, buffer);
+
+    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensor.motorSCurrent, sensor.motorLCurrent, sensor.motorRCurrent);
+    u8g_DrawStr(&u8g,  0, 30, buffer);
+
+    sprintf(buffer, "Accel XYZ: %04d %04d %04d", sensor.AccelX, sensor.AccelY, sensor.AccelZ);
+    u8g_DrawStr(&u8g,  0, 40, buffer);
+    
+    
 
 
-    /*sprintf(buffer, "0x%.8lx %ic %iv", TESTADC1, TESTADC2, (ADC[6]/131));
-    u8g_DrawStr(&u8g,  0, 60, buffer);
-*/
-
-    if (keypad_GetKey() == KEY0 && !keypressed) {
-        keypressed = true;
-    }
     if (keypad_GetKey() == KEY1 && !keypressed) {
         keypressed = true;
     }
-
     if (keypad_GetKey() == KEY2 && !keypressed) {
         keypressed = true;
     }
 
     if (keypad_GetKey() == KEY3 && !keypressed) {
+        keypressed = true;
+    }
+
+    if (keypad_GetKey() == KEY4 && !keypressed) {
         keypressed = true;
     }
     if (keypad_GetKey() == KEY5 && !keypressed) {
@@ -222,11 +197,11 @@ const listItem_t mainMenuList[7] = {
     {"Right wheel", &motortest, (uint8_t*)3},
     {"Sensors", &lcdPrintSensor, NULL},
     {"Debug io", &lcdPrintDebug, NULL},
-    {"Childmenu test", NULL, &spindleMenuList},
+    {"Childmenu test", NULL, &menuSublist1},
     {NULL, NULL, NULL}
 };
 
-const listItem_t spindleMenuList[7] = {
+const listItem_t menuSublist1[7] = {
     {"1", &testfunc, (uint8_t*)1},
     {"2", &testfunc, (uint8_t*)2},
     {"3", &testfunc, (uint8_t*)3},
@@ -240,7 +215,8 @@ const menuItem_t M0 = {/*0, SCREEN,*/ "Boot", menuBootfnc, NULL};
 const menuItem_t M1 = {/*1, SCREEN,*/ "WARNING!", menuBootWarnfnc, NULL};
 const menuItem_t M2 = {/*1, SCREEN,*/ "Main", menuListfnc, &mainMenuList};
 
-currentDisp_t currentDisplay = {&M2, &lcdPrintDebug, NULL, 0}; // Startscreen
+//currentDisp_t currentDisplay = {&M0, NULL, NULL, 0}; // Startscreen with warning
+currentDisp_t currentDisplay = {&M2, &lcdPrintSensor, NULL, 0}; // Startscreen
 
 uint8_t lcdCounter = 0;
 
@@ -304,13 +280,11 @@ void testfunc(void) {
 
 
 void motortest(void) {
-    // useful function! :P
-
     int enb, brk, dir = 0;
     int *enbPort, *brkPort, *dirPort, *pwmPort;
 
     char tmp[2] = "";
-
+/*
     if (keypad_GetKey() == KEYSTART && !keypressed) {
         keypressed = true;
 
@@ -318,7 +292,7 @@ void motortest(void) {
         LPC_GPIO0->DIR |= PIN(11);
         LPC_GPIO1->DIR |= PIN(23);
     }
-
+// 1768 code not ok for 1788:
     if ((int)currentDisplay.parm == 1) {
         //Spindle
         enbPort = (int*) &LPC_GPIO2->PIN;
@@ -352,155 +326,44 @@ void motortest(void) {
 
 
     if (keypad_GetKey() == KEY0 && !keypressed) {
-        pwmtest = 0;
         keypressed = true;
-        *pwmPort = pwmtest;
-        LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
     }
 
     if (keypad_GetKey() == KEYUP && !keypressed) {
-        pwmtest = pwmtest + 50;
-        if (pwmtest > 1000) pwmtest = 1000;
         keypressed = true;
-        *pwmPort = pwmtest;
-        LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
     }
     if (keypad_GetKey() == KEYDOWN && !keypressed) {
-        pwmtest = pwmtest - 50;
-        if (pwmtest < 0) pwmtest = 0;
         keypressed = true;
-        *pwmPort = pwmtest;
-        LPC_PWM1->LER = BIT(0) | BIT(1) | BIT(2) | BIT(3); // MR0 - MR3 enabled.
     }
 
     if (keypad_GetKey() == KEY1 && !keypressed) {
         keypressed = true;
-        if (!a1) {
-            a1 = 1;
-            *enbPort |= enb;
-        } else {
-            a1 = 0;
-            *enbPort &= ~enb;
-        }
-
     }
     if (keypad_GetKey() == KEY2 && !keypressed) {
         keypressed = true;
-        if (!a2) {
-            a2 = 1;
-            *brkPort |= brk;
-        } else {
-            a2 = 0;
-            *brkPort &= ~brk;
-        }
-
     }
     if (keypad_GetKey() == KEY3 && !keypressed) {
         keypressed = true;
-        if (!a3) {
-            a3 = 1;
-            *dirPort |= dir;
-        } else {
-            *dirPort &= ~dir;
-            a3 = 0;
-        }
     }
-
-
     if (keypad_GetKey() == KEY4 && !keypressed) {
         keypressed = true;
-        if (!a4) {
-            a4 = 1;
-            LPC_GPIO0->PIN |= PIN(11);
-        } else {
-            a4 = 0;
-            LPC_GPIO0->PIN &= ~PIN(11);
-        }
     }
     if (keypad_GetKey() == KEY5 && !keypressed) {
         keypressed = true;
-        if (!a5) {
-            a5 = 1;
-            LPC_GPIO1->PIN |= PIN(23);
-        } else {
-            a5 = 0;
-            LPC_GPIO1->PIN &= ~PIN(23);
-        }
     }
     if (keypad_GetKey() == KEY6 && !keypressed) {
         keypressed = true;
-        if (!a6) {
-            a6 = 1;
-        } else {
-            a6 = 0;
-        }
     }
-
     if (keypad_GetKey() == KEY7 && !keypressed) {
         keypressed = true;
-        if (!a7) {
-            a7 = 1;
-        } else {
-            a7 = 0;
-        }
     }
     if (keypad_GetKey() == KEY8 && !keypressed) {
         keypressed = true;
-        if (!a7) {
-            a8 = 1;
-        } else {
-            a8 = 0;
-        }
     }
     if (keypad_GetKey() == KEY9 && !keypressed) {
         keypressed = true;
-        if (!a9) {
-            a9 = 1;
-        } else {
-            a9 = 0;
-        }
     }
-
-    u8g_SetFont(&u8g, u8g_font_4x6);
-    sprintf(buffer, "pwm:%u a1:%u a2:%u a3:%u a4:%u", pwmtest, a1, a2, a3, a4);
-    u8g_DrawStr(&u8g,  0, (8 * 2), buffer);
-
-    tmp[1] = 0x0;
-    tmp[0] = ((LPC_GPIO0->PIN >> 10) & 1) ? 0x31 : 0x30;
-    sprintf(buffer, "p0.10: %s", tmp);
-    tmp[0] = ((LPC_GPIO0->PIN >> 27) & 1) ? 0x31 : 0x30;
-    sprintf(buffer + strlen(buffer), " - p0.27: %s", tmp);
-    u8g_DrawStr(&u8g,  0, (8 * 3), buffer);
-
-    tmp[0] = ((LPC_GPIO0->PIN >> 7) & 1) ? 0x31 : 0x30;
-    sprintf(buffer, "p0.7: %s", tmp);
-    tmp[0] = ((LPC_GPIO0->PIN >> 8) & 1) ? 0x31 : 0x30;
-    sprintf(buffer + strlen(buffer), " - p0.8: %s", tmp);
-    tmp[0] = ((LPC_GPIO0->PIN >> 9) & 1) ? 0x31 : 0x30;
-    sprintf(buffer + strlen(buffer), " - p0.9 %s", tmp);
-    u8g_DrawStr(&u8g,  0, (8 * 4), buffer);
-
-    tmp[0] = (a1 ? 0x31 : 0x30);
-    sprintf(buffer, "Brake(1): %s", tmp);
-    tmp[0] = (a2 ? 0x31 : 0x30);
-    sprintf(buffer, "Enable(2): %s", tmp);
-    tmp[0] = (a3 ? 0x31 : 0x30);
-    sprintf(buffer + strlen(buffer), " - F/R(3): %s", tmp);
-    u8g_DrawStr(&u8g,  0, (8 * 5), buffer);
-    /*
-        sprintf(buffer, "0:%04u ", ADC0);
-        sprintf(buffer + strlen(buffer), "1:%04u ", ADC1);
-        sprintf(buffer + strlen(buffer), "2:%04u ", ADC2);
-        sprintf(buffer + strlen(buffer), "3:%04u", ADC3);
-        u8g_DrawStr(&u8g,  0, (8 * 7), buffer);
-
-        sprintf(buffer, "4:%04u ", ADC4);
-        sprintf(buffer + strlen(buffer), "5:%04u ", ADC5);
-        sprintf(buffer + strlen(buffer), "6:%04u ", ADC6);
-        sprintf(buffer + strlen(buffer), "7:%04u", ADC7);
-        u8g_DrawStr(&u8g,  0, (8 * 8), buffer);
     */
-
 }
 
 void menuBootfnc(void) {
@@ -544,15 +407,21 @@ void menuBootWarnfnc(void) {
 
 }
 
-void LCD_Update(void) {
+uint32_t override_timer = 0;
+
+void screen_Task(void) {
+    xScreenMsgType screenMsg;
+    
     uint8_t w;
-    /*
-    TODO: Check if screen really needs update!!!
-    */
+
     const menuItem_t *curMenu;
     u8g_FirstPage(&u8g);
+    if (override_timer > 0) override_timer--;
+
+//    TODO: Check if screen really needs update?
     do {
         //https://github.com/olikraus/u8glib/wiki/fontgroupx11
+// TODO: What is this? Title? Always prints "Main" on top of screen.
         u8g_SetFont(&u8g, u8g_font_6x13B);
         u8g_SetFontPosTop(&u8g);
         curMenu = currentDisplay.selected;
@@ -560,6 +429,7 @@ void LCD_Update(void) {
         w = 64 - (w / 2);
         u8g_DrawStr(&u8g,  w, 0, curMenu->itemName);
         u8g_SetFont(&u8g, u8g_font_5x8);
+// end off title print
 
         if (currentDisplay.command == NULL) {
             currentDisplay.command = curMenu->command;
@@ -569,8 +439,23 @@ void LCD_Update(void) {
             currentDisplay.parm = curMenu->parm;
         }
 
-        currentDisplay.command(currentDisplay.parm);
-
+        if (override_timer == 0 ) {
+            if (xQueueReceive(xScreenMsgQueue, &screenMsg, 0) == pdTRUE) {
+                override_timer = screenMsg.time;
+            } else {
+                currentDisplay.command(currentDisplay.parm);
+            }
+        }
+// Why does this only print for a short while? override_timer gets reset by it self???
+        if (override_timer != 0 ) {
+            u8g_SetDefaultBackgroundColor(&u8g);
+            u8g_DrawBox(&u8g, 0, 0, 128, 64);
+            u8g_SetDefaultForegroundColor(&u8g);
+            u8g_SetFont(&u8g, u8g_font_4x6);
+            w = u8g_GetStrWidth(&u8g, screenMsg.text);
+            w = 64 - (w / 2);
+            u8g_DrawStr(&u8g,  w, 30, screenMsg.text);
+        }
 
         if (keypad_GetKey() == KEYBACK && !keypressed) {
             //TODO: prev scrn
@@ -580,7 +465,7 @@ void LCD_Update(void) {
         }
         if (!keypad_GetState()) {
             keypressed = false;
-            // TODO: resetKeyTime fnc keypad.c
+// TODO: resetKeyTime fnc keypad.c
         }
 
 

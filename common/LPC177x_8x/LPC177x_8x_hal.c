@@ -63,6 +63,8 @@ void sensor_Init() {
 void powerMgmt_Init() {
     GPIO_DIR_OUT(CHARGER_CHECK);
     GPIO_DIR_OUT(CHARGER_ENABLE);
+    GPIO_FNC_INV(CHARGER_CONNECTED, PINMODE_INV );
+
 }
 
 void MotorCtrl_Init() {
