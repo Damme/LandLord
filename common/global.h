@@ -71,6 +71,9 @@ typedef struct {
     int16_t AccelX;
     int16_t AccelY;
     int16_t AccelZ;
+    int16_t MotionYaw;
+    int16_t MotionPitch;
+    int16_t MotionRoll;
 } xSensorMsgType;
 
 typedef enum {

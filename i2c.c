@@ -10,8 +10,8 @@ void I2C1Init() {
 
     LPC_SC->PCONP |= PCONP_PCI2C1;              // Power up I2C
 
-    LPC_I2C1->SCLL = 2000; // 16 bit SCH Duty Cycle Register
-    LPC_I2C1->SCLH = 2000; // 16 bit SCH Duty Cycle Register
+    LPC_I2C1->SCLL = 3000; // 16 bit SCH Duty Cycle Register
+    LPC_I2C1->SCLH = 3000; // 16 bit SCH Duty Cycle Register
 // 1000 = 30kHz
 // 300 = 100khz
     LPC_I2C1->CONSET = (1<<6); // I2C interface enable. 
@@ -69,23 +69,24 @@ uint8_t I2C1_Recv_Addr (const uint8_t addr, const uint8_t sub, const bool ack) {
     } else {
         val = I2C1_Recv();
     }
-    I2C1_Stop();
+    //I2C1_Stop();
     return val;
 }
 
-void I2C1_Recv_Addr_Buf (const uint8_t addr, const uint8_t sub, const bool ack, const uint8_t len, uint8_t *buf) {
+void I2C1_Recv_Addr_Buf (const uint8_t addr, const uint8_t sub, bool ack, const uint8_t len, uint8_t *buf) {
     I2C1_Start();
     I2C1_Send(addr);
     I2C1_Send(sub);
     I2C1_Start();
     I2C1_Send(addr+1);
     for ( int i = 0 ; i < len ; i++ ) {
+        //if (!(i < len)) ack = 0;
         if (ack) {
             buf[i] = I2C1_Recv_Ack();
         } else {
             buf[i] = I2C1_Recv();
         }
     }
-    I2C1_Stop();
+    //I2C1_Stop();
     return;
 }

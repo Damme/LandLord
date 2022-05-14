@@ -22,6 +22,14 @@ typedef struct {
     uint8_t Zl;
 } AccelType;
 
+typedef struct {
+    uint8_t Xh;
+    uint8_t Xl;
+    uint8_t Yh;
+    uint8_t Yl;
+    uint8_t Zh;
+    uint8_t Zl;
+} MotionType;
 
 // Rewrite temperature conversion to something better.. This is just wierd.
 const uint16_t tempCalTbl[110] = {
@@ -91,6 +99,8 @@ void EINT3_IRQHandler(void) {
 void sensor_Task(void *pvParameters) {
     sensor_Init();
     xSensorMsgType sensor;
+    AccelType accel;
+    MotionType motion;
 
 #ifdef LPC177x_8x
     I2C1Init();
@@ -99,13 +109,8 @@ void sensor_Task(void *pvParameters) {
     I2C1_Send_Addr(MMA8452Q, 0x2a, 0x01); // Active mode
     I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g (?? double check!)
 
-    I2C1_Send_Addr(L3GD20, 0x20, 0xff); // CTRL1 set ??
-    I2C1_Send_Addr(L3GD20, 0x23, 0x10); // CTRL4 set ??
-
-    uint8_t tmp[7];
-
-
-    AccelType accel;
+    I2C1_Send_Addr(L3GD20, 0x20, 0x6f); // CTRL1 set ??
+    I2C1_Send_Addr(L3GD20, 0x23, 0x00); // CTRL4 set ??
 
     for (;;) {
         vTaskDelay(xDelay100);
@@ -137,10 +142,25 @@ void sensor_Task(void *pvParameters) {
             I2C1_Recv_Addr_Buf(MMA8452Q, 0x00, 1, sizeof(accel), &accel);
             sensor.AccelX = ((accel.Xh << 8) + accel.Xl) >> 4;
             sensor.AccelY = ((accel.Yh << 8) + accel.Yl) >> 4;
-            sensor.AccelZ = ((accel.Zh << 5) + accel.Zl) >> 4;
+            sensor.AccelZ = ((accel.Zh << 8) + accel.Zl) >> 4;
             if (sensor.AccelX > 2047) sensor.AccelX -= 4096;
             if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
             if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
+/*            
+            a = (I2C1_Recv_Addr(L3GD20, 0x29, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x28, 0);
+            b = (I2C1_Recv_Addr(L3GD20, 0x2b, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2a, 0);
+            c = (I2C1_Recv_Addr(L3GD20, 0x2d, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2c, 0);
+  */
+   
+            // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
+            I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(motion), &motion);
+            sensor.MotionYaw = (motion.Xh << 8) + motion.Xl;
+            sensor.MotionPitch = (motion.Yh << 8) + motion.Yl;
+            sensor.MotionRoll = (motion.Zh << 8) + motion.Zl;
+            if (sensor.MotionYaw > INT16_MAX) sensor.MotionYaw -= UINT16_MAX+1;
+            if (sensor.MotionPitch > INT16_MAX) sensor.MotionPitch -= UINT16_MAX+1;
+            if (sensor.MotionRoll > INT16_MAX) sensor.MotionRoll -= UINT16_MAX+1;
+            
 
             xQueueOverwrite(xSensorQueue, &sensor);
 
