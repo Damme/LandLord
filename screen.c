@@ -160,12 +160,13 @@ void lcdPrintSensor() {
     u8g_DrawStr(&u8g,  0, 20, buffer);
 
     sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensor.motorSCurrent, sensor.motorLCurrent, sensor.motorRCurrent);
-    u8g_DrawStr(&u8g,  0, 30, buffer);
+    u8g_DrawStr(&u8g,  0, 28, buffer);
 
-    sprintf(buffer, "Accel XYZ: %04d %04d %04d", sensor.AccelX, sensor.AccelY, sensor.AccelZ);
+    sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensor.AccelX, sensor.AccelY, sensor.AccelZ);
     u8g_DrawStr(&u8g,  0, 40, buffer);
     
-    
+    sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d", sensor.MotionYaw, sensor.MotionPitch, sensor.MotionRoll);
+    u8g_DrawStr(&u8g,  0, 50, buffer);    
 
 
     if (keypad_GetKey() == KEY1 && !keypressed) {

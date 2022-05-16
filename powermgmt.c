@@ -129,7 +129,7 @@ void powerMgmt_Task(void *pvParameters) {
 
                 count--;
                 if (count == 0) {
-                    powerState = ChargingFailed; // nope wrong goto error / lost charger!
+                    powerState = ChargingFailed;
                     
                     screenMsg.time=15;
                     sprintf(screenMsg.text, "Charger disconnected!", keypad_GetTime());
@@ -140,20 +140,20 @@ void powerMgmt_Task(void *pvParameters) {
 
             case ChargingFinnished:
                 // TODO Signal ROS charge finnished
-                // TODO start charging again when volt < 27700?
                 delay = xDelay1000;
                 GPIO_SET_PIN(CHARGER_ENABLE);
-                vTaskDelay(xDelay100); // 10ms is enough
+                vTaskDelay(xDelay10); // 10ms is enough
                 GPIO_CLR_PIN(CHARGER_ENABLE);
-
-                //GPIO_SET_PIN(CHARGER_CHECK);
-                //powerState = ChargerParked; // :(
+                // check if we get ADC value to see if charger is still alive? (how long time charge period does this require?)
+                if (!sensor.incharger) powerState = Idle; 
+                // TODO TODO Noone clears incharger state as of now, Either ROS comms when backing out of charger or sensor when forward motion is detected.
                 
-                // Lets create a new charger state, pulse charger pin 1/10 of time for floating charging
-                // Unless batt > + 1000 from setpoint then get to stupid mode or left charger.
-
-                /*// powerState = Idle; // Wrong - We want to wait for not in charger before getting back to idle!
-                delay = xDelay1000; //  nope longer wait did not work either*/
+                if (sensor.batteryVolt < ( BATTERY_MAX_VOLT - 1500) ) {
+                    GPIO_SET_PIN(CHARGER_ENABLE);
+                    delay = xDelay100;
+                    powerState = Charging;
+                    count = 50;
+                }
                 break;
 
             case ChargingFailed:
@@ -161,13 +161,7 @@ void powerMgmt_Task(void *pvParameters) {
                 // mains power loss ? retry start charging over and over again until success?
                 powerState = CheckChargerInit;
                 break;
-            /*
-            case ChargerParked: 
-                if (!GPIO_CHK_PIN(CHARGER_CONNECTED)) { // sometimes detects charger, sometimes not - timer maybe? ??
-                    powerState = Idle; // duoble nope --- does not work... 
-                }
-                break;
-*/
+
             case Shutdown:
                 GPIO_CLR_PIN(MOTOR_MOSFET);
                 GPIO_CLR_PIN(CHARGER_ENABLE);
@@ -186,7 +180,7 @@ void powerMgmt_Task(void *pvParameters) {
 
         if (keypad_GetKey() == KEYPWR) {
             
-            screenMsg.time=1;
+            screenMsg.time=2;
             sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
             xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
             if (keypad_GetTime() > 15) {

@@ -41,3 +41,5 @@ ignore/
 /LandLord.uvgui.*
 /OriginalFirmware
 .vscode/*
+
+.*#

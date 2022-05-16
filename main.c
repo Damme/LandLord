@@ -66,7 +66,6 @@ int main(void) {
     hardware_Init();
     
     xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
-    
     xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xSensorMsgType sensor = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
     xQueueOverwrite(xSensorQueue, &sensor);

@@ -102,6 +102,12 @@ void sensor_Task(void *pvParameters) {
     AccelType accel;
     MotionType motion;
 
+/*
+#define MOTOR_LEFT_PULSE     (GPIO_TYPE(PORT_1, PIN_14, FUNC_0)) T2_CAP0
+#define MOTOR_RIGHT_PULSE    (GPIO_TYPE(PORT_3, PIN_30, FUNC_0)) T1_MAT1
+#define MOTOR_BLADE_PULSE    (GPIO_TYPE(PORT_0, PIN_4,  FUNC_0)) T2_CAP0 <- can have int P0.4ER
+*/
+
 #ifdef LPC177x_8x
     I2C1Init();
 #endif
