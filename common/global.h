@@ -57,7 +57,7 @@ typedef struct {
     bool lift;
     bool collision;
     bool stop;
-    bool cover; // ???
+    bool door2;
     bool rain;
     bool incharger;
     int32_t rainAnalog;

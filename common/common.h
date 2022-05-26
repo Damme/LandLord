@@ -35,10 +35,13 @@
 
 #define PCONP_PCTIM1    ((uint32_t)(1<<2))
 #define PCONP_PCTIM2    ((uint32_t)(1<<22))
+#define PCONP_PCTIM3    ((uint32_t)(1<<23))
 #define PCONP_PCUART1   ((uint32_t)(1<<4))
+#define PCONP_PCUART2   ((uint32_t)(1<<24))
 #define PCONP_PCSPI     ((uint32_t)(1<<8))
 #define PCONP_PCADC     ((uint32_t)(1<<12))
 #define PCONP_PCGPIO    ((uint32_t)(1<<15))
+#define PCONP_PCSPP0    ((uint32_t)(1<<21))
 
 #define PCONP_PCI2C0    ((uint32_t)(1<<7))
 #define PCONP_PCI2C1    ((uint32_t)(1<<19))

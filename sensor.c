@@ -101,6 +101,8 @@ void sensor_Task(void *pvParameters) {
     xSensorMsgType sensor;
     AccelType accel;
     MotionType motion;
+    int16_t count = 0;
+    MotionType magnet;
 
 /*
 #define MOTOR_LEFT_PULSE     (GPIO_TYPE(PORT_1, PIN_14, FUNC_0)) T2_CAP0
@@ -117,60 +119,94 @@ void sensor_Task(void *pvParameters) {
 
     I2C1_Send_Addr(L3GD20, 0x20, 0x6f); // CTRL1 set ??
     I2C1_Send_Addr(L3GD20, 0x23, 0x00); // CTRL4 set ??
-
+    
+/*
+    //I2C1_Send_Addr(LSM303_ADDRESS_ACCEL, 0x20, 0x27); // Enable the accelerometer
+    I2C1_Send_Addr(LSM303_ADDRESS_MAG, 0x00, 0x94); // Enable the magnetometer 15hz and temperature sensor
+    I2C1_Send_Addr(LSM303_ADDRESS_MAG, 0x02, 0x00); // Continuous-conversion mode
+    
+*/
     for (;;) {
-        vTaskDelay(xDelay100);
+        vTaskDelay(xDelay10);
         if (xQueuePeek(xSensorQueue, &sensor, 0) == pdTRUE) {
 
             // handle_ADCMuxing(); // For LPC1768! ADC4 is muxed between 4 measurements.        
             sensor.stuck = GPIO_CHK_PIN(SENSOR_STUCK);
             sensor.stuck2 = GPIO_CHK_PIN(SENSOR_STUCK2);
-            sensor.door = GPIO_CHK_PIN(SENSOR_DOOR); // Might be swapped with Collision
-            sensor.lift = GPIO_CHK_PIN(SENSOR_LIFT); // Might be swapped with LIFT
-            sensor.collision = GPIO_CHK_PIN(SENSOR_COLLISION); 
+            sensor.door = GPIO_CHK_PIN(SENSOR_DOOR); 
+            sensor.lift = GPIO_CHK_PIN(SENSOR_LIFT); // Might be swapped with Collision
+            sensor.collision = GPIO_CHK_PIN(SENSOR_COLLISION);  // Might be swapped with LIFT
             sensor.stop = GPIO_CHK_PIN(SENSOR_STOP);
-            sensor.cover = GPIO_CHK_PIN(SENSOR_COVER); // ???
+            sensor.door2 = GPIO_CHK_PIN(SENSOR_DOOR2);
             sensor.rain = GPIO_CHK_PIN(SENSOR_RAIN); // TODO ADC value so if value > "wet enough" = rain
+            if (count++ > 10 ) {
+                count=0;
+                sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP)); // this seem a bit off real temp.
+                sensor.batteryChargeCurrent = ADC_DR_RESULT(ANALOG_BATT_CHARGE_A);
+                sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068;
+                sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
+                sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
+                sensor.motorSCurrent = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
+                sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
+                sensor.boardTemp = convert_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)-1000); // TODO Not using same temperature conversion!
+                //  ~0c = 3750 raw
+                // ~22c = 3090 raw
+                // ~30c = 3000 raw
 
-            sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP)); // this seem a bit off real temp.
-            sensor.batteryChargeCurrent = ADC_DR_RESULT(ANALOG_BATT_CHARGE_A);
-            sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068;
-            sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
-            sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
-            sensor.motorSCurrent = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
-            sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
-            sensor.boardTemp = convert_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)-1000); // TODO Not using same temperature conversion!
-            //  ~0c = 3750 raw
-            // ~22c = 3090 raw
-            // ~30c = 3000 raw
 
+                I2C1_Recv_Addr_Buf(MMA8452Q, 0x00, 1, sizeof(accel), &accel);
+                sensor.AccelX = ((accel.Xh << 8) + accel.Xl) >> 4;
+                sensor.AccelY = ((accel.Yh << 8) + accel.Yl) >> 4;
+                sensor.AccelZ = ((accel.Zh << 8) + accel.Zl) >> 4;
+                if (sensor.AccelX > 2047) sensor.AccelX -= 4096;
+                if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
+                if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
+    /*            
+                a = (I2C1_Recv_Addr(L3GD20, 0x29, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x28, 0);
+                b = (I2C1_Recv_Addr(L3GD20, 0x2b, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2a, 0);
+                c = (I2C1_Recv_Addr(L3GD20, 0x2d, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2c, 0);
+    */
+    
+                // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
+                I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(motion), &motion);
+                sensor.MotionYaw = (motion.Xh << 8) + motion.Xl;
+                sensor.MotionPitch = (motion.Yh << 8) + motion.Yl;
+                sensor.MotionRoll = (motion.Zh << 8) + motion.Zl;
+                if (sensor.MotionYaw > INT16_MAX) sensor.MotionYaw -= UINT16_MAX+1;
+                if (sensor.MotionPitch > INT16_MAX) sensor.MotionPitch -= UINT16_MAX+1;
+                if (sensor.MotionRoll > INT16_MAX) sensor.MotionRoll -= UINT16_MAX+1;
 
-            I2C1_Recv_Addr_Buf(MMA8452Q, 0x00, 1, sizeof(accel), &accel);
-            sensor.AccelX = ((accel.Xh << 8) + accel.Xl) >> 4;
-            sensor.AccelY = ((accel.Yh << 8) + accel.Yl) >> 4;
-            sensor.AccelZ = ((accel.Zh << 8) + accel.Zl) >> 4;
-            if (sensor.AccelX > 2047) sensor.AccelX -= 4096;
-            if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
-            if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
-/*            
-            a = (I2C1_Recv_Addr(L3GD20, 0x29, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x28, 0);
-            b = (I2C1_Recv_Addr(L3GD20, 0x2b, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2a, 0);
-            c = (I2C1_Recv_Addr(L3GD20, 0x2d, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2c, 0);
-  */
-   
-            // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
-            I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(motion), &motion);
-            sensor.MotionYaw = (motion.Xh << 8) + motion.Xl;
-            sensor.MotionPitch = (motion.Yh << 8) + motion.Yl;
-            sensor.MotionRoll = (motion.Zh << 8) + motion.Zl;
-            if (sensor.MotionYaw > INT16_MAX) sensor.MotionYaw -= UINT16_MAX+1;
-            if (sensor.MotionPitch > INT16_MAX) sensor.MotionPitch -= UINT16_MAX+1;
-            if (sensor.MotionRoll > INT16_MAX) sensor.MotionRoll -= UINT16_MAX+1;
-            
+// Overwrite motion with magnet temporary!!
+/*                
+                I2C1_Recv_Addr_Buf(LSM303_ADDRESS_MAG, 0x03 | 0x80 , 1, sizeof(magnet), &magnet);
+                sensor.MotionYaw = (magnet.Xh << 8) + magnet.Xl;
+                sensor.MotionPitch = (magnet.Yh << 8) + magnet.Yl;
+                sensor.MotionRoll = (magnet.Zh << 8) + magnet.Zl;
+
+                if (sensor.MotionYaw > 2047) sensor.MotionYaw -= 4096;
+                if (sensor.MotionPitch > 2047) sensor.MotionPitch -= 4096;
+                if (sensor.MotionRoll > 2047) sensor.MotionRoll -= 4096;
+
+                
+                uint8_t Th, Tl;
+                Th = I2C1_Recv_Addr(LSM303_ADDRESS_MAG, 0,0x31);
+                Tl = I2C1_Recv_Addr(LSM303_ADDRESS_MAG, 0,0x32);
+                sensor.boardTemp = (( Th << 8) + Tl) >> 4;
+                
+
+                /*uint16_t temp;
+                I2C1_Recv_Addr_Buf(LSM303_ADDRESS_MAG, 0x31 | 0x80 , 1, 2, &temp);
+                sensor.boardTemp = temp >> 4;*/
+
+*/                
+                
+
+            }
 
             xQueueOverwrite(xSensorQueue, &sensor);
 
         }
+
     }
 }
 

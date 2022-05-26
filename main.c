@@ -17,6 +17,7 @@
 #include "task.h"
 #include "queue.h"
 #include "global.h"
+#include "ROSComms.h"
 
 #ifdef LPC177x_8x // DB504
 TODO("Cpu lpc1788 DB504")
@@ -72,23 +73,14 @@ int main(void) {
 
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
     
-/* https://freertos.org/a00125.html
-     BaseType_t xTaskCreate(    TaskFunction_t pvTaskCode,
-                            const char * const pcName,
-                            configSTACK_DEPTH_TYPE usStackDepth,
-                            void *pvParameters,
-                            UBaseType_t uxPriority,
-                            TaskHandle_t *pxCreatedTask
-                          );
-*/
-
     //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 5, NULL);
     xTaskCreate(powerMgmt_Task, "PowerMgmt", 180, NULL, 3, NULL);
     xTaskCreate(keypad_Task, "Keypad", 150, NULL, 6, NULL); // configMINIMAL_STACK_SIZE
     xTaskCreate(LCD_Task, "LCD", 1024, NULL, 8, NULL);
-    xTaskCreate(sensor_Task, "Sensor", 768, NULL, 5, NULL);
+    xTaskCreate(sensor_Task, "Sensor", 400, NULL, 5, NULL);
     xTaskCreate(motorCtrl_Task, "MotorCtrl", 150, NULL, 5, NULL);
 
+    //xTaskCreate(ROSComms_Task, "RosComms", 255, NULL, 7, NULL);
 
     vTaskStartScheduler();
     // Should never get here.

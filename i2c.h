@@ -11,7 +11,10 @@
 
 #define     MMA8452Q    0x38
 #define     L3GD20      0xD4
-#define     LSM303DLHC  0x32 // not in default configuration!
+
+// not in default configuration!
+#define     LSM303_ADDRESS_ACCEL          0x32         // 0011001x
+#define     LSM303_ADDRESS_MAG            0x3C         // 0011110x
 
 #define L3GD20_WHO_AM_I 0x0F
 #define L3GD20_STATUS_REG 0x27

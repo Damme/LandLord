@@ -5,7 +5,7 @@
 void hardware_Init() {
     LPC_SC->PCONP |= PCONP_PCGPIO;              // Power up GPIO
     LPC_SC->PCONP |= PCONP_PCADC;               // Power up ADC
-
+    
     // Keep power on
     GPIO_DIR_OUT(POWER);
     GPIO_SET_PIN(POWER);
@@ -17,6 +17,17 @@ void hardware_Init() {
     // Configure Power button
     GPIO_PIN_FNC(KEYPAD_POWER);
     GPIO_FNC_PULL(KEYPAD_POWER, PINMODE_PULLDOWN);
+    
+    GPIO_DIR_OUT(BUZZER_LO);
+    GPIO_DIR_OUT(BUZZER_HI);
+    
+    GPIO_SET_PIN(BUZZER_LO);
+    for (uint16_t i = 0; i < 50; i++) delay_uS(1000); // Todo: maybe use timer in future? 
+    
+    GPIO_CLR_PIN(BUZZER_LO); 
+
+    //GPIO_FNC_PULL(BUZZER_LO, PINMODE_PULLDOWN);
+    //GPIO_FNC_PULL(BUZZER_HI, PINMODE_PULLDOWN);
 /*
     GPIO_FNC_PULL(CHARGER_CONNECTED, PINMODE_PULLUP);
     GPIO_DIR_IN(CHARGER_CONNECTED);
@@ -65,6 +76,53 @@ void powerMgmt_Init() {
     GPIO_DIR_OUT(CHARGER_ENABLE);
     GPIO_FNC_INV(CHARGER_CONNECTED, PINMODE_INV );
 
+}
+
+void ROScomms_Init() {
+    // Init hardware 1788
+    LPC_SC->PCONP |= PCONP_PCSPP0;              // power up SSP0
+    
+    GPIO_DIR_OUT(SSP0_SSEL);
+    
+    GPIO_PIN_FNC(SSP0_SCK);
+    GPIO_PIN_FNC(SSP0_SSEL);
+    GPIO_PIN_FNC(SSP0_MISO);
+    GPIO_PIN_FNC(SSP0_MOSI);
+
+/*
+0x0707
+  11100000111
+
+1000010000111
+2109876543210
+*/
+
+
+    LPC_SSP0->CR0 = (7 << 0) | (0 << 6) | (1 << 7); // 8bits, CPOL, CPHA,
+    LPC_SSP0->CR1 = (1 << 2);
+
+    LPC_SSP0->CPSR = (128 & 0xfe); // SSPn Clock Prescale Register 60000000 / 128 = 468750
+    LPC_SSP0->CR0 |= (16 << 8); // Serial Clock Rate.
+    LPC_SSP0->CR1 |= (1 << 2); // Slave mode
+    LPC_SSP0->CR1 |= (1 << 1); // SSP Enable.
+    // PCLK / (CPSDVSR × [SCR+1]) = bitrate
+    // 32 14204
+    // 16 27573
+
+
+    // Set DSS data to 8-bit, Frame format SPI, CPOL = 0, CPHA = 0, and SCR is 15
+    //LPC_SSP0->CR0 = 0x07c7; // 707 = 00, 747 = 01 787 = 10 7c7 = 11
+    // SSPCPSR clock prescale register, master mode, minimum divisor is 0x02
+    //LPC_SSP0->CPSR = 0x2;
+    // 60 000 000 / ( 2 x 16 ) -> 1875000
+
+    /*if ( LPC_SSP0->CR1 & (1 << 1) ) {
+	// The slave bit can't be set until SSE bit is zero. 
+	    LPC_SSP0->CR1 &= ~(1 << 1);
+    }
+    LPC_SSP0->CR1 = (1 << 2);	// Enable slave bit first 
+    LPC_SSP0->CR1 |= (1 << 1);	// Enable SSP 
+*/
 }
 
 void MotorCtrl_Init() {

@@ -49,6 +49,9 @@
 
 #define MOTOR_MOSFET       (GPIO_TYPE(PORT_3, PIN_7,  FUNC_0)) // Does DB275 have this too?? 
 
+#define BUZZER_HI          (GPIO_TYPE(PORT_2, PIN_30,  FUNC_0)) // T3_MAT2 <- to make different noices?
+#define BUZZER_LO          (GPIO_TYPE(PORT_5, PIN_1,  FUNC_0))  // T2_MAT3 <- to make different noices?
+
 #define MOTOR_LEFT_PWM       (GPIO_TYPE(PORT_3, PIN_27, FUNC_2))
 #define MOTOR_LEFT_ENABLE    (GPIO_TYPE(PORT_1, PIN_17, FUNC_0))
 #define MOTOR_LEFT_BRAKE     (GPIO_TYPE(PORT_4, PIN_24, FUNC_0))
@@ -92,16 +95,21 @@
 #define KEYPAD_STOP2       (GPIO_TYPE(PORT_1, PIN_26, FUNC_0))
 #define KEYPAD_POWER       (GPIO_TYPE(PORT_3, PIN_14, FUNC_0)) // PULL DOWN
 
+#define SSP0_SCK           (GPIO_TYPE(PORT_1, PIN_20, FUNC_5))
+#define SSP0_SSEL          (GPIO_TYPE(PORT_1, PIN_21, FUNC_3))
+#define SSP0_MISO          (GPIO_TYPE(PORT_1, PIN_23, FUNC_5))
+#define SSP0_MOSI          (GPIO_TYPE(PORT_2, PIN_24, FUNC_5))
+
 #define SENSORS_SDA        (GPIO_TYPE(PORT_2, PIN_14, FUNC_2))
 #define SENSORS_SDL        (GPIO_TYPE(PORT_2, PIN_15, FUNC_2))
 
 #define SENSOR_STUCK       (GPIO_TYPE(PORT_2, PIN_22, FUNC_0))
 #define SENSOR_STUCK2      (GPIO_TYPE(PORT_1, PIN_22, FUNC_0))
-#define SENSOR_DOOR        (GPIO_TYPE(PORT_4, PIN_20, FUNC_0))
+#define SENSOR_DOOR        (GPIO_TYPE(PORT_4, PIN_2, FUNC_0))
 #define SENSOR_LIFT        (GPIO_TYPE(PORT_2, PIN_16, FUNC_0)) // or Collision
 #define SENSOR_COLLISION   (GPIO_TYPE(PORT_4, PIN_1, FUNC_0)) // Or Lift!
 #define SENSOR_STOP        (GPIO_TYPE(PORT_1, PIN_25, FUNC_0))
-#define SENSOR_COVER       (GPIO_TYPE(PORT_2, PIN_21, FUNC_0))
+#define SENSOR_DOOR2       (GPIO_TYPE(PORT_2, PIN_21, FUNC_0))
 #define SENSOR_RAIN        (GPIO_TYPE(PORT_1, PIN_30, FUNC_0)) // ADC!
 
 #define ADC_DR_RESULT(n)        ((((n) >> 4) & 0xFFF))
@@ -129,6 +137,6 @@ void hardware_Init();
 void sensor_Init();
 void powerMgmt_Init();
 void MotorCtrl_Init();
-
+void ROScomms_Init();
 
 #endif

@@ -159,14 +159,17 @@ void lcdPrintSensor() {
     sprintf(buffer, "Battery: %iC %imV %imA", sensor.batteryTemp, sensor.batteryVolt, sensor.batteryChargeCurrent);
     u8g_DrawStr(&u8g,  0, 20, buffer);
 
-    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensor.motorSCurrent, sensor.motorLCurrent, sensor.motorRCurrent);
+    sprintf(buffer, "T: %iC Rain %i C%iL%iS1%iS2%iD%i", sensor.boardTemp, sensor.rainAnalog, sensor.collision, sensor.lift, sensor.stuck, sensor.stuck2, sensor.door);
     u8g_DrawStr(&u8g,  0, 28, buffer);
 
+    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensor.motorSCurrent, sensor.motorLCurrent, sensor.motorRCurrent);
+    u8g_DrawStr(&u8g,  0, 36, buffer);
+
     sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensor.AccelX, sensor.AccelY, sensor.AccelZ);
-    u8g_DrawStr(&u8g,  0, 40, buffer);
+    u8g_DrawStr(&u8g,  0, 44, buffer);
     
     sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d", sensor.MotionYaw, sensor.MotionPitch, sensor.MotionRoll);
-    u8g_DrawStr(&u8g,  0, 50, buffer);    
+    u8g_DrawStr(&u8g,  0, 52, buffer);    
 
 
     if (keypad_GetKey() == KEY1 && !keypressed) {
@@ -192,6 +195,69 @@ void lcdPrintSensor() {
 
 }
 
+void taskRuntimeStats() {
+    u8g_SetDefaultForegroundColor(&u8g);
+    u8g_SetFont(&u8g, u8g_font_4x6);
+   /* TaskStatus_t *pxTaskStatusArray;
+    volatile UBaseType_t uxArraySize, x;
+    unsigned long ulTotalRunTime, ulStatsAsPercentage;
+    uint8_t line = 14;
+
+   // Take a snapshot of the number of tasks in case it changes while this function is executing. 
+   uxArraySize = uxTaskGetNumberOfTasks();
+
+   // Allocate a TaskStatus_t structure for each task.  An array could be allocated statically at compile time. 
+   pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
+
+   if( pxTaskStatusArray != NULL )
+   {
+      // Generate raw status information about each task. 
+      uxArraySize = uxTaskGetSystemState( pxTaskStatusArray,
+                                 uxArraySize,
+                                 &ulTotalRunTime );
+
+      // For percentage calculations. 
+      ulTotalRunTime /= 100UL;
+
+      // Avoid divide by zero errors. 
+      if( ulTotalRunTime > 0 )
+      {
+         // For each populated position in the pxTaskStatusArray array, format the raw data as human readable ASCII data. 
+         for( x = 0; x < uxArraySize; x++ )
+         {
+            // What percentage of the total run time has the task used? This will always be rounded down to the nearest integer.
+            // ulTotalRunTimeDiv100 has already been divided by 100.
+            ulStatsAsPercentage =
+                  pxTaskStatusArray[ x ].ulRunTimeCounter / ulTotalRunTime;
+
+            if( ulStatsAsPercentage > 0UL )
+            {
+               sprintf( buffer, "%i: %stt%lutt%lu%%", x,
+                                 pxTaskStatusArray[ x ].pcTaskName,
+                                 pxTaskStatusArray[ x ].ulRunTimeCounter,
+                                 ulStatsAsPercentage );
+            }
+            else
+            {
+               // If the percentage is zero here then the task has consumed less than 1% of the total run time. 
+               sprintf( buffer, "%i: %stt%lutt<1%%", x,
+                                 pxTaskStatusArray[ x ].pcTaskName,
+                                 pxTaskStatusArray[ x ].ulRunTimeCounter );
+            }
+
+            //pcWriteBuffer += strlen( ( char * ) pcWriteBuffer );
+            u8g_DrawStr(&u8g,  0, line, buffer);
+            line+=8;
+         }
+      }
+
+      // The array is no longer needed, free the memory it consumes. 
+      vPortFree( pxTaskStatusArray );
+   }*/
+
+}
+
+//    12345678901234567890123456789012
 const listItem_t mainMenuList[7] = {
     {"Spindle motor", &motortest, (uint8_t*)1},
     {"Left wheel", &motortest, (uint8_t*)2},
@@ -203,7 +269,7 @@ const listItem_t mainMenuList[7] = {
 };
 
 const listItem_t menuSublist1[7] = {
-    {"1", &testfunc, (uint8_t*)1},
+    {"Task Runtime Stats", &taskRuntimeStats, (uint8_t*)1},
     {"2", &testfunc, (uint8_t*)2},
     {"3", &testfunc, (uint8_t*)3},
     {"4", &testfunc, (uint8_t*)4},

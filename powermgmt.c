@@ -5,7 +5,8 @@
 #include "keypad.h"
 
 #define BATTERY_MAX_TEMP  400
-#define BATTERY_MAX_VOLT  28700
+//#define BATTERY_MAX_VOLT  28700
+#define BATTERY_MAX_VOLT  29000 // test with higher volt
 #define BATTERY_MIN_VOLT  23700
 #define BATTERY_MAX_AMP   4000
 
@@ -40,6 +41,8 @@ void powerMgmt_Task(void *pvParameters) {
     xSensorMsgType sensor;
     xScreenMsgType screenMsg;
     uint16_t count = 20;
+
+    
     
     for (;;) {
         xQueuePeek(xSensorQueue, &sensor, 0);
@@ -180,7 +183,7 @@ void powerMgmt_Task(void *pvParameters) {
 
         if (keypad_GetKey() == KEYPWR) {
             
-            screenMsg.time=2;
+            screenMsg.time=5;
             sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
             xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
             if (keypad_GetTime() > 15) {
