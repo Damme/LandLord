@@ -90,7 +90,7 @@ void powerMgmt_Task(void *pvParameters) {
                     count = 50;
                     
                     screenMsg.time=15;
-                    sprintf(screenMsg.text, "In charger!", keypad_GetTime());
+                    sprintf(screenMsg.text, "In charger!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
                 count--;
@@ -100,7 +100,7 @@ void powerMgmt_Task(void *pvParameters) {
                     powerState = Idle;
                     /*
                     screenMsg.time=50;
-                    sprintf(screenMsg.text, "No charger found!", keypad_GetTime());
+                    sprintf(screenMsg.text, "No charger found!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);*/
                 }
                 break;
@@ -119,6 +119,8 @@ void powerMgmt_Task(void *pvParameters) {
                 if (sensor.batteryChargeCurrent > 100) {
                     count = 50;
                     // TODO Count mAh/Wh charged
+                    // TODO Start time and elapsed charging time
+                    // TODOTempeature checks
                 }
 
                 if (sensor.batteryVolt > BATTERY_MAX_VOLT) {
@@ -126,7 +128,7 @@ void powerMgmt_Task(void *pvParameters) {
                     powerState = ChargingFinnished;
                     
                     screenMsg.time=15;
-                    sprintf(screenMsg.text, "Charge finnished!", keypad_GetTime());
+                    sprintf(screenMsg.text, "Charge finnished!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
 
@@ -135,7 +137,7 @@ void powerMgmt_Task(void *pvParameters) {
                     powerState = ChargingFailed;
                     
                     screenMsg.time=15;
-                    sprintf(screenMsg.text, "Charger disconnected!", keypad_GetTime());
+                    sprintf(screenMsg.text, "Charger disconnected!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
 
