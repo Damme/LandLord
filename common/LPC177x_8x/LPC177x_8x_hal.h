@@ -98,7 +98,7 @@
 #define SSP0_SCK           (GPIO_TYPE(PORT_1, PIN_20, FUNC_5))
 #define SSP0_SSEL          (GPIO_TYPE(PORT_1, PIN_21, FUNC_3))
 #define SSP0_MISO          (GPIO_TYPE(PORT_1, PIN_23, FUNC_5))
-#define SSP0_MOSI          (GPIO_TYPE(PORT_2, PIN_24, FUNC_5))
+#define SSP0_MOSI          (GPIO_TYPE(PORT_1, PIN_24, FUNC_5))
 
 #define SENSORS_SDA        (GPIO_TYPE(PORT_2, PIN_14, FUNC_2))
 #define SENSORS_SDL        (GPIO_TYPE(PORT_2, PIN_15, FUNC_2))
