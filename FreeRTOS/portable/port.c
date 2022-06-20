@@ -1,8 +1,6 @@
 /*
- * FreeRTOS Kernel V10.4.6
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
- *
- * SPDX-License-Identifier: MIT
+ * FreeRTOS Kernel V10.4.3 LTS Patch 2
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -69,7 +67,7 @@
 
 /* Constants required to check the validity of an interrupt priority. */
 #define portFIRST_USER_INTERRUPT_NUMBER       ( 16 )
-#define portNVIC_IP_REGISTERS_OFFSET_16       ( 0xE000E3F0 )
+    #define portNVIC_IP_REGISTERS_OFFSET_16       ( 0xE000E3F0 )
 #define portAIRCR_REG                         ( *( ( volatile uint32_t * ) 0xE000ED0C ) )
 #define portMAX_8_BIT_VALUE                   ( ( uint8_t ) 0xff )
 #define portTOP_BIT_OF_BYTE                   ( ( uint8_t ) 0x80 )
@@ -327,7 +325,7 @@ BaseType_t xPortStartScheduler( void )
              * value. */
             *pucFirstUserPriorityRegister = ulOriginalPriority;
         }
-    #endif /* configASSERT_DEFINED */
+    #endif /* conifgASSERT_DEFINED */
 
     /* Make PendSV and SysTick the lowest priority interrupts. */
     portNVIC_SHPR3_REG |= portNVIC_PENDSV_PRI;

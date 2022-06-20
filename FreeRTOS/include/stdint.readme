@@ -1,8 +1,6 @@
 /*
- * FreeRTOS Kernel V10.4.6
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
- *
- * SPDX-License-Identifier: MIT
+ * FreeRTOS Kernel V10.4.3 LTS Patch 2
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,9 +24,29 @@
  *
  */
 
+#ifndef FREERTOS_STDINT
+#define FREERTOS_STDINT
 
-#ifndef _MSC_VER /* Visual Studio doesn't support #warning. */
-    #warning The name of this file has changed to stack_macros.h.  Please update your code accordingly.  This source file (which has the original name) will be removed in future released.
-#endif
+/*******************************************************************************
+ * THIS IS NOT A FULL stdint.h IMPLEMENTATION - It only contains the definitions
+ * necessary to build the FreeRTOS code.  It is provided to allow FreeRTOS to be
+ * built using compilers that do not provide their own stdint.h definition.
+ *
+ * To use this file:
+ *
+ *    1) Copy this file into the directory that contains your FreeRTOSConfig.h
+ *       header file, as that directory will already be in the compiler's include
+ *       path.
+ *
+ *    2) Rename the copied file stdint.h.
+ *
+ */
 
-#include "stack_macros.h"
+typedef signed char int8_t;
+typedef unsigned char uint8_t;
+typedef short int16_t;
+typedef unsigned short uint16_t;
+typedef long int32_t;
+typedef unsigned long uint32_t;
+
+#endif /* FREERTOS_STDINT */
