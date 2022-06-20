@@ -112,6 +112,9 @@
 #define SENSOR_DOOR2       (GPIO_TYPE(PORT_2, PIN_21, FUNC_0))
 #define SENSOR_RAIN        (GPIO_TYPE(PORT_1, PIN_30, FUNC_0)) // ADC!
 
+#define SENSOR_BATT_BH     (GPIO_TYPE(PORT_5, PIN_0, FUNC_0))
+#define SENSOR_BATT_BS     (GPIO_TYPE(PORT_3, PIN_13, FUNC_0))
+
 #define ADC_DR_RESULT(n)        ((((n) >> 4) & 0xFFF))
 // Note error in UM10470.pdf - filter should not affect ADC - But it does.
 #define ADC_AD0				(GPIO_TYPE(PORT_0, PIN_23, FUNC_1 | PINMODE_FILTER))

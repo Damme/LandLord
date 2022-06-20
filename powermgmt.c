@@ -45,7 +45,7 @@ void powerMgmt_Task(void *pvParameters) {
     
     
     for (;;) {
-        xQueuePeek(xSensorQueue, &sensor, 0);
+        xQueuePeekFromISR(xSensorQueue, &sensor);
         switch(powerState) {
             case Startup:
                 // if checking for charger all the time we dont need this forced charging function.
@@ -84,7 +84,7 @@ void powerMgmt_Task(void *pvParameters) {
                     GPIO_SET_PIN(MOTOR_MOSFET);
                     
                     sensor.incharger = 1;
-                    xQueueOverwrite(xSensorQueue, &sensor);
+                    xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
                     
                     powerState = StartCharging;
                     count = 50;
@@ -185,7 +185,7 @@ void powerMgmt_Task(void *pvParameters) {
 
         if (keypad_GetKey() == KEYPWR) {
             
-            screenMsg.time=5;
+            screenMsg.time=4;
             sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
             xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
             if (keypad_GetTime() > 15) {

@@ -1,13 +1,16 @@
 BASE:=/usr
 
 GCCPATH:=$(BASE)
+CPU:=1788
+TARGETCPU:=LPC177x_8x
 
 #TARGETNAME:=$(firstword $(basename $(wildcard *.c)))
 TARGETNAME:=main
 SYSINC:=common
 U8GPATH:=u8g
 FREERTOSPATH=FreeRTOS
-FREERTOSGCCPATH=FreeRTOS/gcc
+FREERTOSINCPATH=FreeRTOS/include
+FREERTOSPORTPATH=FreeRTOS/portable
 LDSCRIPTDIR:=$(SYSINC)
 SRC:=$(wildcard *.c)
 MCPU:=cortex-m3
@@ -32,15 +35,15 @@ LDSCRIPT:=$(LDSCRIPTDIR)/$(TARGETCPU)/$(TARGETCPU).ld
 
 # U8G Source files
 U8GSRC:=$(wildcard $(U8GPATH)/*.c)
-FREETROSSRC:=$(wildcard $(FREERTOSPATH)/*.c)
-FREETROSGCCSRC:=$(wildcard $(FREERTOSGCCPATH)/*.c)
+FREERTOSSRC:=$(wildcard $(FREERTOSPATH)/*.c)
+FREERTOSPORTSRC:=$(wildcard $(FREERTOSPORTPATH)/*.c)
 # Internal Variable Names
 ELFNAME:=$(TARGETNAME).elf
 BINNAME:=$(TARGETNAME).bin
 HEXNAME:=$(TARGETNAME).hex
 DISNAME:=$(TARGETNAME).dis
 MAPNAME:=$(TARGETNAME).map
-OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(SYSCPUSRC:.c=.o) $(FREETROSSRC:.c=.o) $(FREETROSGCCSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
+OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(SYSCPUSRC:.c=.o) $(FREERTOSSRC:.c=.o) $(FREERTOSPORTSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
 OBJSMALL:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(STARTUP:.S=.o)
 
 # Replace standard build tools by avr tools
@@ -55,7 +58,7 @@ SIZE:=$(GCCPATH)/bin/arm-none-eabi-size
 COMMON_FLAGS = -mthumb -mcpu=$(MCPU)
 COMMON_FLAGS += -g
 COMMON_FLAGS += -Wall -Wno-unknown-pragmas
-COMMON_FLAGS += -I. -I$(SYSINC) -I$(SYSINC)/$(TARGETCPU) -I$(U8GPATH) -I$(FREERTOSPATH) -I$(FREERTOSGCCPATH)
+COMMON_FLAGS += -I. -I$(SYSINC) -I$(SYSINC)/$(TARGETCPU) -I$(U8GPATH) -I$(FREERTOSINCPATH) -I$(FREERTOSPATH) -I$(FREERTOSPORTPATH)
 # default stack size is 0x0c00
 COMMON_FLAGS += -D__STACK_SIZE=0x0a00 -DdebugPrintf -DLOWSTACKWARNING -D$(TARGETCPU)
 COMMON_FLAGS += -Os -flto

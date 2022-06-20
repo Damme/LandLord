@@ -97,7 +97,7 @@ typedef enum IRQn
   LCD_IRQn                      = 37,       /*!< LCD Interrupt                                    */
   GPIO_IRQn                     = 38,       /*!< GPIO Interrupt                                   */
   PWM0_IRQn                     = 39,       /*!< PWM0 Interrupt                                   */
-  EEPROM_IRQn                   = 40,       /*!< EEPROM Interrupt                           */
+  EEPROM_IRQn                   = 40,       /*!< EEPROM Interrupt                                 */
 } IRQn_Type;
 
 
@@ -114,7 +114,7 @@ typedef enum IRQn
 
 
 #include "core_cm3.h"                       /* Cortex-M3 processor and core peripherals           */
-//#include "system_LPC177x_8x.h"                 /* System Header                                      */
+#include "system_LPC177x_8x.h"              /* System Header                                      */
 
 
 /******************************************************************************/
@@ -151,8 +151,8 @@ typedef struct
   __IO uint32_t CCLKSEL;                    /*!< Offset: 0x104 (R/W)  CPU Clock Selection Register */
   __IO uint32_t USBCLKSEL;                  /*!< Offset: 0x108 (R/W)  USB Clock Selection Register */
   __IO uint32_t CLKSRCSEL;                  /*!< Offset: 0x10C (R/W)  Clock Source Select Register */
-  __IO uint32_t	CANSLEEPCLR;                /*!< Offset: 0x110 (R/W)  CAN Sleep Clear Register */
-  __IO uint32_t	CANWAKEFLAGS;               /*!< Offset: 0x114 (R/W)  CAN Wake-up Flags Register */
+  __IO uint32_t CANSLEEPCLR;                /*!< Offset: 0x110 (R/W)  CAN Sleep Clear Register */
+  __IO uint32_t CANWAKEFLAGS;               /*!< Offset: 0x114 (R/W)  CAN Wake-up Flags Register */
        uint32_t RESERVED4[10];
   __IO uint32_t EXTINT;                     /*!< Offset: 0x140 (R/W)  External Interrupt Flag Register */
        uint32_t RESERVED5[1];
@@ -165,7 +165,7 @@ typedef struct
   __IO uint32_t IRCTRIM;                    /*!< Offset: 0x1A4 (R/W) Clock Dividers                     */
   __IO uint32_t PCLKSEL;                    /*!< Offset: 0x1A8 (R/W)  Peripheral Clock Selection Register */
        uint32_t RESERVED8;					
-  __IO uint32_t PBOOST;						/*!< Offset: 0x1B0 (R/W)  Power Boost control register */	   
+  __IO uint32_t PBOOST;				    /*!< Offset: 0x1B0 (R/W)  Power Boost control register */	   
        uint32_t RESERVED9;					
   __IO uint32_t LCD_CFG;                    /*!< Offset: 0x1B8 (R/W)  LCD Configuration and clocking control Register */
        uint32_t RESERVED10[1];
@@ -415,7 +415,7 @@ typedef struct
   __IO uint32_t MR3;                    /*!< Offset: 0x024 Match Register 3 (R/W) */
   __IO uint32_t CCR;                    /*!< Offset: 0x028 Capture Control Register (R/W) */
   __I  uint32_t CR0;                    /*!< Offset: 0x02C Capture Register 0 (R/ ) */
-  __I  uint32_t CR1;					/*!< Offset: 0x030 Capture Register 1 (R/ ) */
+  __I  uint32_t CR1;				/*!< Offset: 0x030 Capture Register 1 (R/ ) */
        uint32_t RESERVED0[2];
   __IO uint32_t EMR;                    /*!< Offset: 0x03C External Match Register (R/W) */
        uint32_t RESERVED1[12];
@@ -438,17 +438,17 @@ typedef struct
   __IO uint32_t MR3;                    /*!< Offset: 0x024 Match Register 3 (R/W) */
   __IO uint32_t CCR;                    /*!< Offset: 0x028 Capture Control Register (R/W) */
   __I  uint32_t CR0;                    /*!< Offset: 0x02C Capture Register 0 (R/ ) */
-  __I  uint32_t CR1;					/*!< Offset: 0x030 Capture Register 1 (R/ ) */
-  __I  uint32_t CR2;					/*!< Offset: 0x034 Capture Register 2 (R/ ) */
-  __I  uint32_t CR3;					/*!< Offset: 0x038 Capture Register 3 (R/ ) */
+  __I  uint32_t CR1;				/*!< Offset: 0x030 Capture Register 1 (R/ ) */
+  __I  uint32_t CR2;				/*!< Offset: 0x034 Capture Register 2 (R/ ) */
+  __I  uint32_t CR3;				/*!< Offset: 0x038 Capture Register 3 (R/ ) */
        uint32_t RESERVED0;
-  __IO uint32_t MR4;					/*!< Offset: 0x040 Match Register 4 (R/W) */
-  __IO uint32_t MR5;					/*!< Offset: 0x044 Match Register 5 (R/W) */
-  __IO uint32_t MR6;					/*!< Offset: 0x048 Match Register 6 (R/W) */
-  __IO uint32_t PCR;					/*!< Offset: 0x04C PWM Control Register (R/W) */
-  __IO uint32_t LER;					/*!< Offset: 0x050 Load Enable Register (R/W) */
+  __IO uint32_t MR4;				/*!< Offset: 0x040 Match Register 4 (R/W) */
+  __IO uint32_t MR5;				/*!< Offset: 0x044 Match Register 5 (R/W) */
+  __IO uint32_t MR6;				/*!< Offset: 0x048 Match Register 6 (R/W) */
+  __IO uint32_t PCR;				/*!< Offset: 0x04C PWM Control Register (R/W) */
+  __IO uint32_t LER;				/*!< Offset: 0x050 Load Enable Register (R/W) */
        uint32_t RESERVED1[7];
-  __IO uint32_t CTCR;					/*!< Offset: 0x070 Counter Control Register (R/W) */
+  __IO uint32_t CTCR;				/*!< Offset: 0x070 Counter Control Register (R/W) */
 } LPC_PWM_TypeDef;
 
 /*------------- Universal Asynchronous Receiver Transmitter (UARTx) -----------*/
@@ -600,7 +600,7 @@ typedef struct
   __IO uint32_t  FDR;                   /*!< Offset: 0x028 Fractional Divider Register (R/W) */
   __IO uint32_t  OSR;                   /*!< Offset: 0x02C Over sampling Register (R/W) */
        uint32_t  RESERVED2[6];               
-  __IO uint32_t  SCI_CTRL;				/*!< Offset: 0x048 Smart card Interface Control Register (R/W) */
+  __IO uint32_t  SCI_CTRL;			/*!< Offset: 0x048 Smart card Interface Control Register (R/W) */
   __IO uint32_t  RS485CTRL;             /*!< Offset: 0x04C RS-485/EIA-485 Control Register (R/W) */
   __IO uint32_t  ADRMATCH;              /*!< Offset: 0x050 RS-485/EIA-485 address match Register (R/W) */
   __IO uint32_t  RS485DLY;              /*!< Offset: 0x054 RS-485/EIA-485 direction control delay Register (R/W) */

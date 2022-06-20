@@ -1,13 +1,18 @@
 {
+    "makefile.extensionOutputFolder": "./.vscode",
+    "makefile.configurations": [
+        {
+            "name": "littlekernel",
+            "makeArgs": ["cpu=1788"]
+        }
+    ],
     "files.associations": {
-        "common.h": "c",
-        "timers.h": "c",
-        "lpc177x_8x.h": "c",
-        "lpc177x_8x_hal.h": "c",
-        "system_lpc177x_8x.h": "c",
-        "system_lpc175x_6x.h": "c",
-        "portable.h": "c",
-        "stdio.h": "c"
-    },
-
+        "global.h": "c",
+        "cstdio": "c",
+        "cmath": "c",
+        "*.tcc": "c",
+        "cstdlib": "c",
+        "portmacro.h": "c",
+        "motorctrl.h": "c"
+    }
 }

@@ -6,25 +6,9 @@
 #include "FreeRTOS.h"
 #include "timers.h"
 
-#define xDelay25   ((TickType_t)25 / portTICK_PERIOD_MS)
-#define xDelay100  ((TickType_t)100 / portTICK_PERIOD_MS)
-
-/*
-void delay_uS(uint32_t uS) {
-    LPC_TIM1->TCR = 0x02;                // reset timer
-    LPC_TIM1->PR  = 0x00;                // set prescaler to zero
-    LPC_TIM1->MR0 = uS * (SystemCoreClock / 1000000) - 1;
-    LPC_TIM1->IR  = 0xff;                // reset all interrrupts
-    LPC_TIM1->MCR = 0x04;                // stop timer on match
-    LPC_TIM1->TCR = 0x01;                // start timer
-    // wait until delay time has elapsed
-    while (LPC_TIM1->TCR & 0x01);
-}
-*/
-
 void spi_out(uint8_t data) {
 #ifdef LPC177x_8x // DB504
-    // DB504 dont use hw spi, so we'll have to bit bang it!
+    // FIXME! Use Spi instead of bitbanging!
     for (uint8_t i = 0; i < 8; i++) {
         // consider leftmost bit
         // set line high if bit is 1, low if bit is 0

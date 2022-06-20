@@ -174,7 +174,7 @@ void keypad_Task(void *pvParameters) {
         if (keypad_GetKey() == KEYSTOP) {
             xMotorMsgType MotorMsg;
             MotorMsg.action = EMGSTOP;
-            xQueueSend(xMotorMsgQueue, &MotorMsg, (TickType_t)0);
+            xQueueSendFromISR(xMotorMsgQueue, &MotorMsg, NULL);
         }
         /*if (keypad_GetKey() == KEYPWR && keypad_GetTime() > 6) {
             // TODO: Shut down motor! break etc, draws current from battery even in cpu-off!

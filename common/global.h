@@ -33,6 +33,8 @@ extern xQueueHandle xSensorQueue;
 extern xQueueHandle xScreenMsgQueue;
 extern xQueueHandle xMotorMsgQueue;
 
+extern xQueueHandle xBoundaryMsgQueue;
+
 typedef enum {
     MEASUREMENT_BATTERY = 0,
     MEASUREMENT_MOTORCURRENT,
@@ -60,6 +62,8 @@ typedef struct {
     bool door2;
     bool rain;
     bool incharger;
+    bool batteryCellLow;
+    bool batteryCellHigh;
     int32_t rainAnalog;
     int32_t batteryTemp;
     int32_t batteryVolt;
@@ -74,7 +78,34 @@ typedef struct {
     int16_t MotionYaw;
     int16_t MotionPitch;
     int16_t MotionRoll;
+    int16_t MagX;
+    int16_t MagY;
+    int16_t MagZ;
+    uint16_t CurrentPWMRight;
+    uint16_t CurrentPWMLeft;
+    uint16_t CurrentPWMSpindle;
 } xSensorMsgType;
+
+// V0.7#S-239568|+502936#N035|143#C073#
+typedef struct {
+    char fwver[4];
+    char reserved0[2];
+
+    char sleft[7];
+    char reserved1;
+
+    char sright[7];
+    char reserved2[2];
+
+    char nleft[3];
+    char reserved3;
+
+    char nright[3];
+    char reserved4[2];
+
+    char cval[3];
+    char reserved5;
+} xBoundaryMsgType;
 
 typedef enum {
     BRAKE = 0,
@@ -101,6 +132,8 @@ extern volatile uint8_t debug4;
 
 extern volatile uint32_t cpuID;
 
+extern volatile TaskHandle_t xHandle[10];
+extern volatile uint8_t taskcounter;
 
 //int _write(int fd, char *ptr, int len);
 void delay_uS(uint32_t uS);

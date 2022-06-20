@@ -12,15 +12,20 @@
 #define     MMA8452Q    0x38
 #define     L3GD20      0xD4
 
-// not in default configuration!
-#define     LSM303_ADDRESS_ACCEL          0x32         // 0011001x
-#define     LSM303_ADDRESS_MAG            0x3C         // 0011110x
-
 #define L3GD20_WHO_AM_I 0x0F
 #define L3GD20_STATUS_REG 0x27
 #define L3GD20_OUT_TEMP 0x26
 
 #define MMA8452Q_WHO_AM_I 0x0D
+
+// not in default configuration!
+#define     LSM303_ACCEL          0x32         // 0011001x // ELLER 0x30? ??? ??
+#define     LSM303_MAG            0x3C         // 0011110x
+#define     SHT21                 0x80 // or 0x40 ?
+
+#define SHT21_TEMP_NOHOLD  0xF3
+#define SHT21_HUMD_NOHOLD  0xF5
+
 
 void I2C1_Start (void);
 void I2C1_Stop (void);

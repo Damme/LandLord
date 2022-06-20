@@ -2,6 +2,7 @@
 #include "global.h"
 
 
+
 void hardware_Init() {
     LPC_SC->PCONP |= PCONP_PCGPIO;              // Power up GPIO
     LPC_SC->PCONP |= PCONP_PCADC;               // Power up ADC
@@ -82,32 +83,26 @@ void ROScomms_Init() {
     // Init hardware 1788
     LPC_SC->PCONP |= PCONP_PCSPP0;              // power up SSP0
     
-    GPIO_DIR_OUT(SSP0_SSEL);
-    
     GPIO_PIN_FNC(SSP0_SCK);
     GPIO_PIN_FNC(SSP0_SSEL);
     GPIO_PIN_FNC(SSP0_MISO);
     GPIO_PIN_FNC(SSP0_MOSI);
-
-/*
-0x0707
-  11100000111
-
-1000010000111
-2109876543210
-*/
-
-
-    LPC_SSP0->CR0 = (7 << 0) | (0 << 6) | (1 << 7); // 8bits, CPOL, CPHA,
+    
+    GPIO_DIR_IN(SSP0_SSEL);
+    //GPIO_SET_PIN(SSP0_SSEL);
+    GPIO_FNC_PULL(SSP0_SCK, PINMODE_PULLDOWN);
+    
+    LPC_SSP0->CR0 = (7 << 0) | (1 << 6) | (1 << 7); // 8bits, CPOL, CPHA,
     LPC_SSP0->CR1 = (1 << 2);
 
     LPC_SSP0->CPSR = (128 & 0xfe); // SSPn Clock Prescale Register 60000000 / 128 = 468750
     LPC_SSP0->CR0 |= (16 << 8); // Serial Clock Rate.
-    LPC_SSP0->CR1 |= (1 << 2); // Slave mode
-    LPC_SSP0->CR1 |= (1 << 1); // SSP Enable.
+    //LPC_SSP0->CR1 |= (1 << 0); // loopback
+    LPC_SSP0->CR1 |= (1 << 2); // Slave mode    
+    
     // PCLK / (CPSDVSR × [SCR+1]) = bitrate
-    // 32 14204
-    // 16 27573
+    // 32 14648.4375
+    // 16 29296.875
 
 
     // Set DSS data to 8-bit, Frame format SPI, CPOL = 0, CPHA = 0, and SCR is 15
@@ -126,18 +121,20 @@ void ROScomms_Init() {
 }
 
 void MotorCtrl_Init() {
+    LPC_SC->PCONP |= PCONP_PCPWM1;
+
 // Configure PWM 1.1(Blade) 1.4(left) 1.5(right) (and pwm1.2 LCD brightness)
-    LPC_PWM1->MR0 = 1000;
+    LPC_PWM1->MR0 = 2047;
     LPC_PWM1->MR1 = 0;      // Blade
     LPC_PWM1->MR4 = 0;      // Left
     LPC_PWM1->MR5 = 0;      // Right
-    LPC_PWM1->MR2 = 1000;   // LCD
+    LPC_PWM1->MR2 = 2047;   // LCD
 // Setup PWM registers
     // mr0 = 1000 pr = 59 : ~1k hz
     // mr0 = 1000 pr = 12 : ~4.6 khz
     // mr0 = 1000 pr = 5  : ~10 khz
     // mr0 = 1000 pr = 2  : ~20 khz
-    LPC_PWM1->PR = 12;
+    LPC_PWM1->PR = 12; // The TC is incremented every PR+1 cycles of PCLK.
     LPC_PWM1->LER |= (1 << 0) | (1 << 1) | (1 << 2) | (1 << 4) | (1 << 5); //Enable PWM Match 0+1+2+4+5 Latch
     LPC_PWM1->PCR |= (1 << 9) | (1 << 10) | (1 << 12) | (1 << 13); // PWMENA2
     LPC_PWM1->MCR |= (1 << 1); // PWMMR0R

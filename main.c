@@ -1,25 +1,20 @@
-//#define DEBUGCONSOLE 1
-//#define debugPrintf 1
-#define LPC177x_8x // to make visual studio understand the code better
-
-#define LOWSTACKWARNING
-
 #include <stdio.h>
 
 #include "common.h"
-#include "keypad.h"
-#include "sensor.h"
-#include "powermgmt.h"
-#include "motorctrl.h"
-#include "lcd.h"
-#include "redirect.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 #include "global.h"
-#include "ROSComms.h"
 
-#ifdef LPC177x_8x // DB504
+#include "ROSComms.h"
+#include "lcd.h"
+#include "sensor.h"
+#include "powermgmt.h"
+#include "keypad.h"
+#include "motorctrl.h"
+#include "boundary.h"
+
+#ifdef LPC177x_8x // LPC1788 DB504
 TODO("Cpu lpc1788 DB504")
 
 HeapRegion_t xHeapRegions[] = {
@@ -42,47 +37,60 @@ HeapRegion_t xHeapRegions[] = {
     { NULL, 0 }                           // Tot: 60kB
 };
 #endif
+/*
+https://stackoverflow.com/questions/44038428/include-git-commit-hash-and-or-branch-name-in-c-c-source
 
-#if 0
-static void task_DigitalTest(void *pvParameters)
-{
+arm-none-eabi-gdb main.elf
+target extended-remote 10.42.43.164:3333
+
+*/
+
+static void task_DigitalTest(void *pvParameters) {
     for (;;) {
-        /*GPIO_SET_PIN(LCD_BACKLIGHT);
+        GPIO_SET_PIN(LCD_BACKLIGHT);
         vTaskDelay(xDelay500);
-        GPIO_CLR_PIN(LCD_BACKLIGHT);*/
+        GPIO_CLR_PIN(LCD_BACKLIGHT);
         vTaskDelay(xDelay500);
-        printf("key: %i %i %i\r\n", keypad_GetKey(), keypad_GetState(), keypad_GetTime());
-
-        /*        GPIO_SET_PIN(LCD_BACKLIGHT);
-                vTaskDelay(xDelay200);
-                GPIO_CLR_PIN(LCD_BACKLIGHT);
-                vTaskDelay(xDelay200);*/
     }
 }
-#endif
 
 int main(void) {
+    setbuf(stdout, NULL);
     vPortDefineHeapRegions(xHeapRegions);
+
+    
+    SystemCoreClockUpdate();
+    // https://www.keil.com/pack/doc/CMSIS/Core/html/group__NVIC__gr.html
+    NVIC_SetPriorityGrouping( 2 ); 
+    //NVIC_SetPriority(TIMER1_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
 
     hardware_Init();
     
     xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
     xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
-    xSensorMsgType sensor = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-    xQueueOverwrite(xSensorQueue, &sensor);
-
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
+    xBoundaryMsgQueue = xQueueCreate(8, sizeof(xBoundaryMsgType));
     
-    //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 5, NULL);
-    xTaskCreate(powerMgmt_Task, "PowerMgmt", 180, NULL, 3, NULL);
-    xTaskCreate(keypad_Task, "Keypad", 150, NULL, 6, NULL); // configMINIMAL_STACK_SIZE
-    xTaskCreate(LCD_Task, "LCD", 1024, NULL, 8, NULL);
-    xTaskCreate(sensor_Task, "Sensor", 400, NULL, 5, NULL);
-    xTaskCreate(motorCtrl_Task, "MotorCtrl", 150, NULL, 5, NULL);
+    //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(sensor_Task, "Sensor", 256, NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(ROSComms_Task, "RosComms", 512, NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(LCD_Task, "LCD", 378, NULL, 5, &xHandle[taskcounter++]);
 
-    //xTaskCreate(ROSComms_Task, "RosComms", 255, NULL, 7, NULL);
+    xTaskCreate(powerMgmt_Task, "PowerMgmt", 180, NULL, 5, &xHandle[taskcounter++]);
+
+    xTaskCreate(keypad_Task, "Keypad", 150, NULL, 6, &xHandle[taskcounter++]);
+    xTaskCreate(motorCtrl_Task, "MotorCtrl", 300, NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(boundary_Task, "Boundary", 512, NULL, 5, &xHandle[taskcounter++]);
+    
+
 
     vTaskStartScheduler();
     // Should never get here.
+    for (;;) {
+        GPIO_SET_PIN(LCD_BACKLIGHT);
+        vTaskDelay(xDelay100);
+        GPIO_CLR_PIN(LCD_BACKLIGHT);
+        vTaskDelay(xDelay100);
+    }
     printf("Insufficient RAM!");
 }

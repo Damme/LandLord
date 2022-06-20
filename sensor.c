@@ -8,9 +8,9 @@
 #include "global.h"
 #include "i2c.h"
 
-EventGroupHandle_t xSensorEventGroup;
-xQueueHandle xDIGMsgQueue;
-TimerHandle_t xADCTriggerTimer;
+//EventGroupHandle_t xSensorEventGroup;
+//xQueueHandle xDIGMsgQueue;
+//TimerHandle_t xADCTriggerTimer;
 
 typedef struct {
     uint8_t Status;
@@ -29,9 +29,10 @@ typedef struct {
     uint8_t Yl;
     uint8_t Zh;
     uint8_t Zl;
-} MotionType;
+} GenericSensor;
 
-// Rewrite temperature conversion to something better.. This is just wierd.
+
+// TODO Rewrite temperature conversion to something better.. This is just wierd.
 const uint16_t tempCalTbl[110] = {
     0xCF3, 0xCD6, 0xCB9, 0xC9B, 0xC7C, 0xC5A, 0xC3B, 0xC1B, 0xBFB, 0xBDB,
     0xBB5, 0xB93, 0xB72, 0xB50, 0xB2E, 0xB01, 0xADE, 0xABA, 0xA97, 0xA73,
@@ -99,11 +100,14 @@ void EINT3_IRQHandler(void) {
 void sensor_Task(void *pvParameters) {
     sensor_Init();
     xSensorMsgType sensor;
-    AccelType accel;
-    MotionType motion;
+    GenericSensor accel;
+    GenericSensor motion;
     int16_t count = 0;
-    MotionType magnet;
+    GenericSensor magnet;
 
+    memset(&sensor, 0x00, sizeof(xSensorMsgType));
+    xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
+    
 /*
 #define MOTOR_LEFT_PULSE     (GPIO_TYPE(PORT_1, PIN_14, FUNC_0)) T2_CAP0
 #define MOTOR_RIGHT_PULSE    (GPIO_TYPE(PORT_3, PIN_30, FUNC_0)) T1_MAT1
@@ -114,21 +118,45 @@ void sensor_Task(void *pvParameters) {
     I2C1Init();
 #endif
 
+// 3-axis, 12-bit/8-bit digital accelerometer
     I2C1_Send_Addr(MMA8452Q, 0x2a, 0x01); // Active mode
     I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g (?? double check!)
 
+// Three-axis digital output gyroscope
     I2C1_Send_Addr(L3GD20, 0x20, 0x6f); // CTRL1 set ??
     I2C1_Send_Addr(L3GD20, 0x23, 0x00); // CTRL4 set ??
     
+    vTaskDelay(xDelay1000);
+// 3D accelerometer and 3D magnetometer module
 /*
-    //I2C1_Send_Addr(LSM303_ADDRESS_ACCEL, 0x20, 0x27); // Enable the accelerometer
-    I2C1_Send_Addr(LSM303_ADDRESS_MAG, 0x00, 0x94); // Enable the magnetometer 15hz and temperature sensor
-    I2C1_Send_Addr(LSM303_ADDRESS_MAG, 0x02, 0x00); // Continuous-conversion mode
-    
+// Accelerometer
+// * device_DLHC
+// 0x23 => 0x08 = 0b00001000 FS = 00 (+/- 2 g full scale); HR = 1 (high resolution enable)
+// 0x20 => 0x47 = 0b01000111 ODR = 0100 (50 Hz ODR); LPen = 0 (normal mode); Zen = Yen = Xen = 1 (all axes enabled)
+// * DLM, DLH    
+// 0x23 => 0x00 = 0b00000000 FS = 00 (+/- 2 g full scale)
+// 0x20 => 0x27 = 0b00100111 PM = 001 (normal mode); DR = 00 (50 Hz ODR); Zen = Yen = Xen = 1 (all axes enabled)
+
+// Magnetometer
+// 0x00 => 0x0C = 0b00001100 DO = 011 (7.5 Hz ODR)
+// 0x01 => 0x20 = 0b00100000 GN = 001 (+/- 1.3 gauss full scale)
+// 0x02 => 0x00 = 0b00000000 MD = 00 (continuous-conversion mode)
+  }
 */
+// Verkar inte kunna skriva till lsm303 , inga register verkar uppdatera sig!
+// Ack on send ? 
+    I2C1_Send_Addr(LSM303_ACCEL, 0x23, 0x08); // 0x08 = 0b00001000 FS = 00 (+/- 2 g full scale); HR = 1 (high resolution enable)
+    I2C1_Send_Addr(LSM303_ACCEL, 0x20, 0x47); // 0x47 = 0b01000111 ODR = 0100 (50 Hz ODR); LPen = 0 (normal mode); Zen = Yen = Xen = 1 (all axes enabled)
+    //I2C1_Send_Addr(LSM303_MAG, 0x00, 0x0C); // 0x0C = 0b00001100 DO = 011 (7.5 Hz ODR)
+    I2C1_Send_Addr(LSM303_MAG, 0x00, 0x94); // Enable the magnetometer 15hz and temperature sensor
+    I2C1_Send_Addr(LSM303_MAG, 0x03, 0x20); // 0x20 = 0b00100000 GN = 001 (+/- 1.3 gauss full scale)
+    I2C1_Send_Addr(LSM303_MAG, 0x02, 0x00); // 0x00 = 0b00000000 MD = 00 (continuous-conversion mode)
+
+    vTaskDelay(xDelay250);
+
     for (;;) {
         vTaskDelay(xDelay10);
-        if (xQueuePeek(xSensorQueue, &sensor, 0) == pdTRUE) {
+        if (xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10) == pdTRUE) {
 
             // handle_ADCMuxing(); // For LPC1768! ADC4 is muxed between 4 measurements.        
             sensor.stuck = GPIO_CHK_PIN(SENSOR_STUCK);
@@ -139,11 +167,20 @@ void sensor_Task(void *pvParameters) {
             sensor.stop = GPIO_CHK_PIN(SENSOR_STOP);
             sensor.door2 = GPIO_CHK_PIN(SENSOR_DOOR2);
             sensor.rain = GPIO_CHK_PIN(SENSOR_RAIN); // TODO ADC value so if value > "wet enough" = rain
+            sensor.batteryCellLow = GPIO_CHK_PIN(SENSOR_BATT_BS);
+            sensor.batteryCellHigh= GPIO_CHK_PIN(SENSOR_BATT_BH);
+
+            sensor.CurrentPWMLeft = LPC_PWM1->MR4;
+            sensor.CurrentPWMRight = LPC_PWM1->MR5;
+            sensor.CurrentPWMSpindle = LPC_PWM1->MR1;
+
             if (count++ > 10 ) {
+                while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
                 count=0;
                 sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP)); // this seem a bit off real temp.
-                sensor.batteryChargeCurrent = ADC_DR_RESULT(ANALOG_BATT_CHARGE_A);
-                sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068;
+                sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068; // Measured and calculated.
+                sensor.batteryChargeCurrent = ((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146; // Trial and error :)
+                if (sensor.batteryChargeCurrent < 0) sensor.batteryChargeCurrent = 0;
                 sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
                 sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
                 sensor.motorSCurrent = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
@@ -153,20 +190,22 @@ void sensor_Task(void *pvParameters) {
                 // ~22c = 3090 raw
                 // ~30c = 3000 raw
 
-
-                I2C1_Recv_Addr_Buf(MMA8452Q, 0x00, 1, sizeof(accel), &accel);
+ // MMA8452Q
+                I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), &accel);
                 sensor.AccelX = ((accel.Xh << 8) + accel.Xl) >> 4;
                 sensor.AccelY = ((accel.Yh << 8) + accel.Yl) >> 4;
                 sensor.AccelZ = ((accel.Zh << 8) + accel.Zl) >> 4;
                 if (sensor.AccelX > 2047) sensor.AccelX -= 4096;
                 if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
                 if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
+
+                
     /*            
                 a = (I2C1_Recv_Addr(L3GD20, 0x29, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x28, 0);
                 b = (I2C1_Recv_Addr(L3GD20, 0x2b, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2a, 0);
                 c = (I2C1_Recv_Addr(L3GD20, 0x2d, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2c, 0);
     */
-    
+// L3GD20  
                 // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
                 I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(motion), &motion);
                 sensor.MotionYaw = (motion.Xh << 8) + motion.Xl;
@@ -177,36 +216,34 @@ void sensor_Task(void *pvParameters) {
                 if (sensor.MotionRoll > INT16_MAX) sensor.MotionRoll -= UINT16_MAX+1;
 
 // Overwrite motion with magnet temporary!!
-/*                
-                I2C1_Recv_Addr_Buf(LSM303_ADDRESS_MAG, 0x03 | 0x80 , 1, sizeof(magnet), &magnet);
-                sensor.MotionYaw = (magnet.Xh << 8) + magnet.Xl;
-                sensor.MotionPitch = (magnet.Yh << 8) + magnet.Yl;
-                sensor.MotionRoll = (magnet.Zh << 8) + magnet.Zl;
+// LSM303_MAG                
 
-                if (sensor.MotionYaw > 2047) sensor.MotionYaw -= 4096;
-                if (sensor.MotionPitch > 2047) sensor.MotionPitch -= 4096;
-                if (sensor.MotionRoll > 2047) sensor.MotionRoll -= 4096;
+                I2C1_Recv_Addr_Buf(LSM303_MAG, 0x03 | 0x80 , 1, sizeof(magnet), &magnet);
+                sensor.MagX = (int16_t) (magnet.Xh << 8 | magnet.Xl);
+                sensor.MagY = (int16_t) (magnet.Yh << 8 | magnet.Yl);
+                sensor.MagZ = (int16_t) (magnet.Zh << 8 | magnet.Zl);
 
+                /*if (sensor.MagX > 2047) sensor.MagX -= 4096;
+                if (sensor.MagY > 2047) sensor.MagY -= 4096;
+                if (sensor.MagZ > 2047) sensor.MagZ -= 4096;
+*/
                 
                 uint8_t Th, Tl;
-                Th = I2C1_Recv_Addr(LSM303_ADDRESS_MAG, 0,0x31);
-                Tl = I2C1_Recv_Addr(LSM303_ADDRESS_MAG, 0,0x32);
+                Th = I2C1_Recv_Addr(LSM303_MAG, 0,0x31);
+                Tl = I2C1_Recv_Addr(LSM303_MAG, 0,0x32);
                 sensor.boardTemp = (( Th << 8) + Tl) >> 4;
                 
-
-                /*uint16_t temp;
-                I2C1_Recv_Addr_Buf(LSM303_ADDRESS_MAG, 0x31 | 0x80 , 1, 2, &temp);
-                sensor.boardTemp = temp >> 4;*/
-
-*/                
-                
+                //uint16_t temp = 0;
+                //I2C1_Recv_Addr_Buf(SHT21, SHT21_TEMP_NOHOLD , 0, 2, &temp);
+                //sensor.boardTemp = temp >> 4;
+                // return (-6.0 + 125.0 / 65536.0 * (float)(readSHT21(TRIGGER_HUMD_MEASURE_NOHOLD, ok)));
+                // return (-46.85 + 175.72 / 65536.0 * (float)(readSHT21(TRIGGER_TEMP_MEASURE_NOHOLD, ok)));
 
             }
-
-            xQueueOverwrite(xSensorQueue, &sensor);
-
+            
+            xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
+            
         }
-
     }
 }
 

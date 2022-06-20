@@ -42,7 +42,7 @@
 #define PCONP_PCADC     ((uint32_t)(1<<12))
 #define PCONP_PCGPIO    ((uint32_t)(1<<15))
 #define PCONP_PCSPP0    ((uint32_t)(1<<21))
-
+#define PCONP_PCPWM1    ((uint32_t)(1<<6))
 #define PCONP_PCI2C0    ((uint32_t)(1<<7))
 #define PCONP_PCI2C1    ((uint32_t)(1<<19))
 #define PCONP_PCI2C2    ((uint32_t)(1<<26))

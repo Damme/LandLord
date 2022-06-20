@@ -1,7 +1,7 @@
-#include <stdio.h>
 #include "motorctrl.h"
 #include "timers.h"
-#define LPC177x_8x
+#include <stdio.h>
+
 /*
 PWM1 BLADE
 PWM4 LEFT
@@ -62,14 +62,15 @@ void motorCtrl_Task(void *pvParameters) {
             }
             if (MotorMsg.action == SETSPEED) {
                 vTaskDelay(xDelay25);
-                xScreenMsgType screenMsg;
+                /*xScreenMsgType screenMsg;
                 screenMsg.time=20;
-                sprintf(screenMsg.text, "SETPWM %i %i %i", MotorMsg.blade, MotorMsg.left, MotorMsg.right);      
-                xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                sprintf(screenMsg.text, "SETPWM %i %i %i", MotorMsg.blade, MotorMsg.left, MotorMsg.right);
+                xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);*/
+                printf("SETPWM %i %i %i\n", MotorMsg.blade, MotorMsg.left, MotorMsg.right);
                 
-                setpwm(MotorMsg.blade, MotorMsg.left, MotorMsg.right);
-
-                // check direction change
+                //setpwm(MotorMsg.blade, MotorMsg.left, MotorMsg.right);
+                
+                // !!!! check direction change !!!! NEGATIVE NUMBERS !!!!
                 
             }
         }
