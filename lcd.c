@@ -8,7 +8,7 @@
 
 void spi_out(uint8_t data) {
 #ifdef LPC177x_8x // DB504
-    // FIXME! Use Spi instead of bitbanging!
+    // db504 does not use hardware ssp pins so we have to bitbang instead..
     for (uint8_t i = 0; i < 8; i++) {
         // consider leftmost bit
         // set line high if bit is 1, low if bit is 0

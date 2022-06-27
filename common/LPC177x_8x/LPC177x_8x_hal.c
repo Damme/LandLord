@@ -21,25 +21,10 @@ void hardware_Init() {
     
     GPIO_DIR_OUT(BUZZER_LO);
     GPIO_DIR_OUT(BUZZER_HI);
-    
+
     GPIO_SET_PIN(BUZZER_LO);
     for (uint16_t i = 0; i < 50; i++) delay_uS(1000); // Todo: maybe use timer in future? 
-    
     GPIO_CLR_PIN(BUZZER_LO); 
-
-    //GPIO_FNC_PULL(BUZZER_LO, PINMODE_PULLDOWN);
-    //GPIO_FNC_PULL(BUZZER_HI, PINMODE_PULLDOWN);
-/*
-    GPIO_FNC_PULL(CHARGER_CONNECTED, PINMODE_PULLUP);
-    GPIO_DIR_IN(CHARGER_CONNECTED);
-
-    GPIO_FNC_PULL(CHARGER_ENABLE, PINMODE_PULLUP);
-    GPIO_DIR_IN(CHARGER_ENABLE);*/
-
-//#define GPIO_BATT_BH        (GPIO_TYPE(PORT_3, PIN_13, FUNC_0))
-//#define GPIO_BATT_BS        (GPIO_TYPE(PORT_5, PIN_0, FUNC_0))
-    //GPIO_FNC_PULL(GPIO_BATT_BH, PINMODE_PULLUP);
-    //GPIO_FNC_PULL(GPIO_BATT_BS, PINMODE_PULLUP);  
 }
 
 void sensor_Init() {
@@ -96,13 +81,15 @@ void ROScomms_Init() {
     LPC_SSP0->CR1 = (1 << 2);
 
     LPC_SSP0->CPSR = (128 & 0xfe); // SSPn Clock Prescale Register 60000000 / 128 = 468750
-    LPC_SSP0->CR0 |= (16 << 8); // Serial Clock Rate.
+    LPC_SSP0->CR0 |= (4 << 8); // Serial Clock Rate.
     //LPC_SSP0->CR1 |= (1 << 0); // loopback
     LPC_SSP0->CR1 |= (1 << 2); // Slave mode    
     
     // PCLK / (CPSDVSR × [SCR+1]) = bitrate
-    // 32 14648.4375
-    // 16 29296.875
+    // 32 14648
+    // 16 29296
+    // 8 58592
+    // 4 117187
 
 
     // Set DSS data to 8-bit, Frame format SPI, CPOL = 0, CPHA = 0, and SCR is 15

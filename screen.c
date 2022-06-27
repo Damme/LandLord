@@ -162,7 +162,7 @@ void lcdPrintSensor() {
     sprintf(buffer, "T: %iC Rain %i C%iL%iS1%iS2%iD%i", sensor.boardTemp, sensor.rainAnalog, sensor.collision, sensor.lift, sensor.stuck, sensor.stuck2, sensor.door);
     u8g_DrawStr(&u8g,  0, 28, buffer);
 
-    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensor.motorSCurrent, sensor.motorLCurrent, sensor.motorRCurrent);
+    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensor.motorBRpm, sensor.motorLCurrent, sensor.motorRCurrent);
     u8g_DrawStr(&u8g,  0, 36, buffer);
 
     sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensor.AccelX, sensor.AccelY, sensor.AccelZ);

@@ -69,28 +69,27 @@ int main(void) {
     xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
     xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
-    xBoundaryMsgQueue = xQueueCreate(8, sizeof(xBoundaryMsgType));
+    xBoundaryMsgQueue = xQueueCreate(1, sizeof(xBoundaryMsgType));
     
-    //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(sensor_Task, "Sensor", 256, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(ROSComms_Task, "RosComms", 512, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(LCD_Task, "LCD", 378, NULL, 5, &xHandle[taskcounter++]);
+    //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);
 
-    xTaskCreate(powerMgmt_Task, "PowerMgmt", 180, NULL, 5, &xHandle[taskcounter++]);
-
-    xTaskCreate(keypad_Task, "Keypad", 150, NULL, 6, &xHandle[taskcounter++]);
+//                                                    Prio
+    xTaskCreate(powerMgmt_Task, "PowerMgmt", 180, NULL, 7, &xHandle[taskcounter++]);
+    xTaskCreate(ROSComms_Task,  "RosComms",  512, NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(motorCtrl_Task, "MotorCtrl", 300, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(boundary_Task, "Boundary", 512, NULL, 5, &xHandle[taskcounter++]);
-    
-
+    xTaskCreate(sensor_Task,    "Sensor",    256, NULL, 4, &xHandle[taskcounter++]);
+    xTaskCreate(boundary_Task,  "Boundary",  512, NULL, 3, &xHandle[taskcounter++]);
+    xTaskCreate(LCD_Task,       "LCD",       378, NULL, 2, &xHandle[taskcounter++]);
+    xTaskCreate(keypad_Task,    "Keypad",    150, NULL, 2, &xHandle[taskcounter++]);
 
     vTaskStartScheduler();
     // Should never get here.
+    printf("Insufficient RAM!");
     for (;;) {
         GPIO_SET_PIN(LCD_BACKLIGHT);
         vTaskDelay(xDelay100);
         GPIO_CLR_PIN(LCD_BACKLIGHT);
         vTaskDelay(xDelay100);
+        
     }
-    printf("Insufficient RAM!");
 }

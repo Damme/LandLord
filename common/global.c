@@ -15,16 +15,14 @@ TickType_t xDelay1000 = TicksPerMS * 1000;
 
 
 volatile uint32_t debug1 = 0;
-volatile uint8_t debug2 = 0;
-volatile uint8_t debug3 = 0;
-volatile uint8_t debug4 = 0;
-volatile debug_t debugArray[5] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};
-volatile uint8_t debugState = 0;
 
 volatile uint32_t cpuID = 0;
 
 volatile TaskHandle_t xHandle[10] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
-volatile uint8_t taskcounter=0;
+volatile uint8_t taskcounter = 0;
+volatile uint64_t globaltickms = 0;
+volatile uint32_t watchdogSPI = 0;
+
 
 xQueueHandle xScreenMsgQueue;
 xQueueHandle xMotorMsgQueue;
@@ -32,13 +30,12 @@ xQueueHandle xSensorQueue;
 
 xQueueHandle xBoundaryMsgQueue;
 
-
 void delay_uS(uint32_t uS) {
     portENTER_CRITICAL();
     LPC_TIM1->TCR = 0x02;                // reset timer
     LPC_TIM1->PR  = 0x00;                // set prescaler to zero
     LPC_TIM1->MR0 = uS * (SystemCoreClock / 1000000) - 1;
-    LPC_TIM1->IR  = 0xff;                // reset all interrrupts
+    //LPC_TIM1->IR  = 0xff;                // reset all interrrupts
     LPC_TIM1->MCR = 0x04;                // stop timer on match
     LPC_TIM1->TCR = 0x01;                // start timer
     // wait until delay time has elapsed

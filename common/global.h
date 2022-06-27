@@ -70,7 +70,7 @@ typedef struct {
     int32_t batteryChargeCurrent;
     int32_t motorRCurrent;
     int32_t motorLCurrent;
-    int32_t motorSCurrent;
+    int32_t motorBRpm;
     int32_t boardTemp;
     int16_t AccelX;
     int16_t AccelY;
@@ -84,6 +84,9 @@ typedef struct {
     uint16_t CurrentPWMRight;
     uint16_t CurrentPWMLeft;
     uint16_t CurrentPWMSpindle;
+    int32_t motorpulseleft;
+    int32_t motorpulseright;
+    int32_t motorpulseblade;
 } xSensorMsgType;
 
 // V0.7#S-239568|+502936#N035|143#C073#
@@ -103,14 +106,19 @@ typedef struct {
     char nright[3];
     char reserved4[2];
 
-    char cval[3];
-    char reserved5;
+    char checksum[3];
+    char reserved5[4];
+    //char buf[];
 } xBoundaryMsgType;
 
 typedef enum {
-    BRAKE = 0,
+    ENABLE = 0,
+    SETSPEED,
+    STOP,
+    BRAKE,
     EMGSTOP,
-    SETSPEED
+    STARTBLADE,
+    STOPBLADE        
 } xMotorMessageType;
 
 typedef struct {
@@ -121,19 +129,14 @@ typedef struct {
 } xMotorMsgType;
 
 
-
 extern volatile debug_t debugArray[5];
-extern volatile uint8_t debugState;
-extern volatile bool debugStateReset;
-extern volatile uint32_t debug1;
-extern volatile uint8_t debug2;
-extern volatile uint8_t debug3;
-extern volatile uint8_t debug4;
 
 extern volatile uint32_t cpuID;
 
 extern volatile TaskHandle_t xHandle[10];
 extern volatile uint8_t taskcounter;
+extern volatile uint64_t globaltickms;
+extern volatile uint32_t watchdogSPI;
 
 //int _write(int fd, char *ptr, int len);
 void delay_uS(uint32_t uS);

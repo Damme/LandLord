@@ -69,11 +69,12 @@ void SSP0_IRQHandler(void) { // SSP0_IRQn 14 (lpc1788)
 
 int32_t p2i(const char *str, const char part) {
     const char C[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    char buf[128];
+    char buf[64];
     char * pch;
     char * sch;
     uint8_t len=0;
     buf[0]=0;
+    memset(buf, 0, sizeof(buf));
 
     pch = strchr(str, part);
     if (pch) {
@@ -111,30 +112,51 @@ void ROSComms_Task(void *pvParameters) {
     uint8_t len = 0;
     uint16_t counter = 0;
  
- //   printf("ROSComms started...\n");
+    debug("ROSComms started...");
 
     for (;;) {
         vTaskDelay(xDelay50);
         
         while (xMessageBufferReceive(RxMessageBuffer, &local_rxbuf, sizeof(local_rxbuf), 0)) {
             if (strcmp(local_rxbuf,"Ping?") == 0) {
-                debug("Pong!");
+                debug("Pong! last: %i", watchdogSPI);
+                watchdogSPI=0;
             }
 
             const char s_SETPWM[] = "SETPWM:";
 
             if(strncmp(local_rxbuf, s_SETPWM, sizeof(s_SETPWM) - 1 ) == 0 ) {
-                debug("SETPWM! :D L:%i R:%i B:%i", p2i(local_rxbuf, 'L'), p2i(local_rxbuf, 'R'), p2i(local_rxbuf, 'B'));
+                //debug("SETPWM: %s", local_rxbuf);
                 xMotorMsgType MotorMsg;
                 MotorMsg.action = SETSPEED;
-                MotorMsg.blade = 0;
+                MotorMsg.blade = p2i(local_rxbuf, 'B');
                 MotorMsg.left = p2i(local_rxbuf, 'L');
                 MotorMsg.right = p2i(local_rxbuf, 'R');
                 xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay25);
             }
         }
+/*
+        if (!(counter % 16)) {
+            xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
+            len = sprintf(local_txbuf, "Motor: PwmLeft:%li PwmRight:%li PwmBlade:%li ", LPC_PWM1->MR4, LPC_PWM1->MR5, LPC_PWM1->MR1);
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
 
-        if (!(counter % 25)) {
+            len = sprintf(local_txbuf, "pulseL:%li pulseR:%lipulseB:%li", sensor.motorpulseleft, sensor.motorpulseright, sensor.motorpulseblade);
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+
+            len = sprintf(local_txbuf, "motorRCurrent:%li motorLCurrent:%li motorBRPM?:%li", sensor.motorRCurrent, sensor.motorLCurrent, sensor.motorBRpm);
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+
+            len = sprintf(local_txbuf, "BLADE: en:%i brk:%i fwd:%i fault:%i", GPIO_CHK_PIN(MOTOR_BLADE_ENABLE), 
+                GPIO_CHK_PIN(MOTOR_BLADE_BRAKE), GPIO_CHK_PIN(MOTOR_BLADE_FORWARD), GPIO_CHK_PIN(MOTOR_BLADE_FAULT));
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+
+            len = sprintf(local_txbuf, "LEFT: en:%i brk:%i fwd:%i fault:%i", GPIO_CHK_PIN(MOTOR_LEFT_ENABLE), 
+                GPIO_CHK_PIN(MOTOR_LEFT_BRAKE), GPIO_CHK_PIN(MOTOR_LEFT_FORWARD), GPIO_CHK_PIN(MOTOR_LEFT_FAULT));
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+        }
+*/
+        if (!(counter % 48)) {
             xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
             len = sprintf(local_txbuf, "Batt: mV:%li mA:%li Temp:%li BS:%i BH:%i InCharger:%i", sensor.batteryVolt, 
                 sensor.batteryChargeCurrent, sensor.batteryTemp, sensor.batteryCellLow, sensor.batteryCellHigh, sensor.incharger);
@@ -146,10 +168,18 @@ void ROSComms_Task(void *pvParameters) {
 
             len = sprintf(local_txbuf, "Sensors Other: RainAnalog:%li boardTemp(raw):%li", sensor.rainAnalog, sensor.boardTemp, sensor.MotionRoll);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
-
-            len = sprintf(local_txbuf, "Motor: PwmLeft:%li PwmRight:%li PwmBlade:%li motorRCurrent:%li motorLCurrent:%li motorSCurrent:%li", LPC_PWM1->MR4, LPC_PWM1->MR5, LPC_PWM1->MR1, sensor.motorRCurrent, sensor.motorLCurrent, sensor.motorSCurrent);
+        } else if (!((counter+16) % 48)) {
+            xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
+            len = sprintf(local_txbuf, "Motor: PwmLeft:%li PwmRight:%li PwmBlade:%li ", LPC_PWM1->MR4, LPC_PWM1->MR5, LPC_PWM1->MR1);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
 
+            len = sprintf(local_txbuf, "pulseL:%li pulseR:%lipulseB:%li", sensor.motorpulseleft, sensor.motorpulseright, sensor.motorpulseblade);
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+
+            len = sprintf(local_txbuf, "motorRCurrent:%li motorLCurrent:%li motorBRPM?:%li", sensor.motorRCurrent, sensor.motorLCurrent, sensor.motorBRpm);
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+        } else if (!((counter+32) % 48)) {
+            xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
             len = sprintf(local_txbuf, "I2C L3GD20 Motion: Yaw:%li Pitch:%li Roll:%li", sensor.MotionYaw, sensor.MotionPitch, sensor.MotionRoll);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
 
@@ -158,12 +188,10 @@ void ROSComms_Task(void *pvParameters) {
 
             len = sprintf(local_txbuf, "I2C LSM303 Mag: MagX:%li MagY:%li MagZ:%li", sensor.MagX, sensor.MagY, sensor.MagZ);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
-
-
         }
 
         // print task statistics every 600 ticks.
-        if (!(counter % 610)) {
+        if (!(counter % 600)) {
             vTaskDelay(xDelay200);
             for ( int i = 0; i < taskcounter; i++) {
                 len = sprintf(local_txbuf,"Task %i:%s free heap:%i",i , pcTaskGetName(xHandle[i]), uxTaskGetStackHighWaterMark(xHandle[i]));
@@ -178,11 +206,13 @@ void ROSComms_Task(void *pvParameters) {
         int stack = uxTaskGetStackHighWaterMark(NULL);
         if (stack < 50) debug("Task ROSComms_Task has %u words left in stack.", stack);
 
-        char boundbuf[128];
-		xQueueReceive(xBoundaryMsgQueue, &boundbuf, xDelay25 );
-
-        len = sprintf(local_txbuf, "* %i: %s", debug1, boundbuf);
-        xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+        xBoundaryMsgType BoundaryMsg;
+		xQueueReceive(xBoundaryMsgQueue, &BoundaryMsg, xDelay25 );
+        if (!(counter % 5)) {
+            len = sprintf(local_txbuf, "Boundary:%s (%i %i %i %i)", (char *) &BoundaryMsg, 
+                    atoi(BoundaryMsg.sleft), atoi(BoundaryMsg.sright), atoi(BoundaryMsg.nleft), atoi(BoundaryMsg.nright));
+            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
+        }
         
     }
 }

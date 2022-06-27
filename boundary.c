@@ -15,15 +15,14 @@ volatile uint8_t txpos;
 
 void UART2_IRQHandler(void) {
 	volatile uint8_t ch;
-	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+	//portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 	
 	while ( LPC_UART2->LSR & (1<<0) ) { // while Receive FIFO Not Empty
 		ch = LPC_UART2->RBR;
 		if (ch == 0x56) { // Ascii "V"
 			if (txpos == 36) {
-				debug1++;
 				txbuf[txpos++] = 0;
-				xQueueSendFromISR(xBoundaryMsgQueue, &txbuf, &xHigherPriorityTaskWoken);
+				xQueueSendFromISR(xBoundaryMsgQueue, &txbuf, NULL);// &xHigherPriorityTaskWoken
 			}
 			txpos=0;
 		}
@@ -32,7 +31,7 @@ void UART2_IRQHandler(void) {
 	}
 
 	//portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+	//portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 	return;
 }
 

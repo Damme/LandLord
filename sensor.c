@@ -97,6 +97,32 @@ void EINT3_IRQHandler(void) {
     return;
 }
 
+volatile uint8_t lastpulsel = 0;
+volatile uint8_t lastpulser = 0;
+volatile uint8_t lastpulseb = 0;
+volatile uint32_t counterl = 0;
+volatile uint32_t counterr = 0;
+volatile uint32_t counterb = 0;
+
+void TIMER2_IRQHandler(void) {
+    globaltickms++;
+    watchdogSPI++;
+    
+    if (lastpulsel != GPIO_CHK_PIN(MOTOR_LEFT_PULSE)) {
+        lastpulsel = GPIO_CHK_PIN(MOTOR_LEFT_PULSE);
+        counterl++;
+    }
+    if (lastpulser != GPIO_CHK_PIN(MOTOR_RIGHT_PULSE)) {
+        lastpulser = GPIO_CHK_PIN(MOTOR_RIGHT_PULSE);
+        counterr++;
+    }
+    if (lastpulseb != GPIO_CHK_PIN(MOTOR_BLADE_PULSE)) {
+        lastpulseb = GPIO_CHK_PIN(MOTOR_BLADE_PULSE);
+        counterb++;
+    }
+    LPC_TIM2->IR  |= (1 << 0); // Reset interrupt MR0
+}
+
 void sensor_Task(void *pvParameters) {
     sensor_Init();
     xSensorMsgType sensor;
@@ -107,11 +133,24 @@ void sensor_Task(void *pvParameters) {
 
     memset(&sensor, 0x00, sizeof(xSensorMsgType));
     xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
-    
+
+    // Setup timer for pulse counter isr.
+    LPC_SC->PCONP |= PCONP_PCTIM2;
+    LPC_TIM2->TCR = 0x02;
+    LPC_TIM2->PR  = 0x00;
+    LPC_TIM2->MR0 = 1000 * (SystemCoreClock / 1000000) - 1; // 1ms
+    LPC_TIM2->IR  = 0xff;
+    LPC_TIM2->MCR = 0x03; // Trigger INT on match + reset TC
+    NVIC_SetPriority(TIMER2_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+    NVIC_EnableIRQ(TIMER2_IRQn);
+    LPC_TIM2->TCR = 0x01;
+
 /*
-#define MOTOR_LEFT_PULSE     (GPIO_TYPE(PORT_1, PIN_14, FUNC_0)) T2_CAP0
-#define MOTOR_RIGHT_PULSE    (GPIO_TYPE(PORT_3, PIN_30, FUNC_0)) T1_MAT1
-#define MOTOR_BLADE_PULSE    (GPIO_TYPE(PORT_0, PIN_4,  FUNC_0)) T2_CAP0 <- can have int P0.4ER
+https://github.com/niru-5/imusensor/blob/master/imusensor/MPU9250/MPU9250.py#L378
+ellipsoid calibration
+ * Caliberate Magnetometer Use this method for more precise calculation 
+ 
+
 */
 
 #ifdef LPC177x_8x
@@ -174,6 +213,10 @@ void sensor_Task(void *pvParameters) {
             sensor.CurrentPWMRight = LPC_PWM1->MR5;
             sensor.CurrentPWMSpindle = LPC_PWM1->MR1;
 
+            sensor.motorpulseleft = counterl;
+            sensor.motorpulseright = counterr;
+            sensor.motorpulseblade = counterb;
+
             if (count++ > 10 ) {
                 while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
                 count=0;
@@ -183,7 +226,7 @@ void sensor_Task(void *pvParameters) {
                 if (sensor.batteryChargeCurrent < 0) sensor.batteryChargeCurrent = 0;
                 sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
                 sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
-                sensor.motorSCurrent = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
+                sensor.motorBRpm = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
                 sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
                 sensor.boardTemp = convert_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)-1000); // TODO Not using same temperature conversion!
                 //  ~0c = 3750 raw

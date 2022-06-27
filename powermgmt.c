@@ -27,6 +27,7 @@ typedef enum {
     CheckCharger,
     StartCharging,
     Charging,
+    BatteryCooldown,
     ChargingFinnished,
     ChargingFailed,
     Shutdown
@@ -34,20 +35,26 @@ typedef enum {
 
 void powerMgmt_Task(void *pvParameters) {
     powerMgmt_Init();
+
+    // pulse charger mosfet incase we already is in charger.    
+    GPIO_SET_PIN(CHARGER_ENABLE);
+    vTaskDelay(xDelay10); // 10ms is enough
+    GPIO_CLR_PIN(CHARGER_ENABLE);
     
-    TickType_t delay = xDelay100;
-    powerStates powerState = Startup;
+    TickType_t delay = xDelay50;
+    powerStates powerState = StartCharging; // Ugly fix for forcing charger active when restarting aldready connected to charger.
     
     xSensorMsgType sensor;
     xScreenMsgType screenMsg;
-    uint16_t count = 20;
-
+    uint16_t count = 5;
     
     
     for (;;) {
         xQueuePeekFromISR(xSensorQueue, &sensor);
         switch(powerState) {
             case Startup:
+
+
                 // if checking for charger all the time we dont need this forced charging function.
                 if (keypad_GetKey() == KEYHOME) {
                     powerState = CheckChargerInit;
@@ -70,7 +77,7 @@ void powerMgmt_Task(void *pvParameters) {
 
             case CheckChargerInit:
                 // TODO only start charging if volt below xx?
-                delay = xDelay100;
+                delay = xDelay10;
                 GPIO_SET_PIN(CHARGER_CHECK);
                 powerState = CheckCharger;
                 break;
@@ -112,15 +119,18 @@ void powerMgmt_Task(void *pvParameters) {
 
             case StartCharging:
                 GPIO_SET_PIN(CHARGER_ENABLE);
+                delay = xDelay100;
                 powerState = Charging;
+                count = 50;
                 break;
 
             case Charging:
                 if (sensor.batteryChargeCurrent > 100) {
                     count = 50;
+                    // TODO Tempeature checks
+                    if (sensor.batteryTemp > 430) powerState = BatteryCooldown;
                     // TODO Count mAh/Wh charged
                     // TODO Start time and elapsed charging time
-                    // TODOTempeature checks
                 }
 
                 if (sensor.batteryVolt > BATTERY_MAX_VOLT) {
@@ -140,7 +150,14 @@ void powerMgmt_Task(void *pvParameters) {
                     sprintf(screenMsg.text, "Charger disconnected!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
+                break;
 
+            case BatteryCooldown:
+                delay = xDelay1000;
+                GPIO_SET_PIN(CHARGER_ENABLE);
+                vTaskDelay(xDelay10); // 10ms is enough
+                GPIO_CLR_PIN(CHARGER_ENABLE);
+                if (sensor.batteryTemp < 420) powerState = StartCharging;
                 break;
 
             case ChargingFinnished:
@@ -153,12 +170,7 @@ void powerMgmt_Task(void *pvParameters) {
                 if (!sensor.incharger) powerState = Idle; 
                 // TODO TODO Noone clears incharger state as of now, Either ROS comms when backing out of charger or sensor when forward motion is detected.
                 
-                if (sensor.batteryVolt < ( BATTERY_MAX_VOLT - 1500) ) {
-                    GPIO_SET_PIN(CHARGER_ENABLE);
-                    delay = xDelay100;
-                    powerState = Charging;
-                    count = 50;
-                }
+                if (sensor.batteryVolt < ( BATTERY_MAX_VOLT - 1500) ) powerState = StartCharging;
                 break;
 
             case ChargingFailed:
