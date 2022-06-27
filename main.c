@@ -74,7 +74,7 @@ int main(void) {
     //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);
 
 //                                                    Prio
-    xTaskCreate(powerMgmt_Task, "PowerMgmt", 180, NULL, 7, &xHandle[taskcounter++]);
+    xTaskCreate(powerMgmt_Task, "PowerMgmt", 200, NULL, 7, &xHandle[taskcounter++]);
     xTaskCreate(ROSComms_Task,  "RosComms",  512, NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(motorCtrl_Task, "MotorCtrl", 300, NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(sensor_Task,    "Sensor",    256, NULL, 4, &xHandle[taskcounter++]);
