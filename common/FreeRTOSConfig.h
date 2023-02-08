@@ -96,6 +96,10 @@
 #define configTOTAL_HEAP_SIZE			( ( size_t ) ( 4096 ) )
 #define configMAX_TASK_NAME_LEN			( 12 )
 #define configUSE_TRACE_FACILITY		1 /* This is set to one so each task is given a unique number, which is then used to generate the logic analyzer output. */
+#define configUSE_TIMERS                1
+#define configTIMER_TASK_PRIORITY       3
+#define configTIMER_QUEUE_LENGTH        10
+#define configTIMER_TASK_STACK_DEPTH    configMINIMAL_STACK_SIZE
 #define configUSE_16_BIT_TICKS			0
 #define configIDLE_SHOULD_YIELD			0
 #define configUSE_CO_ROUTINES 			0

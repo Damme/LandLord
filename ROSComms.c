@@ -124,38 +124,26 @@ void ROSComms_Task(void *pvParameters) {
             }
 
             const char s_SETPWM[] = "SETPWM:";
+            const char s_BUTTON[] = "BUTTON:";
 
             if(strncmp(local_rxbuf, s_SETPWM, sizeof(s_SETPWM) - 1 ) == 0 ) {
                 //debug("SETPWM: %s", local_rxbuf);
                 xMotorMsgType MotorMsg;
                 MotorMsg.action = SETSPEED;
-                MotorMsg.blade = p2i(local_rxbuf, 'B');
-                MotorMsg.left = p2i(local_rxbuf, 'L');
-                MotorMsg.right = p2i(local_rxbuf, 'R');
+                MotorMsg.pwm.blade = p2i(local_rxbuf, 'B');
+                MotorMsg.pwm.left = p2i(local_rxbuf, 'L');
+                MotorMsg.pwm.right = p2i(local_rxbuf, 'R');
+                xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay25);
+            }
+            
+            if(strncmp(local_rxbuf, s_BUTTON, sizeof(s_BUTTON) - 1 ) == 0 ) {
+                xMotorMsgType MotorMsg;
+                MotorMsg.action = BUTTON;
+                MotorMsg.button.pressed = p2i(local_rxbuf, ':');
                 xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay25);
             }
         }
-/*
-        if (!(counter % 16)) {
-            xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
-            len = sprintf(local_txbuf, "Motor: PwmLeft:%li PwmRight:%li PwmBlade:%li ", LPC_PWM1->MR4, LPC_PWM1->MR5, LPC_PWM1->MR1);
-            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
 
-            len = sprintf(local_txbuf, "pulseL:%li pulseR:%lipulseB:%li", sensor.motorpulseleft, sensor.motorpulseright, sensor.motorpulseblade);
-            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
-
-            len = sprintf(local_txbuf, "motorRCurrent:%li motorLCurrent:%li motorBRPM?:%li", sensor.motorRCurrent, sensor.motorLCurrent, sensor.motorBRpm);
-            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
-
-            len = sprintf(local_txbuf, "BLADE: en:%i brk:%i fwd:%i fault:%i", GPIO_CHK_PIN(MOTOR_BLADE_ENABLE), 
-                GPIO_CHK_PIN(MOTOR_BLADE_BRAKE), GPIO_CHK_PIN(MOTOR_BLADE_FORWARD), GPIO_CHK_PIN(MOTOR_BLADE_FAULT));
-            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
-
-            len = sprintf(local_txbuf, "LEFT: en:%i brk:%i fwd:%i fault:%i", GPIO_CHK_PIN(MOTOR_LEFT_ENABLE), 
-                GPIO_CHK_PIN(MOTOR_LEFT_BRAKE), GPIO_CHK_PIN(MOTOR_LEFT_FORWARD), GPIO_CHK_PIN(MOTOR_LEFT_FAULT));
-            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
-        }
-*/
         if (!(counter % 48)) {
             xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
             len = sprintf(local_txbuf, "Batt: mV:%li mA:%li Temp:%li BS:%i BH:%i InCharger:%i", sensor.batteryVolt, 
@@ -166,7 +154,7 @@ void ROSComms_Task(void *pvParameters) {
                 sensor.door, sensor.door2, sensor.lift, sensor.collision, sensor.stop, sensor.rain);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
 
-            len = sprintf(local_txbuf, "Sensors Other: RainAnalog:%li boardTemp(raw):%li", sensor.rainAnalog, sensor.boardTemp, sensor.MotionRoll);
+            len = sprintf(local_txbuf, "Sensors Other: RainAnalog:%li boardTemp(raw):%li", sensor.rainAnalog, sensor.boardTemp, sensor.GyroRoll);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
         } else if (!((counter+16) % 48)) {
             xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
@@ -180,13 +168,10 @@ void ROSComms_Task(void *pvParameters) {
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
         } else if (!((counter+32) % 48)) {
             xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
-            len = sprintf(local_txbuf, "I2C L3GD20 Motion: Yaw:%li Pitch:%li Roll:%li", sensor.MotionYaw, sensor.MotionPitch, sensor.MotionRoll);
+            len = sprintf(local_txbuf, "I2C L3GD20 Motion: Yaw:%li Pitch:%li Roll:%li", sensor.GyroYaw, sensor.GyroPitch, sensor.GyroRoll);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
 
             len = sprintf(local_txbuf, "I2C MMA8452Q Accel: AccelX:%li AccelY:%li AccelZ:%li", sensor.AccelX, sensor.AccelY, sensor.AccelZ);
-            xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
-
-            len = sprintf(local_txbuf, "I2C LSM303 Mag: MagX:%li MagY:%li MagZ:%li", sensor.MagX, sensor.MagY, sensor.MagZ);
             xMessageBufferSend(TxMessageBuffer, local_txbuf, len+1, 0);
         }
 
@@ -231,7 +216,6 @@ void debug( const char* format, ... ) {
 }
 
 #pragma import(__use_no_semihosting_swi)
-
 
 __attribute__((used)) int _write(int fd, char *ptr, int len) {
     int i = 0;

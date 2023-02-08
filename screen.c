@@ -168,7 +168,7 @@ void lcdPrintSensor() {
     sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensor.AccelX, sensor.AccelY, sensor.AccelZ);
     u8g_DrawStr(&u8g,  0, 44, buffer);
     
-    sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d", sensor.MotionYaw, sensor.MotionPitch, sensor.MotionRoll);
+    sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d", sensor.GyroYaw, sensor.GyroPitch, sensor.GyroRoll);
     u8g_DrawStr(&u8g,  0, 52, buffer);    
 
 
@@ -479,15 +479,22 @@ uint32_t override_timer = 0;
 void screen_Task(void) {
     xScreenMsgType screenMsg;
     
+    // quick and featureless backlight control    
+    if (!GPIO_CHK_PIN(SENSOR_DOOR) || !GPIO_CHK_PIN(SENSOR_DOOR2)) {
+        GPIO_SET_PIN(LCD_BACKLIGHT);
+    } else {
+        GPIO_CLR_PIN(LCD_BACKLIGHT);
+    }
+    
     uint8_t w;
-
     const menuItem_t *curMenu;
+    
     u8g_FirstPage(&u8g);
     if (override_timer > 0) override_timer--;
 
 //    TODO: Check if screen really needs update?
     do {
-        //https://github.com/olikraus/u8glib/wiki/fontgroupx11
+        // https://github.com/olikraus/u8glib/wiki/fontgroupx11
 // TODO: What is this? Title? Always prints "Main" on top of screen.
         u8g_SetFont(&u8g, u8g_font_6x13B);
         u8g_SetFontPosTop(&u8g);
@@ -534,7 +541,6 @@ void screen_Task(void) {
             keypressed = false;
 // TODO: resetKeyTime fnc keypad.c
         }
-
-
+        
     } while (u8g_NextPage(&u8g));
 }

@@ -8,19 +8,11 @@
 #include "global.h"
 #include "i2c.h"
 
-//EventGroupHandle_t xSensorEventGroup;
-//xQueueHandle xDIGMsgQueue;
-//TimerHandle_t xADCTriggerTimer;
+#include "ROSComms.h"
 
-typedef struct {
-    uint8_t Status;
-    uint8_t Xh;
-    uint8_t Xl;
-    uint8_t Yh;
-    uint8_t Yl;
-    uint8_t Zh;
-    uint8_t Zl;
-} AccelType;
+#include <math.h>
+
+#define RAIN_ADC_VALUE  3500 // 3840 = dry a coupld of hours after rain
 
 typedef struct {
     uint8_t Xh;
@@ -30,7 +22,6 @@ typedef struct {
     uint8_t Zh;
     uint8_t Zl;
 } GenericSensor;
-
 
 // TODO Rewrite temperature conversion to something better.. This is just wierd.
 const uint16_t tempCalTbl[110] = {
@@ -127,9 +118,8 @@ void sensor_Task(void *pvParameters) {
     sensor_Init();
     xSensorMsgType sensor;
     GenericSensor accel;
-    GenericSensor motion;
-    int16_t count = 0;
-    GenericSensor magnet;
+    GenericSensor gyro;
+    int16_t count = 10;
 
     memset(&sensor, 0x00, sizeof(xSensorMsgType));
     xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
@@ -145,14 +135,6 @@ void sensor_Task(void *pvParameters) {
     NVIC_EnableIRQ(TIMER2_IRQn);
     LPC_TIM2->TCR = 0x01;
 
-/*
-https://github.com/niru-5/imusensor/blob/master/imusensor/MPU9250/MPU9250.py#L378
-ellipsoid calibration
- * Caliberate Magnetometer Use this method for more precise calculation 
- 
-
-*/
-
 #ifdef LPC177x_8x
     I2C1Init();
 #endif
@@ -162,34 +144,16 @@ ellipsoid calibration
     I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g (?? double check!)
 
 // Three-axis digital output gyroscope
-    I2C1_Send_Addr(L3GD20, 0x20, 0x6f); // CTRL1 set ??
-    I2C1_Send_Addr(L3GD20, 0x23, 0x00); // CTRL4 set ??
-    
-    vTaskDelay(xDelay1000);
-// 3D accelerometer and 3D magnetometer module
-/*
-// Accelerometer
-// * device_DLHC
-// 0x23 => 0x08 = 0b00001000 FS = 00 (+/- 2 g full scale); HR = 1 (high resolution enable)
-// 0x20 => 0x47 = 0b01000111 ODR = 0100 (50 Hz ODR); LPen = 0 (normal mode); Zen = Yen = Xen = 1 (all axes enabled)
-// * DLM, DLH    
-// 0x23 => 0x00 = 0b00000000 FS = 00 (+/- 2 g full scale)
-// 0x20 => 0x27 = 0b00100111 PM = 001 (normal mode); DR = 00 (50 Hz ODR); Zen = Yen = Xen = 1 (all axes enabled)
+    I2C1_Send_Addr(L3GD20, 0x20, 0x0f); // CTRL1 Enable all
+    //I2C1_Send_Addr(L3GD20, 0x21, 0x00); // CTRL2
+    //I2C1_Send_Addr(L3GD20, 0x22, 0x00); // CTRL3
+    I2C1_Send_Addr(L3GD20, 0x23, 0x40); // CTRL4 BLE (MSB lo add) 2000dps
+    //I2C1_Send_Addr(L3GD20, 0x24, 0x80); // CTRL5 Reboot memory content
 
-// Magnetometer
-// 0x00 => 0x0C = 0b00001100 DO = 011 (7.5 Hz ODR)
-// 0x01 => 0x20 = 0b00100000 GN = 001 (+/- 1.3 gauss full scale)
-// 0x02 => 0x00 = 0b00000000 MD = 00 (continuous-conversion mode)
-  }
-*/
-// Verkar inte kunna skriva till lsm303 , inga register verkar uppdatera sig!
-// Ack on send ? 
-    I2C1_Send_Addr(LSM303_ACCEL, 0x23, 0x08); // 0x08 = 0b00001000 FS = 00 (+/- 2 g full scale); HR = 1 (high resolution enable)
-    I2C1_Send_Addr(LSM303_ACCEL, 0x20, 0x47); // 0x47 = 0b01000111 ODR = 0100 (50 Hz ODR); LPen = 0 (normal mode); Zen = Yen = Xen = 1 (all axes enabled)
-    //I2C1_Send_Addr(LSM303_MAG, 0x00, 0x0C); // 0x0C = 0b00001100 DO = 011 (7.5 Hz ODR)
-    I2C1_Send_Addr(LSM303_MAG, 0x00, 0x94); // Enable the magnetometer 15hz and temperature sensor
-    I2C1_Send_Addr(LSM303_MAG, 0x03, 0x20); // 0x20 = 0b00100000 GN = 001 (+/- 1.3 gauss full scale)
-    I2C1_Send_Addr(LSM303_MAG, 0x02, 0x00); // 0x00 = 0b00000000 MD = 00 (continuous-conversion mode)
+    I2C1_Send_Addr(L3GD20, 0x39, 0x01); // Low_ODR
+   
+    
+    
 
     vTaskDelay(xDelay250);
 
@@ -205,7 +169,7 @@ ellipsoid calibration
             sensor.collision = GPIO_CHK_PIN(SENSOR_COLLISION);  // Might be swapped with LIFT
             sensor.stop = GPIO_CHK_PIN(SENSOR_STOP);
             sensor.door2 = GPIO_CHK_PIN(SENSOR_DOOR2);
-            sensor.rain = GPIO_CHK_PIN(SENSOR_RAIN); // TODO ADC value so if value > "wet enough" = rain
+            
             sensor.batteryCellLow = GPIO_CHK_PIN(SENSOR_BATT_BS);
             sensor.batteryCellHigh= GPIO_CHK_PIN(SENSOR_BATT_BH);
 
@@ -228,10 +192,9 @@ ellipsoid calibration
                 sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
                 sensor.motorBRpm = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
                 sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
-                sensor.boardTemp = convert_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)-1000); // TODO Not using same temperature conversion!
-                //  ~0c = 3750 raw
-                // ~22c = 3090 raw
-                // ~30c = 3000 raw
+                // TODO Not using same temperature conversion! ~0c = 3750 raw ~22c = 3090 raw ~30c = 3000 raw
+                sensor.boardTemp = ADC_DR_RESULT(ANALOG_BOARD_TEMP); 
+                if ( sensor.rainAnalog < RAIN_ADC_VALUE ) sensor.rain = 1; else sensor.rain = 0;
 
  // MMA8452Q
                 I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), &accel);
@@ -242,45 +205,25 @@ ellipsoid calibration
                 if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
                 if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
 
-                
-    /*            
-                a = (I2C1_Recv_Addr(L3GD20, 0x29, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x28, 0);
-                b = (I2C1_Recv_Addr(L3GD20, 0x2b, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2a, 0);
-                c = (I2C1_Recv_Addr(L3GD20, 0x2d, 0) << 8) + I2C1_Recv_Addr(L3GD20, 0x2c, 0);
-    */
 // L3GD20  
                 // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
-                I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(motion), &motion);
-                sensor.MotionYaw = (motion.Xh << 8) + motion.Xl;
-                sensor.MotionPitch = (motion.Yh << 8) + motion.Yl;
-                sensor.MotionRoll = (motion.Zh << 8) + motion.Zl;
-                if (sensor.MotionYaw > INT16_MAX) sensor.MotionYaw -= UINT16_MAX+1;
-                if (sensor.MotionPitch > INT16_MAX) sensor.MotionPitch -= UINT16_MAX+1;
-                if (sensor.MotionRoll > INT16_MAX) sensor.MotionRoll -= UINT16_MAX+1;
+                I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), &gyro);
+                sensor.GyroYaw = (gyro.Xh << 8) + gyro.Xl;
+                sensor.GyroPitch = (gyro.Yh << 8) + gyro.Yl;
+                sensor.GyroRoll = (gyro.Zh << 8) + gyro.Zl;
+                //if (sensor.GyroYaw > INT16_MAX) sensor.GyroYaw -= UINT16_MAX+1;
+                //if (sensor.GyroPitch > INT16_MAX) sensor.GyroPitch -= UINT16_MAX+1;
+                //if (sensor.GyroRoll > INT16_MAX) sensor.GyroRoll -= UINT16_MAX+1;
+#define GYRO_SENSITIVITY_250DPS (0.00875F) //!< Sensitivity at 250 dps
+#define GYRO_SENSITIVITY_500DPS (0.0175F)  //!< Sensitivity at 500 dps
+#define GYRO_SENSITIVITY_2000DPS (0.070F)  //!< Sensitivity at 2000 dps
 
-// Overwrite motion with magnet temporary!!
-// LSM303_MAG                
+                sensor.GyroYaw = sensor.GyroYaw * GYRO_SENSITIVITY_250DPS;
+                sensor.GyroPitch = sensor.GyroPitch * GYRO_SENSITIVITY_250DPS;
+                sensor.GyroRoll = sensor.GyroRoll * GYRO_SENSITIVITY_250DPS;
 
-                I2C1_Recv_Addr_Buf(LSM303_MAG, 0x03 | 0x80 , 1, sizeof(magnet), &magnet);
-                sensor.MagX = (int16_t) (magnet.Xh << 8 | magnet.Xl);
-                sensor.MagY = (int16_t) (magnet.Yh << 8 | magnet.Yl);
-                sensor.MagZ = (int16_t) (magnet.Zh << 8 | magnet.Zl);
 
-                /*if (sensor.MagX > 2047) sensor.MagX -= 4096;
-                if (sensor.MagY > 2047) sensor.MagY -= 4096;
-                if (sensor.MagZ > 2047) sensor.MagZ -= 4096;
-*/
                 
-                uint8_t Th, Tl;
-                Th = I2C1_Recv_Addr(LSM303_MAG, 0,0x31);
-                Tl = I2C1_Recv_Addr(LSM303_MAG, 0,0x32);
-                sensor.boardTemp = (( Th << 8) + Tl) >> 4;
-                
-                //uint16_t temp = 0;
-                //I2C1_Recv_Addr_Buf(SHT21, SHT21_TEMP_NOHOLD , 0, 2, &temp);
-                //sensor.boardTemp = temp >> 4;
-                // return (-6.0 + 125.0 / 65536.0 * (float)(readSHT21(TRIGGER_HUMD_MEASURE_NOHOLD, ok)));
-                // return (-46.85 + 175.72 / 65536.0 * (float)(readSHT21(TRIGGER_TEMP_MEASURE_NOHOLD, ok)));
 
             }
             

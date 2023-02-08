@@ -77,7 +77,7 @@ int main(void) {
     xTaskCreate(powerMgmt_Task, "PowerMgmt", 200, NULL, 7, &xHandle[taskcounter++]);
     xTaskCreate(ROSComms_Task,  "RosComms",  512, NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(motorCtrl_Task, "MotorCtrl", 300, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(sensor_Task,    "Sensor",    256, NULL, 4, &xHandle[taskcounter++]);
+    xTaskCreate(sensor_Task,    "Sensor",    300, NULL, 4, &xHandle[taskcounter++]);
     xTaskCreate(boundary_Task,  "Boundary",  512, NULL, 3, &xHandle[taskcounter++]);
     xTaskCreate(LCD_Task,       "LCD",       378, NULL, 2, &xHandle[taskcounter++]);
     xTaskCreate(keypad_Task,    "Keypad",    150, NULL, 2, &xHandle[taskcounter++]);

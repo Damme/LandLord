@@ -1,8 +1,6 @@
 #include "LPC177x_8x_hal.h"
 #include "global.h"
 
-
-
 void hardware_Init() {
     LPC_SC->PCONP |= PCONP_PCGPIO;              // Power up GPIO
     LPC_SC->PCONP |= PCONP_PCADC;               // Power up ADC
@@ -10,7 +8,7 @@ void hardware_Init() {
     // Keep power on
     GPIO_DIR_OUT(POWER);
     GPIO_SET_PIN(POWER);
-
+    
     // TODO: Turn on lcd backlight - Move to screen, and insert timer, and pwm.
     GPIO_DIR_OUT(LCD_BACKLIGHT);
     GPIO_SET_PIN(LCD_BACKLIGHT);
@@ -18,6 +16,12 @@ void hardware_Init() {
     // Configure Power button
     GPIO_PIN_FNC(KEYPAD_POWER);
     GPIO_FNC_PULL(KEYPAD_POWER, PINMODE_PULLDOWN);
+
+    // Pulse charger to keep it in "red mode"
+    GPIO_DIR_OUT(CHARGER_ENABLE);
+    GPIO_SET_PIN(CHARGER_ENABLE);
+    delay_uS(10000);
+    GPIO_CLR_PIN(CHARGER_ENABLE);    
     
     GPIO_DIR_OUT(BUZZER_LO);
     GPIO_DIR_OUT(BUZZER_HI);
@@ -42,7 +46,7 @@ void sensor_Init() {
     GPIO_PIN_FNC(ADC_AD5);
     GPIO_PIN_FNC(ADC_AD6);
     GPIO_PIN_FNC(ADC_AD7);
-  */  
+*/  
     LPC_IOCON->P0_12 = (1 << 8) | (3 << 0);
     LPC_IOCON->P0_13 = (1 << 8) | (3 << 0);
     LPC_IOCON->P0_23 = (1 << 8) | (1 << 0);
@@ -61,7 +65,6 @@ void powerMgmt_Init() {
     GPIO_DIR_OUT(CHARGER_CHECK);
     GPIO_DIR_OUT(CHARGER_ENABLE);
     GPIO_FNC_INV(CHARGER_CONNECTED, PINMODE_INV );
-
 }
 
 void ROScomms_Init() {
@@ -80,17 +83,25 @@ void ROScomms_Init() {
     LPC_SSP0->CR0 = (7 << 0) | (1 << 6) | (1 << 7); // 8bits, CPOL, CPHA,
     LPC_SSP0->CR1 = (1 << 2);
 
-    LPC_SSP0->CPSR = (128 & 0xfe); // SSPn Clock Prescale Register 60000000 / 128 = 468750
-    LPC_SSP0->CR0 |= (4 << 8); // Serial Clock Rate.
+    LPC_SSP0->CPSR = (8 & 0xfe); // SSPn Clock Prescale Register 60000000 / 128 = 468750
+    LPC_SSP0->CR0 |= (6 << 8); // Serial Clock Rate.
     //LPC_SSP0->CR1 |= (1 << 0); // loopback
-    LPC_SSP0->CR1 |= (1 << 2); // Slave mode    
+    LPC_SSP0->CR1 |= (1 << 2); // Slave mode
     
     // PCLK / (CPSDVSR × [SCR+1]) = bitrate
-    // 32 14648
-    // 16 29296
-    // 8 58592
-    // 4 117187
 
+//  SCR \ SCPR
+//  	8	        16	        32	        64	        128	        256
+//  1	3,750,000	1,875,000	937,500	    468,750	    234,375	    117,188
+//  2	2,500,000	1,250,000	625,000	    312,500	    156,250	    78,125
+//  3	1,875,000	937,500	    468,750	    234,375	    117,188	    58,594
+//  4	1,500,000	750,000	    375,000	    187,500	    93,750	    46,875
+//  5	1,250,000	625,000	    312,500	    156,250	    78,125	    39,063
+//  6	1,071,429	535,714	    267,857	    133,929	    66,964	    33,482
+//  7	937,500	    468,750	    234,375	    117,188	    58,594	    29,297
+//  8	833,333	    416,667	    208,333	    104,167	    52,083	    26,042
+//  9	750,000	    375,000	    187,500	    93,750	    46,875	    23,438
+//  10	681,818	    340,909	    170,455	    85,227	    42,614	    21,307
 
     // Set DSS data to 8-bit, Frame format SPI, CPOL = 0, CPHA = 0, and SCR is 15
     //LPC_SSP0->CR0 = 0x07c7; // 707 = 00, 747 = 01 787 = 10 7c7 = 11
@@ -149,6 +160,7 @@ void MotorCtrl_Init() {
     GPIO_DIR_OUT(MOTOR_BLADE_ENABLE);
     GPIO_DIR_OUT(MOTOR_BLADE_BRAKE);
     GPIO_DIR_OUT(MOTOR_BLADE_FORWARD);
+
 // Set default modes ->  disabled controller, brake on, forward direction
     GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
     GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);

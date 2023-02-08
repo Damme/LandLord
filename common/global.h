@@ -75,12 +75,9 @@ typedef struct {
     int16_t AccelX;
     int16_t AccelY;
     int16_t AccelZ;
-    int16_t MotionYaw;
-    int16_t MotionPitch;
-    int16_t MotionRoll;
-    int16_t MagX;
-    int16_t MagY;
-    int16_t MagZ;
+    int16_t GyroYaw;
+    int16_t GyroPitch;
+    int16_t GyroRoll;
     uint16_t CurrentPWMRight;
     uint16_t CurrentPWMLeft;
     uint16_t CurrentPWMSpindle;
@@ -94,16 +91,16 @@ typedef struct {
     char fwver[4];
     char reserved0[2];
 
-    char sleft[7];
+    char sright[7];
     char reserved1;
 
-    char sright[7];
+    char sleft[7];
     char reserved2[2];
 
-    char nleft[3];
+    char nright[3];
     char reserved3;
 
-    char nright[3];
+    char nleft[3];
     char reserved4[2];
 
     char checksum[3];
@@ -112,13 +109,15 @@ typedef struct {
 } xBoundaryMsgType;
 
 typedef enum {
-    ENABLE = 0,
+    IDLE = 0,
+    ENABLE,
     SETSPEED,
     STOP,
     BRAKE,
     EMGSTOP,
     STARTBLADE,
-    STOPBLADE        
+    STOPBLADE,
+    BUTTON      
 } xMotorMessageType;
 
 typedef struct {
@@ -126,6 +125,21 @@ typedef struct {
     int16_t blade;
     int16_t left;
     int16_t right;
+} xMotorMsgTypeOLD;
+
+#pragma anon_unions
+typedef struct {
+    xMotorMessageType action;
+    union {
+        struct {
+            int16_t blade;
+            int16_t left;
+            int16_t right;
+        } pwm;
+        struct {
+            uint32_t pressed;
+        } button;
+    };
 } xMotorMsgType;
 
 

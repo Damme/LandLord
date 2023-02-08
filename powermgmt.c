@@ -131,6 +131,10 @@ void powerMgmt_Task(void *pvParameters) {
                     if (sensor.batteryTemp > 430) powerState = BatteryCooldown;
                     // TODO Count mAh/Wh charged
                     // TODO Start time and elapsed charging time
+                    if (!sensor.incharger) {
+                        sensor.incharger = 1;
+                        xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
+                    }
                 }
 
                 if (sensor.batteryVolt > BATTERY_MAX_VOLT) {
@@ -167,7 +171,7 @@ void powerMgmt_Task(void *pvParameters) {
                 vTaskDelay(xDelay10); // 10ms is enough
                 GPIO_CLR_PIN(CHARGER_ENABLE);
                 // check if we get ADC value to see if charger is still alive? (how long time charge period does this require?)
-                if (!sensor.incharger) powerState = Idle; 
+                if (!sensor.incharger) powerState = Idle;
                 // TODO TODO Noone clears incharger state as of now, Either ROS comms when backing out of charger or sensor when forward motion is detected.
                 
                 if (sensor.batteryVolt < ( BATTERY_MAX_VOLT - 1500) ) powerState = StartCharging;

@@ -8,7 +8,9 @@
 
 
 void ROSComms_Task(void *pvParameters);
+void debug( const char* format, ... );
+
 __attribute__((used)) int _write(int fd, char *ptr, int len);
-//__attribute__((used)) int fputc(int ch, FILE *f);
+
 
 #endif // ROSComms_H
