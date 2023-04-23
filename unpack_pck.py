@@ -2,7 +2,7 @@
 
 import sys
 import os
-from binascii import crc32
+import binascii
 from struct import unpack
 
 # Convert bytearray to string
@@ -69,13 +69,15 @@ def main():
     # Read file into bytearray
     binary_data = bytearray(open(src_file_path, 'rb').read())
     
+    crc = binascii.crc32(binary_data[4:], 0x0)
+    print(f"Calculated checksum: {hex(crc)}")
     
     # Start decoding
     #print(f"Unknown byte 0:\t{binary_data[0]}")
     #print(f"Unknown byte 1:\t{binary_data[1]}")
     #print(f"Unknown byte 2:\t{binary_data[2]}")
     #print(f"Unknown byte 3:\t{binary_data[3]}")
-    print(f"Unknown first 32-bit value: {hex(bytes_to_word(binary_data[0:4]))}")
+    print(f"Unknown first 32-bit value, on db504 firmware this is checksum of binary from byte 4 and forward: {hex(bytes_to_word(binary_data[0:4]))}")
     
     if binary_data[4] != int(0x3c):
         #print(f"Unknown byte 4:\t{binary_data[4]}")
@@ -84,7 +86,7 @@ def main():
         #print(f"Unknown byte 7:\t{binary_data[7]}")
         print(f"Unknown second 32-bit value: {hex(bytes_to_word(binary_data[4:8]))}")
     
-    print(f"Unknown last 32-bit value: {hex(bytes_to_word(binary_data[-4:]))}")
+    print(f"Unknown last 32-bit value, on db504 firmware this is always 0x1d38d491 : {hex(bytes_to_word(binary_data[-4:]))}")
 
     prefix = sys.argv[2] if len(sys.argv) >= 3 else "."
 
