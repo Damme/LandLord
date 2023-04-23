@@ -148,12 +148,12 @@ Feel free to explore the following resources to learn more about the project:
 
 This project is licensed under an open-source license that prohibits unauthorized use for commercial purposes. Please note that some parts of the code are not the original work of the LandLord project, and are subject to their respective licenses. These external components include, but are not limited to:
 
-- FreeRTOS
-- U8g library
-- cJSON
-- RapidJSON
-- NXP HAL
-- CMSIS
+- [NXP HAL](https://www.nxp.com/design/software/embedded-software/nxp-hal:HAL)
+- [CMSIS](https://developer.arm.com/tools-and-software/embedded/cmsis)
+- [FreeRTOS](https://www.freertos.org/)
+- [U8g library](https://github.com/olikraus/u8glib)
+- [cJSON](https://github.com/DaveGamble/cJSON)
+- [RapidJSON](https://github.com/Tencent/rapidjson)
 
 Before using, modifying, or redistributing any part of the LandLord project, please ensure that you comply with the licenses of the respective components. It is essential to give proper attribution and respect the work of the original authors when using their code.
 
