@@ -79,13 +79,13 @@ A CMake version of the project is in development but not committed yet.
 
 ## Flashing Firmware
 
-LandLord firmware keeps the original bootloader intact, allowing for easy flashing and the possibility to revert. The binary base for the db504 mainboard is 0x10000, and for the db275 mainboard, it is 0x9000. The provided `create_bin.py` script generates the necessary binaries.
+LandLord firmware keeps the original bootloader intact, allowing for easy flashing and the possibility to revert. The binary base for the db504 mainboard is 0x10000, and for the db275 mainboard, it is 0x9000. The provided `create_bin.py` script generates the necessary binaries for db504 with a checksum at the first 4 bytes.
 
 There are two methods to flash the firmware: using a USB stick or using OpenOCD.
 
 ### Flashing using a USB stick
 
-1. Generate the binary files:
+1. Compile and for db504 generate the binary file:
 
 ```
 python create_bin.py
@@ -93,8 +93,8 @@ python create_bin.py
 
 2. Name the generated binary file according to your mainboard:
 
-- For db275: `DB275_GRAF.BIN`
-- For db504: `db504_something.bin`
+- For db275: `DB275_GRAF.BIN` (This is the unmodified main.bin)
+- For db504: `db504*.bin` (this need a checksum in the beginning of the file from create_bin.py
 
 3. Copy the binary file to a USB stick.
 
@@ -102,11 +102,7 @@ python create_bin.py
 
 ### Flashing using OpenOCD
 
-1. Generate the binary files:
-
-```
-python create_bin.py
-```
+1. Compile
 
 2. Flash the firmware using OpenOCD:
 
@@ -120,7 +116,7 @@ adapter speed 500
 program main.bin 0x10000
 reset run
 ```
-
+And for db275 `program main.bin 0x9000`
 ## Contributing
 
 To contribute to the LandLord project, please submit pull requests or report issues on the [GitHub repository](https://github.com/Damme/LandLord).
