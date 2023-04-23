@@ -1,7 +1,6 @@
 import os
 import binascii
 
-
 # Define the polynomial table used for CRC32 calculation
 # https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/Features/Decompiler/src/decompile/cpp/crc32.cc
 POLY_TABLE = [
@@ -74,7 +73,8 @@ with open(input_file, "rb") as f:
 # Calculate the CRC32 checksum
 crc = binascii.crc32(data, 0x0)
 #crc = binascii.crc32(data, 0xFFFFFFFF)
-# add polynomial table
+
+# Update CRC32 with each byte of data using the polynomial table.
 for byte in data:
     crc = (crc >> 8) ^ POLY_TABLE[(crc ^ byte) & 0xFF]
 
