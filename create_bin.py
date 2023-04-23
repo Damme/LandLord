@@ -71,8 +71,11 @@ if not os.path.exists(input_file):
 with open(input_file, "rb") as f:
     data = f.read()
 
-# Calculate the CRC32 checksum of the data
-crc = binascii.crc32(data)
+# Calculate the CRC32 checksum of the data using the polynomial table you provided
+#crc = binascii.crc32(data, 0x0)
+crc = binascii.crc32(data, 0xFFFFFFFF)
+for byte in data:
+    crc = (crc >> 8) ^ POLY_TABLE[(crc ^ byte) & 0xFF]
 
 # Convert the CRC32 checksum to a byte string and append it to the beginning of the data
 crc_bytes = crc.to_bytes(4, byteorder="big")
