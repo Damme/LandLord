@@ -11,6 +11,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
+#include "message_buffer.h"
 
 //int _write(int fd, char * str, int len);
 
@@ -28,13 +29,17 @@ extern TickType_t xDelay150;
 extern TickType_t xDelay250;
 extern TickType_t xDelay500;
 extern TickType_t xDelay1000;
+extern TickType_t xDelay2000;
 
 extern xQueueHandle xSensorQueue;
 extern xQueueHandle xScreenMsgQueue;
 extern xQueueHandle xMotorMsgQueue;
-
 extern xQueueHandle xBoundaryMsgQueue;
+extern xQueueHandle xJSONMessageQueue;
+extern xQueueHandle SPI0TxQueue;
+extern MessageBufferHandle_t TxMessageBuffer;
 
+/*
 typedef enum {
     MEASUREMENT_BATTERY = 0,
     MEASUREMENT_MOTORCURRENT,
@@ -46,7 +51,7 @@ typedef struct debug_s {
     uint32_t portStat;
     uint32_t lastUpdate;
 } debug_t;
-
+*/
 typedef struct {
     uint32_t time;
     char text[32];
@@ -121,12 +126,17 @@ typedef enum {
 } xMotorMessageType;
 
 typedef struct {
+    char topic[20];
+    char value[20];
+} xJSONMessageType;
+
+/*typedef struct {
     xMotorMessageType action;
     int16_t blade;
     int16_t left;
     int16_t right;
 } xMotorMsgTypeOLD;
-
+*/
 #pragma anon_unions
 typedef struct {
     xMotorMessageType action;
@@ -143,7 +153,7 @@ typedef struct {
 } xMotorMsgType;
 
 
-extern volatile debug_t debugArray[5];
+//extern volatile debug_t debugArray[5];
 
 extern volatile uint32_t cpuID;
 
@@ -151,6 +161,7 @@ extern volatile TaskHandle_t xHandle[10];
 extern volatile uint8_t taskcounter;
 extern volatile uint64_t globaltickms;
 extern volatile uint32_t watchdogSPI;
+
 
 //int _write(int fd, char *ptr, int len);
 void delay_uS(uint32_t uS);

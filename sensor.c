@@ -23,7 +23,20 @@ typedef struct {
     uint8_t Zl;
 } GenericSensor;
 
-// TODO Rewrite temperature conversion to something better.. This is just wierd.
+int32_t temperature2(int raw_value) {
+    float a = 5.8849e-05;
+    float b = -0.4366;
+    float c = 809.9;
+    float temp = a * raw_value * raw_value + b * raw_value + c;
+    return temp*10;
+}
+
+// Test to remove the code below using a table
+int32_t temp_linear_formula(int32_t raw) {
+    int32_t result = (-28 * (raw - 2000) + 2640) / 10;
+    return result;
+}
+
 const uint16_t tempCalTbl[110] = {
     0xCF3, 0xCD6, 0xCB9, 0xC9B, 0xC7C, 0xC5A, 0xC3B, 0xC1B, 0xBFB, 0xBDB,
     0xBB5, 0xB93, 0xB72, 0xB50, 0xB2E, 0xB01, 0xADE, 0xABA, 0xA97, 0xA73,
@@ -41,7 +54,7 @@ const uint16_t tempCalTbl[110] = {
 int32_t convert_temp(uint16_t raw_temp) {
     /* table holds 110 entries from -10°C to 100°C in full °C */
     int32_t fullDegree; /* full degrees */
-    int32_t tenthDegree; /* 1/10th-degrees */
+    int32_t tenthDegree = 0; /* 10th-degrees */
     for (fullDegree = 0; fullDegree < (sizeof(tempCalTbl) / sizeof(uint16_t)); fullDegree++) {
         if (tempCalTbl[fullDegree] < raw_temp) { /* just one above */
             if (fullDegree > 0) { /* valid range? */
@@ -122,7 +135,7 @@ void sensor_Task(void *pvParameters) {
     int16_t count = 10;
 
     memset(&sensor, 0x00, sizeof(xSensorMsgType));
-    xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
+    xQueueOverwrite(xSensorQueue, &sensor);
 
     // Setup timer for pulse counter isr.
     LPC_SC->PCONP |= PCONP_PCTIM2;
@@ -158,7 +171,7 @@ void sensor_Task(void *pvParameters) {
     vTaskDelay(xDelay250);
 
     for (;;) {
-        vTaskDelay(xDelay10);
+        vTaskDelay(xDelay50);
         if (xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10) == pdTRUE) {
 
             // handle_ADCMuxing(); // For LPC1768! ADC4 is muxed between 4 measurements.        
@@ -184,7 +197,7 @@ void sensor_Task(void *pvParameters) {
             if (count++ > 10 ) {
                 while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
                 count=0;
-                sensor.batteryTemp = convert_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP)); // this seem a bit off real temp.
+                sensor.batteryTemp = temp_linear_formula(ADC_DR_RESULT(ANALOG_BATT_TEMP));
                 sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068; // Measured and calculated.
                 sensor.batteryChargeCurrent = ((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146; // Trial and error :)
                 if (sensor.batteryChargeCurrent < 0) sensor.batteryChargeCurrent = 0;
@@ -192,8 +205,8 @@ void sensor_Task(void *pvParameters) {
                 sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
                 sensor.motorBRpm = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
                 sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
-                // TODO Not using same temperature conversion! ~0c = 3750 raw ~22c = 3090 raw ~30c = 3000 raw
-                sensor.boardTemp = ADC_DR_RESULT(ANALOG_BOARD_TEMP); 
+                // TODO Not using same temperature conversion! ~0c = 3750raw ~7c = 3370raw ~22c = 3090raw ~30c = 3000raw
+                sensor.boardTemp = temperature2(ADC_DR_RESULT(ANALOG_BOARD_TEMP));
                 if ( sensor.rainAnalog < RAIN_ADC_VALUE ) sensor.rain = 1; else sensor.rain = 0;
 
  // MMA8452Q
@@ -227,7 +240,7 @@ void sensor_Task(void *pvParameters) {
 
             }
             
-            xQueueOverwriteFromISR(xSensorQueue, &sensor, NULL);
+            xQueueOverwrite(xSensorQueue, &sensor);
             
         }
     }

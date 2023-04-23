@@ -12,6 +12,7 @@ TickType_t xDelay150 = TicksPerMS * 150;
 TickType_t xDelay250 = TicksPerMS * 250;
 TickType_t xDelay500 = TicksPerMS * 500;
 TickType_t xDelay1000 = TicksPerMS * 1000;
+TickType_t xDelay2000 = TicksPerMS * 2000;
 
 
 volatile uint32_t debug1 = 0;
@@ -27,8 +28,10 @@ volatile uint32_t watchdogSPI = 0;
 xQueueHandle xScreenMsgQueue;
 xQueueHandle xMotorMsgQueue;
 xQueueHandle xSensorQueue;
-
 xQueueHandle xBoundaryMsgQueue;
+xQueueHandle xJSONMessageQueue;
+xQueueHandle SPI0TxQueue;
+MessageBufferHandle_t TxMessageBuffer;
 
 void delay_uS(uint32_t uS) {
     portENTER_CRITICAL();

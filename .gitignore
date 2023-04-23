@@ -33,6 +33,7 @@
 *.app
 
 # Ignore
+.ignore/
 ignore/
 /Objects
 /Listings
@@ -41,5 +42,6 @@ ignore/
 /LandLord.uvgui.*
 /OriginalFirmware
 .vscode/*
+build/*
 
 .*#

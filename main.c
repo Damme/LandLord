@@ -59,7 +59,7 @@ int main(void) {
     vPortDefineHeapRegions(xHeapRegions);
 
     
-    SystemCoreClockUpdate();
+    SystemCoreClockUpdate(); //or call -> SystemInit();  ? Dont know why I dont do this
     // https://www.keil.com/pack/doc/CMSIS/Core/html/group__NVIC__gr.html
     NVIC_SetPriorityGrouping( 2 ); 
     //NVIC_SetPriority(TIMER1_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
@@ -70,17 +70,22 @@ int main(void) {
     xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
     xBoundaryMsgQueue = xQueueCreate(1, sizeof(xBoundaryMsgType));
+    xJSONMessageQueue = xQueueCreate(8, sizeof(xJSONMessageType));
+    SPI0TxQueue = xQueueCreate(250, sizeof(char));
+    TxMessageBuffer = xMessageBufferCreate( 1024 );
     
-    //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);
+//  xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);
 
-//                                                    Prio
-    xTaskCreate(powerMgmt_Task, "PowerMgmt", 200, NULL, 7, &xHandle[taskcounter++]);
-    xTaskCreate(ROSComms_Task,  "RosComms",  512, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(motorCtrl_Task, "MotorCtrl", 300, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(sensor_Task,    "Sensor",    300, NULL, 4, &xHandle[taskcounter++]);
-    xTaskCreate(boundary_Task,  "Boundary",  512, NULL, 3, &xHandle[taskcounter++]);
-    xTaskCreate(LCD_Task,       "LCD",       378, NULL, 2, &xHandle[taskcounter++]);
-    xTaskCreate(keypad_Task,    "Keypad",    150, NULL, 2, &xHandle[taskcounter++]);
+//                                                         Prio
+    xTaskCreate(powerMgmt_Task,   "PowerMgmt",  300,  NULL, 7, &xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsTx_Task,  "RosCommsTx", 1000, NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsRx_Task,  "RosCommsRx", 800,  NULL, 6, &xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsFillSPI0TxQueue_Task,  "SPI0TxQueue_Task", 1500,  NULL, 7, &xHandle[taskcounter++]);
+    xTaskCreate(motorCtrl_Task,   "MotorCtrl",  300,  NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(sensor_Task,      "Sensor",     500,  NULL, 4, &xHandle[taskcounter++]);
+    xTaskCreate(boundary_Task,    "Boundary",   500,  NULL, 3, &xHandle[taskcounter++]);
+    xTaskCreate(LCD_Task,         "LCD",        400,  NULL, 2, &xHandle[taskcounter++]);
+    xTaskCreate(keypad_Task,      "Keypad",     200,  NULL, 2, &xHandle[taskcounter++]);
 
     vTaskStartScheduler();
     // Should never get here.
@@ -93,3 +98,4 @@ int main(void) {
         
     }
 }
+

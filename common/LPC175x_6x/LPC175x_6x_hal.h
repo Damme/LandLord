@@ -46,6 +46,13 @@
 #define test_get_con(gpio)           (*(gpio.con+16))
 #define test_get_od(gpio)            (*(gpio.con+25))
 
+/* Chatgpt:
+#define GPIO_PIN_FNC(gpio)   (*(gpio.con) = (*gpio.con & ~(3 << ((gpio.pin & 0xF) * 2))) | (gpio.pinsel << ((gpio.pin & 0xF) * 2)))
+#define GPIO_FNC_PULL(gpio, val) (*(gpio.con) = (*gpio.con & ~(3 << (((gpio.pin & 0xF) * 2) + 3))) | (val << (((gpio.pin & 0xF) * 2) + 3)))
+#define GPIO_FNC_INV(gpio, val)  (*(gpio.con) = (*gpio.con & ~(1 << (((gpio.pin & 0xF) * 2) + 6))) | (val << (((gpio.pin & 0xF) * 2) + 6)))
+#define GPIO_FNC_OD(gpio, val)   (*(gpio.con) = (*gpio.con & ~(1 << (((gpio.pin & 0xF) * 2) + 10))) | (val << (((gpio.pin & 0xF) * 2) + 10)))
+*/
+
 //FEL FEL FEL verkar bara sätta bitar men inte 0:or när man ändrar tillbaka! Måste nolla först!
 //#define GPIO_FNC_PULL(gpio, val)    (*(gpio.con+16) = (uint32_t)(*(gpio.con+16) & ~(val << ( (gpio.pin > 15)?((gpio.pin*2)-32):(gpio.pin*2) ) )))
 //#define GPIO_FNC_PULL(gpio, val)    (*(gpio.con+16) = (uint32_t)((*(gpio.con+16) & ~(3 << 0 )) | (val << 0 )))

@@ -11,6 +11,7 @@ U8GPATH:=u8g
 FREERTOSPATH=FreeRTOS
 FREERTOSINCPATH=FreeRTOS/include
 FREERTOSPORTPATH=FreeRTOS/portable
+CJSONPATH=cJSON
 LDSCRIPTDIR:=$(SYSINC)
 SRC:=$(wildcard *.c)
 MCPU:=cortex-m3
@@ -37,13 +38,14 @@ LDSCRIPT:=$(LDSCRIPTDIR)/$(TARGETCPU)/$(TARGETCPU).ld
 U8GSRC:=$(wildcard $(U8GPATH)/*.c)
 FREERTOSSRC:=$(wildcard $(FREERTOSPATH)/*.c)
 FREERTOSPORTSRC:=$(wildcard $(FREERTOSPORTPATH)/*.c)
+CJSONSRC:=$(wildcard $(CJSONPATH)/*.c)
 # Internal Variable Names
 ELFNAME:=$(TARGETNAME).elf
 BINNAME:=$(TARGETNAME).bin
 HEXNAME:=$(TARGETNAME).hex
 DISNAME:=$(TARGETNAME).dis
 MAPNAME:=$(TARGETNAME).map
-OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(SYSCPUSRC:.c=.o) $(FREERTOSSRC:.c=.o) $(FREERTOSPORTSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
+OBJ:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(SYSCPUSRC:.c=.o) $(FREERTOSSRC:.c=.o) $(FREERTOSPORTSRC:.c=.o) $(CJSONSRC:.c=.o) $(U8GSRC:.c=.o) $(STARTUP:.S=.o)
 OBJSMALL:=$(SRC:.c=.o) $(SYSSRC:.c=.o) $(STARTUP:.S=.o)
 
 # Replace standard build tools by avr tools
@@ -58,7 +60,7 @@ SIZE:=$(GCCPATH)/bin/arm-none-eabi-size
 COMMON_FLAGS = -mthumb -mcpu=$(MCPU)
 COMMON_FLAGS += -g
 COMMON_FLAGS += -Wall -Wno-unknown-pragmas
-COMMON_FLAGS += -I. -I$(SYSINC) -I$(SYSINC)/$(TARGETCPU) -I$(U8GPATH) -I$(FREERTOSINCPATH) -I$(FREERTOSPATH) -I$(FREERTOSPORTPATH)
+COMMON_FLAGS += -I. -I$(SYSINC) -I$(SYSINC)/$(TARGETCPU) -I$(U8GPATH) -I$(FREERTOSINCPATH) -I$(FREERTOSPATH) -I$(FREERTOSPORTPATH) -I$(CJSONPATH)
 # default stack size is 0x0c00
 COMMON_FLAGS += -D__STACK_SIZE=0x0a00 -DdebugPrintf -DLOWSTACKWARNING -D$(TARGETCPU)
 COMMON_FLAGS += -Os -flto
@@ -121,9 +123,9 @@ cleansmall:
 
 .S.o:
 	@echo -e "\e[1;37mASM \e[0m$< > $@\e[1;37m"
-	@$(PREPROCESS.S) $(COMMON_FLAGS) $(patsubst %.s,%.S,$<) > tmp.s
-	@$(COMPILE.s) -c -o $@ tmp.s
-	@$(RM) tmp.s
+	$(COMPILE.S) $(patsubst %.s,%.S,$<) -o $@
+# @$(COMPILE.s) -c -o $@ tmp.s
+# @$(RM) tmp.s
 
 .elf.hex:
 	@$(OBJCOPY) -O ihex $< $@

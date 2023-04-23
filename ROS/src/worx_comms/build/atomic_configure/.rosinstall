@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /opt/OpenMower/ROS/src/open_mower_ros/worx_comms/build/devel/setup.sh

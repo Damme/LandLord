@@ -41,8 +41,12 @@ void motorCtrl_Task(void *pvParameters) {
     MotorCtrl_Init();
     setpwm(0, 0, 0);
 
+
+// TODO TODO fix logic for motor_mosfet - power consumtion during idle.
     GPIO_SET_PIN(MOTOR_MOSFET);
-   
+// TODO TODO fix logic for motor_mosfet - power consumtion during idle.
+
+
     GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
     GPIO_CLR_PIN(MOTOR_LEFT_ENABLE);
     GPIO_CLR_PIN(MOTOR_RIGHT_ENABLE);
@@ -69,7 +73,8 @@ void motorCtrl_Task(void *pvParameters) {
     
     for (;;) {
         
-        hasMotorMsg = xQueueReceive(xMotorMsgQueue, &MotorMsg, xDelay50);
+        hasMotorMsg = xQueueReceive(xMotorMsgQueue, &MotorMsg, pdMS_TO_TICKS(50));
+        
 
         if ((hasMotorMsg == pdTRUE) && (MotorMsg.action == BUTTON)) {
             switch (MotorMsg.button.pressed) {

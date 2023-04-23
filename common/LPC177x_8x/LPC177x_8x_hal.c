@@ -83,32 +83,14 @@ void ROScomms_Init() {
     LPC_SSP0->CR0 = (7 << 0) | (1 << 6) | (1 << 7); // 8bits, CPOL, CPHA,
     LPC_SSP0->CR1 = (1 << 2);
 
-    LPC_SSP0->CPSR = (8 & 0xfe); // SSPn Clock Prescale Register 60000000 / 128 = 468750
-    LPC_SSP0->CR0 |= (6 << 8); // Serial Clock Rate.
+    LPC_SSP0->CPSR = (60);
+    // 120 = 500khz
+    // 60 = 1Mhz
+
+    //LPC_SSP0->CR0 |= (6 << 8); // Serial Clock Rate.
     //LPC_SSP0->CR1 |= (1 << 0); // loopback
     LPC_SSP0->CR1 |= (1 << 2); // Slave mode
     
-    // PCLK / (CPSDVSR × [SCR+1]) = bitrate
-
-//  SCR \ SCPR
-//  	8	        16	        32	        64	        128	        256
-//  1	3,750,000	1,875,000	937,500	    468,750	    234,375	    117,188
-//  2	2,500,000	1,250,000	625,000	    312,500	    156,250	    78,125
-//  3	1,875,000	937,500	    468,750	    234,375	    117,188	    58,594
-//  4	1,500,000	750,000	    375,000	    187,500	    93,750	    46,875
-//  5	1,250,000	625,000	    312,500	    156,250	    78,125	    39,063
-//  6	1,071,429	535,714	    267,857	    133,929	    66,964	    33,482
-//  7	937,500	    468,750	    234,375	    117,188	    58,594	    29,297
-//  8	833,333	    416,667	    208,333	    104,167	    52,083	    26,042
-//  9	750,000	    375,000	    187,500	    93,750	    46,875	    23,438
-//  10	681,818	    340,909	    170,455	    85,227	    42,614	    21,307
-
-    // Set DSS data to 8-bit, Frame format SPI, CPOL = 0, CPHA = 0, and SCR is 15
-    //LPC_SSP0->CR0 = 0x07c7; // 707 = 00, 747 = 01 787 = 10 7c7 = 11
-    // SSPCPSR clock prescale register, master mode, minimum divisor is 0x02
-    //LPC_SSP0->CPSR = 0x2;
-    // 60 000 000 / ( 2 x 16 ) -> 1875000
-
     /*if ( LPC_SSP0->CR1 & (1 << 1) ) {
 	// The slave bit can't be set until SSE bit is zero. 
 	    LPC_SSP0->CR1 &= ~(1 << 1);

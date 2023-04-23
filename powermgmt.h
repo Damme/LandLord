@@ -27,6 +27,8 @@ typedef struct
 
 extern xQueueHandle xPowerMgmtMsgQueue;
 */
+
+
 void powerMgmt_Task(void *pvParameters);
 
 #endif // POWERMGMT_H
