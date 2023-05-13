@@ -38,8 +38,6 @@ HeapRegion_t xHeapRegions[] = {
 };
 #endif
 /*
-https://stackoverflow.com/questions/44038428/include-git-commit-hash-and-or-branch-name-in-c-c-source
-
 arm-none-eabi-gdb main.elf
 target extended-remote 10.42.43.164:3333
 
@@ -55,11 +53,12 @@ static void task_DigitalTest(void *pvParameters) {
 }
 
 int main(void) {
-    setbuf(stdout, NULL);
+//    setbuf(stdout, NULL);
     vPortDefineHeapRegions(xHeapRegions);
-
     
-    SystemCoreClockUpdate(); //or call -> SystemInit();  ? Dont know why I dont do this
+    //SystemInit();
+    SystemCoreClockUpdate();
+    
     // https://www.keil.com/pack/doc/CMSIS/Core/html/group__NVIC__gr.html
     NVIC_SetPriorityGrouping( 2 ); 
     //NVIC_SetPriority(TIMER1_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
@@ -71,21 +70,25 @@ int main(void) {
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
     xBoundaryMsgQueue = xQueueCreate(1, sizeof(xBoundaryMsgType));
     xJSONMessageQueue = xQueueCreate(8, sizeof(xJSONMessageType));
-    SPI0TxQueue = xQueueCreate(250, sizeof(char));
-    TxMessageBuffer = xMessageBufferCreate( 1024 );
+    SPI0TxMessageBuffer = xMessageBufferCreate( 250 * 5 );
+    SPI0RxMessageBuffer = xMessageBufferCreate( 1000 );
+    //TxMessageBuffer = xMessageBufferCreate( 250 * 5 );
+    RosTxQueue = xQueueCreate(15, 250);
     
-//  xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);
+    
+  //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);
 
-//                                                         Prio
-    xTaskCreate(powerMgmt_Task,   "PowerMgmt",  300,  NULL, 7, &xHandle[taskcounter++]);
-    xTaskCreate(ROSCommsTx_Task,  "RosCommsTx", 1000, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(ROSCommsRx_Task,  "RosCommsRx", 800,  NULL, 6, &xHandle[taskcounter++]);
-    xTaskCreate(ROSCommsFillSPI0TxQueue_Task,  "SPI0TxQueue_Task", 1500,  NULL, 7, &xHandle[taskcounter++]);
-    xTaskCreate(motorCtrl_Task,   "MotorCtrl",  300,  NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(sensor_Task,      "Sensor",     500,  NULL, 4, &xHandle[taskcounter++]);
-    xTaskCreate(boundary_Task,    "Boundary",   500,  NULL, 3, &xHandle[taskcounter++]);
-    xTaskCreate(LCD_Task,         "LCD",        400,  NULL, 2, &xHandle[taskcounter++]);
-    xTaskCreate(keypad_Task,      "Keypad",     200,  NULL, 2, &xHandle[taskcounter++]);
+//                                                             Prio
+    xTaskCreate(powerMgmt_Task,   "PowerMgmt",      300,  NULL, 7, &xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsRx_Task,  "RosCommsRx",     2000, NULL, 6, &xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsTx_Task,  "RosCommsTx",     4000, NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(SPI0TxQueue_Task, "SPI0TxQueue",    1500, NULL, 7, &xHandle[taskcounter++]);
+    //xTaskCreate(ROSCommsTest_Task,  "RosCommsTest",   3500, NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(motorCtrl_Task,   "MotorCtrl",      300,  NULL, 5, &xHandle[taskcounter++]);
+    xTaskCreate(sensor_Task,      "Sensor",         500,  NULL, 4, &xHandle[taskcounter++]);
+    xTaskCreate(boundary_Task,    "Boundary",       500,  NULL, 3, &xHandle[taskcounter++]);
+    xTaskCreate(LCD_Task,         "LCD",            400,  NULL, 2, &xHandle[taskcounter++]);
+    xTaskCreate(keypad_Task,      "Keypad",         200,  NULL, 2, &xHandle[taskcounter++]);
 
     vTaskStartScheduler();
     // Should never get here.
@@ -95,7 +98,5 @@ int main(void) {
         vTaskDelay(xDelay100);
         GPIO_CLR_PIN(LCD_BACKLIGHT);
         vTaskDelay(xDelay100);
-        
     }
 }
-

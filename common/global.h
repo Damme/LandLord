@@ -13,10 +13,6 @@
 #include "task.h"
 #include "message_buffer.h"
 
-//int _write(int fd, char * str, int len);
-
-
-//extern int stack_Keypad, stack_Counter, stack_LCD, stack_ADC;
 extern bool run;
 
 extern TickType_t xDelay1;
@@ -36,22 +32,11 @@ extern xQueueHandle xScreenMsgQueue;
 extern xQueueHandle xMotorMsgQueue;
 extern xQueueHandle xBoundaryMsgQueue;
 extern xQueueHandle xJSONMessageQueue;
-extern xQueueHandle SPI0TxQueue;
-extern MessageBufferHandle_t TxMessageBuffer;
+//extern MessageBufferHandle_t TxMessageBuffer;
+extern MessageBufferHandle_t SPI0RxMessageBuffer;
+extern MessageBufferHandle_t SPI0TxMessageBuffer;
+extern xQueueHandle RosTxQueue;
 
-/*
-typedef enum {
-    MEASUREMENT_BATTERY = 0,
-    MEASUREMENT_MOTORCURRENT,
-    COMMAND_SHUTDOWN,
-    COMMAND_STOP,
-} xMessageType;
-
-typedef struct debug_s {
-    uint32_t portStat;
-    uint32_t lastUpdate;
-} debug_t;
-*/
 typedef struct {
     uint32_t time;
     char text[32];
@@ -113,30 +98,36 @@ typedef struct {
     //char buf[];
 } xBoundaryMsgType;
 
-typedef enum {
-    IDLE = 0,
-    ENABLE,
-    SETSPEED,
-    STOP,
-    BRAKE,
-    EMGSTOP,
-    STARTBLADE,
-    STOPBLADE,
-    BUTTON      
-} xMotorMessageType;
-
 typedef struct {
     char topic[20];
     char value[20];
 } xJSONMessageType;
 
-/*typedef struct {
-    xMotorMessageType action;
-    int16_t blade;
-    int16_t left;
-    int16_t right;
-} xMotorMsgTypeOLD;
-*/
+typedef enum {
+    MOTORREQ_IDLE = 0,
+    MOTORREQ_ENABLE,
+    MOTORREQ_DISABLE,
+    MOTORREQ_SETSPEED,
+    MOTORREQ_BRAKEON,
+    MOTORREQ_BRAKEOFF,
+    MOTORREQ_EMGSTOP,
+    MOTORREQ_RESETEMG
+} xMotorRequestType;
+
+typedef struct {
+    xMotorRequestType action;
+    struct {
+        int16_t blade;
+        int16_t left;
+        int16_t right;
+    } pwm;
+} xMotorMsgType;
+
+extern volatile uint32_t pulsecounterl;
+extern volatile uint32_t pulsecounterr;
+extern volatile uint32_t pulsecounterb;
+
+/*
 #pragma anon_unions
 typedef struct {
     xMotorMessageType action;
@@ -151,13 +142,11 @@ typedef struct {
         } button;
     };
 } xMotorMsgType;
-
-
-//extern volatile debug_t debugArray[5];
+*/
 
 extern volatile uint32_t cpuID;
 
-extern volatile TaskHandle_t xHandle[10];
+extern volatile TaskHandle_t xHandle[15];
 extern volatile uint8_t taskcounter;
 extern volatile uint64_t globaltickms;
 extern volatile uint32_t watchdogSPI;
@@ -166,6 +155,9 @@ extern volatile uint32_t watchdogSPI;
 //int _write(int fd, char *ptr, int len);
 void delay_uS(uint32_t uS);
 void vAssertCalled( void );
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
+void vApplicationMallocFailedHook(void);
+
 
 //void IAP_get_device_UID(uint32_t UID_array[5]);
 

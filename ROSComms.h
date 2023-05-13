@@ -8,7 +8,8 @@
 
 void ROSCommsRx_Task(void *pvParameters);
 void ROSCommsTx_Task(void *pvParameters);
-void ROSCommsFillSPI0TxQueue_Task(void *pvParameters);
+void SPI0TxQueue_Task(void *pvParameters);
+void ROSCommsTest_Task(void *pvParameters);
 
 void debug( const char* format, ... );
 

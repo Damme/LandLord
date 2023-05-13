@@ -92,20 +92,21 @@
 #define configCPU_CLOCK_HZ              ( ( unsigned long ) 120000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 1000 )
 
-#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 80 )
+#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 200 )
 #define configTOTAL_HEAP_SIZE			( ( size_t ) ( 4096 ) )
 #define configMAX_TASK_NAME_LEN			( 20 )
 #define configUSE_TRACE_FACILITY		1 /* This is set to one so each task is given a unique number, which is then used to generate the logic analyzer output. */
 #define configUSE_TIMERS                1
 #define configTIMER_TASK_PRIORITY       3
-#define configTIMER_QUEUE_LENGTH        10
+#define configTIMER_QUEUE_LENGTH        20
 #define configTIMER_TASK_STACK_DEPTH    configMINIMAL_STACK_SIZE
 #define configUSE_16_BIT_TICKS			0
 #define configIDLE_SHOULD_YIELD			0
 #define configUSE_CO_ROUTINES 			0
 #define configUSE_MUTEXES				0
 #define configUSE_RECURSIVE_MUTEXES		0
-#define configCHECK_FOR_STACK_OVERFLOW	0
+#define configCHECK_FOR_STACK_OVERFLOW	1
+#define configUSE_MALLOC_FAILED_HOOK    1
 
 #define configMAX_PRIORITIES			( 8 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
@@ -158,13 +159,13 @@ configASSERT( ( 0xfa050000 & 0x00000700 ) <= 0x00000000 );*/
 
 // For runtime stats!
 // https://www.freertos.org/rtos-run-time-stats.html
-/*
+
 #define configUSE_TRACE_FACILITY        1
-#define configGENERATE_RUN_TIME_STATS   1
-//configUSE_STATS_FORMATTING_FUNCTIONS 
-#define configSUPPORT_DYNAMIC_ALLOCATION 1
-#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS 1
-*/
+#define configUSE_STATS_FORMATTING_FUNCTIONS 1
+//#define configGENERATE_RUN_TIME_STATS   1
+//#define configSUPPORT_DYNAMIC_ALLOCATION 1
+//#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS 1
+
 /*extern void vConfigureTimerForRunTimeStats( void );
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS() vConfigureTimerForRunTimeStats()
 #define portGET_RUN_TIME_COUNTER_VALUE() LPC_TIM0->TC*/

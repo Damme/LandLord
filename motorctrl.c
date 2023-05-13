@@ -13,15 +13,16 @@ void setpwm(uint16_t blade, uint16_t left, uint16_t right) {
     LPC_PWM1->LER |= (1<<1) | (1<<4) | (1<<5);    
 }
 
-typedef enum {
-    Idle,
-    EnableMotors,
-    DisableMotors,
-    RemoteControl,
-    Stop,
-    EmergencyStop,
-    Brake
-} motorStates;
+const char *MotorRequestStrings[] = {
+    "MOTORREQ_IDLE",
+    "MOTORREQ_ENABLE",
+    "MOTORREQ_DISABLE",
+    "MOTORREQ_SETSPEED",
+    "MOTORREQ_BRAKEON",
+    "MOTORREQ_BRAKEOFF",
+    "MOTORREQ_EMGSTOP",
+    "MOTORREQ_RESETEMG"
+};
 
 bool block_forward = 0;
 
@@ -31,95 +32,68 @@ void motionSensor_Timer(void) {
 }
 
 void motorCtrl_Task(void *pvParameters) {
-    motorStates motorState = Idle;
+
+    xMotorRequestType lastState = -1;
 
     xMotorMsgType MotorMsg;
     xSensorMsgType SensorMsg;
 
-    BaseType_t hasMotorMsg = pdFAIL;
-        
     MotorCtrl_Init();
     setpwm(0, 0, 0);
 
-
-// TODO TODO fix logic for motor_mosfet - power consumtion during idle.
-    GPIO_SET_PIN(MOTOR_MOSFET);
-// TODO TODO fix logic for motor_mosfet - power consumtion during idle.
-
-
-    GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
-    GPIO_CLR_PIN(MOTOR_LEFT_ENABLE);
-    GPIO_CLR_PIN(MOTOR_RIGHT_ENABLE);
-    vTaskDelay(xDelay100);
-// seem to have to cycle brakes once to release them. 
-    GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
-    GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
-    GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
-    vTaskDelay(xDelay250); 
-    GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
-    GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
-    GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
-
-    uint16_t setBladePWM = 0;
-    uint16_t setLeftPWM = 0;
-    uint16_t setRightPWM = 0;
-
-    uint16_t curBladePWM = 0;
-    uint16_t curLeftPWM = 0;
-    uint16_t curRightPWM = 0;
-    // or put this in the timer that counts wheel pulses
+  
     TimerHandle_t timer1 = xTimerCreate("Motion sensors", TicksPerMS, pdTRUE, NULL, motionSensor_Timer);
     xTimerStart(timer1, 0);
-    
+
     for (;;) {
-        
-        hasMotorMsg = xQueueReceive(xMotorMsgQueue, &MotorMsg, pdMS_TO_TICKS(50));
-        
 
-        if ((hasMotorMsg == pdTRUE) && (MotorMsg.action == BUTTON)) {
-            switch (MotorMsg.button.pressed) {
-                case 1: // ☓
-                    if (GPIO_CHK_PIN(MOTOR_MOSFET)) {
-                        GPIO_CLR_PIN(MOTOR_MOSFET);
-                    } else {
-                        GPIO_SET_PIN(MOTOR_MOSFET);
-                    }
-                    break;
-                case 2: // ◯
-                    break;
-                case 3: // △
-                    if (motorState == RemoteControl) {
-                        motorState = Idle;
-                    } else if (motorState == Idle) {
-                        motorState = RemoteControl;
-                    }
-                    break;
-                case 4: // ▯□
-                    break;
-            }
+        if (watchdogSPI > 4000) {
+            setpwm(0,0,0);
+            xScreenMsgType screenMsg;
+            screenMsg.time=50;
+            sprintf(screenMsg.text, "ROS comms lost!");
+            xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+            // Queue emgstop?
         }
+        
+        if (xQueueReceive(xMotorMsgQueue, &MotorMsg, xDelay25) == pdTRUE) {
+            if (MotorMsg.action != lastState) {
+                lastState = MotorMsg.action;
+                xJSONMessageType JSONMsg = {"motorState", {0}};
+                strcpy(JSONMsg.value, MotorRequestStrings[MotorMsg.action]);
+                xQueueSend(xJSONMessageQueue, &JSONMsg, xDelay25);
+            }
 
-        switch(motorState) {
-            case Idle:
-                // if currspeed != 0 then
-                setpwm(0,0,0);
-                break;
-            case RemoteControl:
-                if (watchdogSPI > 4000) {
+            switch (MotorMsg.action) {
+                case MOTORREQ_IDLE:
+                    GPIO_CLR_PIN(MOTOR_MOSFET);
+                    break;
+                case MOTORREQ_ENABLE:
+                    GPIO_SET_PIN(MOTOR_MOSFET);
+                    GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
+                    GPIO_CLR_PIN(MOTOR_LEFT_ENABLE);
+                    GPIO_CLR_PIN(MOTOR_RIGHT_ENABLE);
+                    vTaskDelay(xDelay100); 
+                    // this needs investigation about the sequence to intiate the motor controllers. - mc33035dw
+                    // pin should be inverted in HAL - clr = brake on, set =  brake off
+                    GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
+                    GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
+                    GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
+                    vTaskDelay(xDelay250);
+                    GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
+                    GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
+                    GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
+                    break;
+                case MOTORREQ_DISABLE:
                     setpwm(0,0,0);
-                    xScreenMsgType screenMsg;
-                    screenMsg.time=50;
-                    sprintf(screenMsg.text, "SPI comm lost!");      
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-                    printf(screenMsg.text);
-                    motorState = Idle;
-                } else if ((hasMotorMsg == pdTRUE) && (MotorMsg.action == SETSPEED)) {
-                    
-                    if (block_forward) {
-                        if (MotorMsg.pwm.left > 0) MotorMsg.pwm.left = 0;
-                        if (MotorMsg.pwm.right > 0) MotorMsg.pwm.right = 0;
-                        if (MotorMsg.pwm.left < 0 || MotorMsg.pwm.right < 0) block_forward = 0;
-                    } 
+                    GPIO_CLR_PIN(MOTOR_MOSFET);
+                    GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
+                    GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
+                    GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
+                    break;
+                case MOTORREQ_SETSPEED:
+                // Block forward on front sensor? Reset on release / reverse / timer ?
+                // Check for overspeed ticks/100ms - is it possible to brake short pulses or even reversing direction with pwm 0 for soft brake?
 
                     if (MotorMsg.pwm.left < 0) {
                         MotorMsg.pwm.left = -MotorMsg.pwm.left;
@@ -134,116 +108,52 @@ void motorCtrl_Task(void *pvParameters) {
                         GPIO_CLR_PIN(MOTOR_RIGHT_FORWARD);
                     }
                     setpwm(MotorMsg.pwm.blade, MotorMsg.pwm.left, MotorMsg.pwm.right);
-                }
-                break;
-        }
-
-
-#if 0
-        //xQueuePeek(xSensorQueue, &SensorMsg, xDelay10);
-/*        GPIO_CHK_PIN()
-#define SENSOR_STUCK       (GPIO_TYPE(PORT_2, PIN_22, FUNC_0))
-#define SENSOR_STUCK2      (GPIO_TYPE(PORT_1, PIN_22, FUNC_0))
-#define SENSOR_LIFT        (GPIO_TYPE(PORT_2, PIN_16, FUNC_0)) // or Collision
-#define SENSOR_COLLISION   (GPIO_TYPE(PORT_4, PIN_1, FUNC_0)) // Or Lift!
-#define SENSOR_STOP        (GPIO_TYPE(PORT_1, PIN_25, FUNC_0))
-*/
-        if (watchdogSPI > 5000) {
-            setpwm(0,0,0);
-            xScreenMsgType screenMsg;
-            screenMsg.time=50;
-            sprintf(screenMsg.text, "SPI comm lost!");      
-            xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-            vTaskDelay(TicksPerMS * 2500);
-        } else if (xQueueReceive(xMotorMsgQueue, &MotorMsg, xDelay25) == pdTRUE) {
-            
-            /*if (!SensorMsg.stuck || !SensorMsg.stuck2 || !SensorMsg.collision || !SensorMsg.lift) {
-                if (MotorMsg.left > 0) MotorMsg.left = 0;
-                if (MotorMsg.right > 0) MotorMsg.right = 0;
-            }*/
-
-            switch (MotorMsg.action) {
-                case ENABLE:
-                    GPIO_SET_PIN(MOTOR_MOSFET);
-                    GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
-                    GPIO_CLR_PIN(MOTOR_LEFT_ENABLE);
-                    GPIO_CLR_PIN(MOTOR_RIGHT_ENABLE);
                     break;
-
-                case SETSPEED:
-                    vTaskDelay(xDelay25); // what's this for?
-                    if (MotorMsg.left < 0) {
-                        MotorMsg.left = -MotorMsg.left;
-                        GPIO_CLR_PIN(MOTOR_LEFT_FORWARD);
-                    } else {
-                        GPIO_SET_PIN(MOTOR_LEFT_FORWARD);
-                    }
-                    if (MotorMsg.right < 0) {
-                        MotorMsg.right = -MotorMsg.right;
-                        GPIO_CLR_PIN(MOTOR_RIGHT_FORWARD);
-                    } else {
-                        GPIO_SET_PIN(MOTOR_RIGHT_FORWARD);
-                    }
-                    setpwm(MotorMsg.blade, MotorMsg.left, MotorMsg.right);
+                case MOTORREQ_BRAKEON:
+                    GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
+                    GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
+                    GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
                     break;
-
-                case EMGSTOP:
-                    setpwm(0, 0, 0);
-                    xScreenMsgType screenMsg;
-                    screenMsg.time=50;
-                    sprintf(screenMsg.text, "EMERGENCY STOP!");      
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-                    vTaskDelay(xDelay250);
-                    GPIO_CLR_PIN(MOTOR_MOSFET); //<- set state power down motor instead
+                case MOTORREQ_BRAKEOFF:
+                    GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
+                    GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
+                    GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
                     break;
-
-                case BRAKE:
-                    setpwm(0, 0, 0);
-                    break;
-                
-                default:
-                    break;
-            }
-        }
-        memset(&MotorMsg, 0, sizeof(xMotorMsgType));
-        /*
-        
-        if (xQueueReceive(xMotorMsgQueue, &MotorMsg, xDelay25) == pdTRUE) {
-            if (MotorMsg.action == BRAKE || MotorMsg.action == EMGSTOP) {
-                setpwm(0, 0, 0);
-                vTaskDelay(xDelay250);
-                //GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
-                //GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
-                //GPIO_CLT_PIN(MOTOR_RIGHT_BRAKE);
-                if (MotorMsg.action == EMGSTOP) {
-                    vTaskDelay(xDelay250);
+                case MOTORREQ_EMGSTOP:
+                    setpwm(0,0,0);
+                    GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
+                    GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
+                    GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
+                    vTaskDelay(xDelay500);
                     GPIO_CLR_PIN(MOTOR_MOSFET);
-                    xScreenMsgType screenMsg;
-                    screenMsg.time=50;
-                    sprintf(screenMsg.text, "EMERGENCY STOP!");      
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-                }
+                    // Queue idle?
+                    break;
+                case MOTORREQ_RESETEMG:
+                    GPIO_CLR_PIN(MOTOR_MOSFET);
+                    GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
+                    GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
+                    GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
+                    break;
             }
-            if (MotorMsg.action == SETSPEED) {
-                vTaskDelay(xDelay25);
-                // implement smoothing!
-
-                if (MotorMsg.left < 0) {
-                    MotorMsg.left = -MotorMsg.left;
-                    GPIO_CLR_PIN(MOTOR_LEFT_FORWARD);
-                } else {
-                    GPIO_SET_PIN(MOTOR_LEFT_FORWARD);
-                }
-                if (MotorMsg.right < 0) {
-                    MotorMsg.right = -MotorMsg.right;
-                    GPIO_CLR_PIN(MOTOR_RIGHT_FORWARD);
-                } else {
-                    GPIO_SET_PIN(MOTOR_RIGHT_FORWARD);
-                }
-                
-                setpwm(MotorMsg.blade, MotorMsg.left, MotorMsg.right);             
-            }
-        }*/
-#endif
+        }
     }
 }
+
+
+/*
+
+
+
+
+
+case EMGSTOP:
+    setpwm(0, 0, 0);
+    xScreenMsgType screenMsg;
+    screenMsg.time=50;
+    sprintf(screenMsg.text, "EMERGENCY STOP!");      
+    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+    vTaskDelay(xDelay250);
+    GPIO_CLR_PIN(MOTOR_MOSFET); //<- set state power down motor instead
+    break;
+
+*/

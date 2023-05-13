@@ -92,46 +92,46 @@ void powerMgmt_Task(void *pvParameters) {
                 // Why not check for charger all the time? Once every 1s
                 // Todo dim display if idle > x minutes, idle is if lid is closed!
                 delay = xDelay500;
-                count = 50;
+                count = 500;
                 powerState = CheckChargerInit;
                 break;
-
+// todo logic for is motor controller is in enabled state or not, we cannot disable 
+// here without first knowing we were the one that put it on. We need it on to check 
+// if we are in charger or not.
             case CheckChargerInit:
                 // TODO only start charging if volt below xx?
-                delay = xDelay100;
+                delay = xDelay10;
+                //GPIO_SET_PIN(MOTOR_MOSFET);
                 GPIO_SET_PIN(CHARGER_CHECK);
                 powerState = CheckCharger;
                 break;
 
             case CheckCharger:
-                if (GPIO_CHK_PIN(CHARGER_CONNECTED)) {                    
-                    // TODO: send signal "in charger"??
-                    // TODO: All stop! 
-                    // TODO: Somehow block forward motion
-                    GPIO_CLR_PIN(CHARGER_CHECK);
-                    
-                    //GPIO_SET_PIN(MOTOR_MOSFET);
-                    
-                    sensor.incharger = 1;
-                    xQueueOverwrite(xSensorQueue, &sensor);
-                    
-                    powerState = StartCharging;
-                    count = 50;
-                    
-                    screenMsg.time=15;
-                    sprintf(screenMsg.text, "In charger!");
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-                }
-                
                 if (count < 1) {
                     GPIO_CLR_PIN(CHARGER_CHECK);
-                    //GPIO_SET_PIN(MOTOR_MOSFET);
+                    //GPIO_CLR_PIN(MOTOR_MOSFET);
                     powerState = Idle;
                     /*
                     screenMsg.time=50;
                     sprintf(screenMsg.text, "No charger found!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);*/
                 }
+                if (GPIO_CHK_PIN(CHARGER_CONNECTED) || sensor.batteryChargeCurrent > 5) {
+                    setpwm(0,0,0);
+                    GPIO_CLR_PIN(CHARGER_CHECK);
+                    //GPIO_CLR_PIN(MOTOR_MOSFET);                    
+                    
+                    sensor.incharger = 1;
+                    xQueueOverwrite(xSensorQueue, &sensor);
+                    
+                    powerState = StartCharging;
+                    
+                    screenMsg.time=15;
+                    sprintf(screenMsg.text, "In charger!");
+                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                }
+                // BUG FIXME
+                
                 count--;
                 break;
 // Catch state connected to charger but charger not ready (For example, start mower with charger already connected)

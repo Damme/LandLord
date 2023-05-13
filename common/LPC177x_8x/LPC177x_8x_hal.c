@@ -83,7 +83,7 @@ void ROScomms_Init() {
     LPC_SSP0->CR0 = (7 << 0) | (1 << 6) | (1 << 7); // 8bits, CPOL, CPHA,
     LPC_SSP0->CR1 = (1 << 2);
 
-    LPC_SSP0->CPSR = (60);
+    LPC_SSP0->CPSR = (60); // 2Mhz?
     // 120 = 500khz
     // 60 = 1Mhz
 

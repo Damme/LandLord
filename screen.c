@@ -149,14 +149,14 @@ void lcdPrintDebug() {
 
 void lcdPrintSensor() {
     xSensorMsgType sensor;
-    xQueuePeek(xSensorQueue, &sensor, 0);
+    xQueuePeek(xSensorQueue, &sensor, xDelay1);
 
     //u8g_SetDefaultBackgroundColor(&u8g);
     //u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
     
-    sprintf(buffer, "Battery: %iC %imV %imA", sensor.batteryTemp, sensor.batteryVolt, sensor.batteryChargeCurrent);
+    sprintf(buffer, "Battery: %iC %imV %imA| %i %i %i", sensor.batteryTemp, sensor.batteryVolt, sensor.batteryChargeCurrent, GPIO_CHK_PIN(MOTOR_MOSFET), GPIO_CHK_PIN(MOTOR_BLADE_BRAKE), LPC_PWM1->MR1);
     u8g_DrawStr(&u8g,  0, 20, buffer);
 
     sprintf(buffer, "T: %iC Rain %i C%iL%iS1%iS2%iD%i", sensor.boardTemp, sensor.rainAnalog, sensor.collision, sensor.lift, sensor.stuck, sensor.stuck2, sensor.door);
@@ -173,23 +173,35 @@ void lcdPrintSensor() {
 
 
     if (keypad_GetKey() == KEY1 && !keypressed) {
+        GPIO_CLR_PIN(MOTOR_MOSFET);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY2 && !keypressed) {
+        GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
         keypressed = true;
     }
-
     if (keypad_GetKey() == KEY3 && !keypressed) {
+        LPC_PWM1->MR1 = 0;
         keypressed = true;
     }
-
     if (keypad_GetKey() == KEY4 && !keypressed) {
+        GPIO_SET_PIN(MOTOR_MOSFET);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY5 && !keypressed) {
+        GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY6 && !keypressed) {
+        LPC_PWM1->MR1 = 2047;
+        keypressed = true;
+    }
+    if (keypad_GetKey() == KEY7 && !keypressed) {
+        GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
+        keypressed = true;
+    }
+    if (keypad_GetKey() == KEY8 && !keypressed) {
+        GPIO_SET_PIN(MOTOR_BLADE_ENABLE);
         keypressed = true;
     }
 

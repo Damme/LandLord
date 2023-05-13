@@ -173,7 +173,7 @@ void keypad_Task(void *pvParameters) {
 
         if (keypad_GetKey() == KEYSTOP) {
             xMotorMsgType MotorMsg;
-            MotorMsg.action = EMGSTOP;
+            MotorMsg.action = MOTORREQ_EMGSTOP;
             xQueueSendFromISR(xMotorMsgQueue, &MotorMsg, NULL);
         }
         /*if (keypad_GetKey() == KEYPWR && keypad_GetTime() > 6) {

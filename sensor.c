@@ -14,13 +14,13 @@
 
 #define RAIN_ADC_VALUE  3500 // 3840 = dry a coupld of hours after rain
 
-typedef struct {
-    uint8_t Xh;
-    uint8_t Xl;
-    uint8_t Yh;
-    uint8_t Yl;
-    uint8_t Zh;
-    uint8_t Zl;
+typedef struct { // Ugh, the i2c sensors uses LSB/MSB differently...
+    uint8_t X1;
+    uint8_t X2;
+    uint8_t Y1;
+    uint8_t Y2;
+    uint8_t Z1;
+    uint8_t Z2;
 } GenericSensor;
 
 int32_t temperature2(int raw_value) {
@@ -33,7 +33,7 @@ int32_t temperature2(int raw_value) {
 
 // Test to remove the code below using a table
 int32_t temp_linear_formula(int32_t raw) {
-    int32_t result = (-28 * (raw - 2000) + 2640) / 10;
+    int32_t result = (-0.27 * (raw - 2800) + 55);
     return result;
 }
 
@@ -104,9 +104,6 @@ void EINT3_IRQHandler(void) {
 volatile uint8_t lastpulsel = 0;
 volatile uint8_t lastpulser = 0;
 volatile uint8_t lastpulseb = 0;
-volatile uint32_t counterl = 0;
-volatile uint32_t counterr = 0;
-volatile uint32_t counterb = 0;
 
 void TIMER2_IRQHandler(void) {
     globaltickms++;
@@ -114,15 +111,15 @@ void TIMER2_IRQHandler(void) {
     
     if (lastpulsel != GPIO_CHK_PIN(MOTOR_LEFT_PULSE)) {
         lastpulsel = GPIO_CHK_PIN(MOTOR_LEFT_PULSE);
-        counterl++;
+        pulsecounterl++;
     }
     if (lastpulser != GPIO_CHK_PIN(MOTOR_RIGHT_PULSE)) {
         lastpulser = GPIO_CHK_PIN(MOTOR_RIGHT_PULSE);
-        counterr++;
+        pulsecounterr++;
     }
     if (lastpulseb != GPIO_CHK_PIN(MOTOR_BLADE_PULSE)) {
         lastpulseb = GPIO_CHK_PIN(MOTOR_BLADE_PULSE);
-        counterb++;
+        pulsecounterb++;
     }
     LPC_TIM2->IR  |= (1 << 0); // Reset interrupt MR0
 }
@@ -132,8 +129,7 @@ void sensor_Task(void *pvParameters) {
     xSensorMsgType sensor;
     GenericSensor accel;
     GenericSensor gyro;
-    int16_t count = 10;
-
+    
     memset(&sensor, 0x00, sizeof(xSensorMsgType));
     xQueueOverwrite(xSensorQueue, &sensor);
 
@@ -153,9 +149,9 @@ void sensor_Task(void *pvParameters) {
 #endif
 
 // 3-axis, 12-bit/8-bit digital accelerometer
-    I2C1_Send_Addr(MMA8452Q, 0x2a, 0x01); // Active mode
-    I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g (?? double check!)
-
+    I2C1_Send_Addr(MMA8452Q, 0x2a, 0x15); // ACTIVE | LNOISE | DR 200hz
+    I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g
+    
 // Three-axis digital output gyroscope
     I2C1_Send_Addr(L3GD20, 0x20, 0x0f); // CTRL1 Enable all
     //I2C1_Send_Addr(L3GD20, 0x21, 0x00); // CTRL2
@@ -171,10 +167,10 @@ void sensor_Task(void *pvParameters) {
     vTaskDelay(xDelay250);
 
     for (;;) {
-        vTaskDelay(xDelay50);
+        vTaskDelay(xDelay10);
         if (xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10) == pdTRUE) {
 
-            // handle_ADCMuxing(); // For LPC1768! ADC4 is muxed between 4 measurements.        
+            // handle_ADCMuxing(); // Only for LPC1768! ADC4 is muxed between 4 measurements.
             sensor.stuck = GPIO_CHK_PIN(SENSOR_STUCK);
             sensor.stuck2 = GPIO_CHK_PIN(SENSOR_STUCK2);
             sensor.door = GPIO_CHK_PIN(SENSOR_DOOR); 
@@ -190,56 +186,47 @@ void sensor_Task(void *pvParameters) {
             sensor.CurrentPWMRight = LPC_PWM1->MR5;
             sensor.CurrentPWMSpindle = LPC_PWM1->MR1;
 
-            sensor.motorpulseleft = counterl;
-            sensor.motorpulseright = counterr;
-            sensor.motorpulseblade = counterb;
-
-            if (count++ > 10 ) {
-                while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
-                count=0;
-                sensor.batteryTemp = temp_linear_formula(ADC_DR_RESULT(ANALOG_BATT_TEMP));
-                sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068; // Measured and calculated.
-                sensor.batteryChargeCurrent = ((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146; // Trial and error :)
-                if (sensor.batteryChargeCurrent < 0) sensor.batteryChargeCurrent = 0;
-                sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
-                sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
-                sensor.motorBRpm = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
-                sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
-                // TODO Not using same temperature conversion! ~0c = 3750raw ~7c = 3370raw ~22c = 3090raw ~30c = 3000raw
-                sensor.boardTemp = temperature2(ADC_DR_RESULT(ANALOG_BOARD_TEMP));
-                if ( sensor.rainAnalog < RAIN_ADC_VALUE ) sensor.rain = 1; else sensor.rain = 0;
+            sensor.motorpulseleft = pulsecounterl;
+            sensor.motorpulseright = pulsecounterr;
+            sensor.motorpulseblade = pulsecounterb;
 
  // MMA8452Q
-                I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), &accel);
-                sensor.AccelX = ((accel.Xh << 8) + accel.Xl) >> 4;
-                sensor.AccelY = ((accel.Yh << 8) + accel.Yl) >> 4;
-                sensor.AccelZ = ((accel.Zh << 8) + accel.Zl) >> 4;
-                if (sensor.AccelX > 2047) sensor.AccelX -= 4096;
-                if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
-                if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
+            I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), &accel);
+            sensor.AccelX = ((accel.X2 << 8) + accel.X1) >> 4;
+            sensor.AccelY = ((accel.Y2 << 8) + accel.Y1) >> 4;
+            sensor.AccelZ = ((accel.Z2 << 8) + accel.Z1) >> 4;
+            if (sensor.AccelX > 2047) sensor.AccelX -= 4096;
+            if (sensor.AccelY > 2047) sensor.AccelY -= 4096;
+            if (sensor.AccelZ > 2047) sensor.AccelZ -= 4096;
 
 // L3GD20  
-                // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
-                I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), &gyro);
-                sensor.GyroYaw = (gyro.Xh << 8) + gyro.Xl;
-                sensor.GyroPitch = (gyro.Yh << 8) + gyro.Yl;
-                sensor.GyroRoll = (gyro.Zh << 8) + gyro.Zl;
-                //if (sensor.GyroYaw > INT16_MAX) sensor.GyroYaw -= UINT16_MAX+1;
-                //if (sensor.GyroPitch > INT16_MAX) sensor.GyroPitch -= UINT16_MAX+1;
-                //if (sensor.GyroRoll > INT16_MAX) sensor.GyroRoll -= UINT16_MAX+1;
-#define GYRO_SENSITIVITY_250DPS (0.00875F) //!< Sensitivity at 250 dps
-#define GYRO_SENSITIVITY_500DPS (0.0175F)  //!< Sensitivity at 500 dps
-#define GYRO_SENSITIVITY_2000DPS (0.070F)  //!< Sensitivity at 2000 dps
+            // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
+            I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), &gyro);
+            sensor.GyroYaw = (gyro.X1 << 8) + gyro.X2;
+            sensor.GyroPitch = (gyro.Y1 << 8) + gyro.Y2;
+            sensor.GyroRoll = (gyro.Z1 << 8) + gyro.Z2;
+            //if (sensor.GyroYaw > INT16_MAX) sensor.GyroYaw -= UINT16_MAX+1;
+            //if (sensor.GyroPitch > INT16_MAX) sensor.GyroPitch -= UINT16_MAX+1;
+            //if (sensor.GyroRoll > INT16_MAX) sensor.GyroRoll -= UINT16_MAX+1;
 
-                sensor.GyroYaw = sensor.GyroYaw * GYRO_SENSITIVITY_250DPS;
-                sensor.GyroPitch = sensor.GyroPitch * GYRO_SENSITIVITY_250DPS;
-                sensor.GyroRoll = sensor.GyroRoll * GYRO_SENSITIVITY_250DPS;
+            sensor.GyroYaw = sensor.GyroYaw * GYRO_SENSITIVITY_2000DPS;
+            sensor.GyroPitch = sensor.GyroPitch * GYRO_SENSITIVITY_2000DPS;
+            sensor.GyroRoll = sensor.GyroRoll * GYRO_SENSITIVITY_2000DPS;
 
+            while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
+            sensor.batteryTemp = temp_linear_formula(ADC_DR_RESULT(ANALOG_BATT_TEMP));
+            sensor.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068; // Measured and calculated.
+            sensor.batteryChargeCurrent = ((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146; // Trial and error :)
+            if (sensor.batteryChargeCurrent < 0) sensor.batteryChargeCurrent = 0;
+            sensor.motorRCurrent = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
+            sensor.motorLCurrent = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
+            sensor.motorBRpm = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
+            sensor.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
+            // TODO Not using same temperature conversion! ~0c = 3750raw ~7c = 3370raw ~22c = 3090raw ~30c = 3000raw
+            //sensor.boardTemp = temperature2(ADC_DR_RESULT(ANALOG_BOARD_TEMP));
+            sensor.boardTemp = ADC_DR_RESULT(ANALOG_BOARD_TEMP);
+            if ( sensor.rainAnalog < RAIN_ADC_VALUE ) sensor.rain = 1; else sensor.rain = 0;
 
-                
-
-            }
-            
             xQueueOverwrite(xSensorQueue, &sensor);
             
         }

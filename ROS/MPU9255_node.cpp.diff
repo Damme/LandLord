@@ -1,0 +1,21 @@
+--- src/MPU9255/src/MPU9255_node.cpp	2023-05-13 21:02:42.620861636 +0000
++++ src/MPU9255/src/MPU9255_node.cpp-changed	2023-05-13 21:02:15.125253136 +0000
+@@ -26,7 +26,7 @@
+   int16_t InBuffer[9] = {0};
+   static int32_t OutBuffer[3] = {0};
+ 
+-
++   wiringPiI2CWriteReg8(fd, 0x6b, 0x80); //Reset default settings
+    wiringPiI2CWriteReg8(fd, 0x37, 0x22); //Enable the Magnetometer
+    fe = wiringPiI2CSetup(0x0C); //Start the compass
+    wiringPiI2CWriteReg8(fe, 0x0A, 0x01); //Trigger first Mag reading
+@@ -60,7 +60,8 @@
+ 
+     data_imu.angular_velocity.x = InBuffer[3]*conversion_gyro;
+     data_imu.angular_velocity.y = InBuffer[4]*conversion_gyro;
+-    data_imu.angular_velocity.z = InBuffer[5]*conversion_gyro;
++    // wierd offset for the z axis, dont know why.
++    data_imu.angular_velocity.z = (InBuffer[5] * conversion_gyro) * -0.250252f;
+ 
+     //datos magnetómetro
+ 

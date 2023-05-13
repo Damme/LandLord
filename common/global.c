@@ -19,19 +19,25 @@ volatile uint32_t debug1 = 0;
 
 volatile uint32_t cpuID = 0;
 
-volatile TaskHandle_t xHandle[10] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+volatile TaskHandle_t xHandle[15] = {[0 ... 14] = NULL};
 volatile uint8_t taskcounter = 0;
 volatile uint64_t globaltickms = 0;
 volatile uint32_t watchdogSPI = 0;
 
+volatile uint32_t pulsecounterl = 0;
+volatile uint32_t pulsecounterr = 0;
+volatile uint32_t pulsecounterb = 0;
 
 xQueueHandle xScreenMsgQueue;
 xQueueHandle xMotorMsgQueue;
 xQueueHandle xSensorQueue;
 xQueueHandle xBoundaryMsgQueue;
 xQueueHandle xJSONMessageQueue;
-xQueueHandle SPI0TxQueue;
-MessageBufferHandle_t TxMessageBuffer;
+
+//MessageBufferHandle_t TxMessageBuffer;
+MessageBufferHandle_t SPI0RxMessageBuffer;
+MessageBufferHandle_t SPI0TxMessageBuffer;
+xQueueHandle RosTxQueue;
 
 void delay_uS(uint32_t uS) {
     portENTER_CRITICAL();
@@ -60,6 +66,16 @@ void vAssertCalled( void ) {
     }
     taskEXIT_CRITICAL();
 }
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+    for (;;);
+}
+
+
+void vApplicationMallocFailedHook(void) {
+    for (;;);
+}
+
 /*
 typedef void (*IAP)(uint32_t[5], uint32_t[5]);
 const IAP IAP_entry = (IAP)0x1FFF1FF1;
