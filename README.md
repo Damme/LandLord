@@ -75,6 +75,7 @@ wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-a
 sudo tar -xvf gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2 -C /usr/share/
 sudo ln -s /usr/share/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi* /usr/bin/
 
+cd LandLord
 make cpu=1788 #for db504 (the only board that is working atm)
 # flash with openocd, openocd-flash.cfg
 # note you will need to hold down power button to flash with openocd.
