@@ -1,3 +1,4 @@
+
 #include <queue>
 #include <atomic>
 
@@ -31,19 +32,12 @@
 
 #include <xbot_msgs/WheelTick.h>
 
-#include "ll_datatypes.h"
-
-//#include <xesc_driver/xesc_driver.h>
-//#include <xesc_msgs/XescStateStamped.h>
-
 using namespace rapidjson;
 
 #define NOP 0x00
 #define SOF 0x01
 #define EOF 0xFF
 #define buflen  250
-
-#define WHEEL_DISTANCE_M 0.370
 
 spi_config_t spi_config;
 
@@ -74,6 +68,8 @@ bool clear_emergency_WORX = false;
 
 int speed_l = 0, speed_r = 0, speed_mow = 0;
 int last_speed_l = 0, last_speed_r = 0, last_speed_mow = 0;
+double wheel_ticks_per_m = 0.0;
+double wheel_distance_m = 0.0;
 
 int last_highLevelStatusReceived_state = 0;
 
@@ -83,8 +79,9 @@ float board_temp = 0;
 
 void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     last_cmd_vel = ros::Time::now();
-    speed_l = (msg->linear.x - 0.5*WHEEL_DISTANCE_M*msg->angular.z) * 1500;
-    speed_r = (msg->linear.x + 0.5*WHEEL_DISTANCE_M*msg->angular.z) * 1500;
+    speed_r = (msg->linear.x + 0.5*wheel_distance_m*msg->angular.z) * 1500;
+    speed_l = (msg->linear.x - 0.5*wheel_distance_m*msg->angular.z) * 1500;
+    
 
     if (speed_l >= 1500) {
         speed_l = 1500;
@@ -253,8 +250,7 @@ void processI2C_IMU(const rapidjson::Value& i2c_imu) {
 void processMotorTicks(const rapidjson::Value& MotorPulse) {
 //{"MotorPulse":{"Left":890,"Right":884,"Mow":2,"DirLeft":0,"DirRight":0}}
     xbot_msgs::WheelTick wheel_tick_msg;
-    // TODO: set this correctly!
-    wheel_tick_msg.wheel_tick_factor = 0;
+    wheel_tick_msg.wheel_tick_factor = static_cast<unsigned int>(wheel_ticks_per_m);
     wheel_tick_msg.stamp = ros::Time::now();
 
     // Reverse the one that is reversed direction!
@@ -457,6 +453,10 @@ int main(int argc, char **argv) {
         ROS_ERROR_STREAM("Error getting ll_spi_dev_name. Quitting.");
         return 1;
     }
+
+    paramNh.getParam("wheel_ticks_per_m",wheel_ticks_per_m);
+    paramNh.getParam("wheel_distance_m",wheel_distance_m);
+
     // Fire up the communication thread!
     boost::thread spiThread(boost::bind(&spi_thread, std::ref(keep_running), std::ref(n), ll_spi_dev_name));
 
@@ -473,7 +473,6 @@ int main(int argc, char **argv) {
     sensor_mag_msg.header.seq = 0;
     sensor_imu_msg.header.seq = 0;
 
-    // don't change, we need to wait for arduino to boot before actually sending stuff
     ros::Duration retryDelay(5, 0);
     ros::Duration loopDelay(0, 5000000); // 5ms
     ros::AsyncSpinner spinner(1);
@@ -484,9 +483,7 @@ int main(int argc, char **argv) {
     ros::Time last_ping_time = ros::Time::now();
 
     spinner.start();
-// TODO this needs to be sent again if mower restarts / gets a flash during run - else it will never enable motors...
     ros::Duration(0.5).sleep(); // sleep for half a second
-    
     
     while (ros::ok() && keep_running.load()) {
         ros::Time current_time = ros::Time::now();
@@ -524,17 +521,11 @@ int main(int argc, char **argv) {
         
         ParseResult result = document.Parse(rxMsg.c_str());
         if (result) {
-            if (document.HasMember("Boundary")) {
-                //{"Boundary":{"sleft":524272,"sright":338912,"nleft":102,"nright":43}}
+            if (document.HasMember("Analog")) {
+                //{"Analog":{"Rain":3850,"boardTemp":3089}} // Boardtemp raw value unknown conversion
             }
-            if (document.HasMember("I2C_IMU")) {
-                //processI2C_IMU(document["I2C_IMU"]);
-            }
-            if (document.HasMember("MotorPulse")) {
-                processMotorTicks(document["MotorPulse"]);
-            }
-            //{"Battery":{"mV":28014,"mA":0,"Temp":152,"CellLow":1,"CellHigh":1,"InCharger":1}}
             if (document.HasMember("Battery")) {
+                //{"Battery":{"mV":28014,"mA":0,"Temp":152,"CellLow":1,"CellHigh":1,"InCharger":1}}
                 const rapidjson::Value& json = document["Battery"];
                 if (json.HasMember("mV"))
                     v_battery = (float)json["mV"].GetInt() / 1000.0;
@@ -543,13 +534,26 @@ int main(int argc, char **argv) {
                 if (json.HasMember("Temp"))
                     board_temp = (float)json["Temp"].GetInt() / 10.0; // Really BATTERY TEMPERATURE!
             }
-            //{"MotorPWM":{"Left":0,"Right":0,"Mow":0}}
-            //{"MotorCurrent":{"Left":102,"Right":15,"MowRPM":0}}
-            //{"Digital":{"Stuck":1,"Stuck2":1,"Door":1,"Door2":1,"Lift":1,"Collision":0,"Stop":0,"Rain":0}}
-            //{"Analog":{"Rain":3850,"boardTemp":3089}} // Boardtemp raw value unknown conversion
-            
-
-
+            if (document.HasMember("Boundary")) {
+                //{"Boundary":{"sleft":524272,"sright":338912,"nleft":102,"nright":43}}
+            }
+            if (document.HasMember("Digital")) {
+                //{"Digital":{"Stuck":1,"Stuck2":1,"Door":1,"Door2":1,"Lift":1,"Collision":0,"Stop":0,"Rain":0}}
+            }
+            if (document.HasMember("I2C_IMU")) {
+                //{"I2C_IMU":{"Yaw":-117,"Pitch":-316,"Roll":4,"AccX":63,"AccY":52,"AccZ":1034}}
+                //processI2C_IMU(document["I2C_IMU"]);
+            }
+            if (document.HasMember("MotorCurrent")) {
+                //{"MotorCurrent":{"Left":102,"Right":15,"MowRPM":0}}
+            }
+            if (document.HasMember("MotorPulse")) {
+                //{"MotorPulse":{"Left":890,"Right":884,"Mow":2,"DirLeft":0,"DirRight":0}}
+                processMotorTicks(document["MotorPulse"]);
+            }
+            if (document.HasMember("MotorPWM")) {
+                //{"MotorPWM":{"Left":0,"Right":0,"Mow":0}}
+            }
         }
         rxMsg.clear();
         loopDelay.sleep();
