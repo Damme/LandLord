@@ -24,11 +24,20 @@ const char *MotorRequestStrings[] = {
     "MOTORREQ_RESETEMG"
 };
 
-bool block_forward = 0;
 
 void motionSensor_Timer(void) {
     if (!GPIO_CHK_PIN(SENSOR_STUCK) || !GPIO_CHK_PIN(SENSOR_STUCK2) || !GPIO_CHK_PIN(SENSOR_LIFT) || !GPIO_CHK_PIN(SENSOR_COLLISION))
-        block_forward = 1;
+        sensorMsg.blockForward = 1;
+
+    // If robot tilted too much / upside down
+    if (sensorMsg.accelZ < 500) {
+        xMotorMsgType MotorMsg;
+        MotorMsg.action = MOTORREQ_EMGSTOP;
+        MotorMsg.pwm.left = 0;
+        MotorMsg.pwm.right = 0;
+        MotorMsg.pwm.blade = 0;
+        xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay500);
+    }
 }
 
 void motorCtrl_Task(void *pvParameters) {
@@ -38,6 +47,9 @@ void motorCtrl_Task(void *pvParameters) {
 
     MotorCtrl_Init();
     setpwm(0, 0, 0);
+
+    // We need to wait for sensor to start.
+    vTaskDelay(xDelay1000);
   
     TimerHandle_t timer1 = xTimerCreate("Motion sensors", TicksPerMS, pdTRUE, NULL, motionSensor_Timer);
     xTimerStart(timer1, 0);
@@ -89,8 +101,14 @@ void motorCtrl_Task(void *pvParameters) {
                     GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
                     break;
                 case MOTORREQ_SETSPEED:
-                // Block forward on front sensor? Reset on release / reverse / timer ?
                 // Check for overspeed ticks/100ms - is it possible to brake short pulses or even reversing direction with pwm 0 for soft brake?
+                // Initial test seems that reversing direction bit will brake less than full brake.
+
+                    if (sensorMsg.blockForward) {
+                        if (MotorMsg.pwm.left > 0) MotorMsg.pwm.left = 0;
+                        if (MotorMsg.pwm.right > 0) MotorMsg.pwm.right = 0;
+                        if (MotorMsg.pwm.left < 0 || MotorMsg.pwm.right < 0) sensorMsg.blockForward = 0;
+                    } 
 
                     if (MotorMsg.pwm.left < 0) {
                         MotorMsg.pwm.left = -MotorMsg.pwm.left;
@@ -98,12 +116,14 @@ void motorCtrl_Task(void *pvParameters) {
                     } else {
                         GPIO_SET_PIN(MOTOR_LEFT_FORWARD);
                     }
+
                     if (MotorMsg.pwm.right < 0) {
                         MotorMsg.pwm.right = -MotorMsg.pwm.right;
                         GPIO_SET_PIN(MOTOR_RIGHT_FORWARD);
                     } else {
                         GPIO_CLR_PIN(MOTOR_RIGHT_FORWARD);
                     }
+
                     setpwm(MotorMsg.pwm.blade, MotorMsg.pwm.left, MotorMsg.pwm.right);
                     break;
                 case MOTORREQ_BRAKEON:
@@ -121,11 +141,13 @@ void motorCtrl_Task(void *pvParameters) {
                     GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
                     GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
                     GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
+                    sensorMsg.emergancyStop = 1;
                     vTaskDelay(xDelay500);
                     GPIO_CLR_PIN(MOTOR_MOSFET);
                     // Queue idle?
                     break;
                 case MOTORREQ_RESETEMG:
+                    sensorMsg.emergancyStop = 0;
                     GPIO_CLR_PIN(MOTOR_MOSFET);
                     GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
                     GPIO_SET_PIN(MOTOR_LEFT_BRAKE);

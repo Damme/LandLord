@@ -224,6 +224,8 @@ void ROSCommsTx_Task(void *pvParameters) {
         cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(sensorMsg.motorPulseBlade));
         cJSON_AddItemToObject(obj, "DirLeft", cJSON_CreateNumber(!GPIO_CHK_PIN(MOTOR_LEFT_FORWARD)));
         cJSON_AddItemToObject(obj, "DirRight", cJSON_CreateNumber(GPIO_CHK_PIN(MOTOR_RIGHT_FORWARD)));
+        cJSON_AddItemToObject(obj, "Emergancy", cJSON_CreateNumber(sensorMsg.emergancyStop));
+        cJSON_AddItemToObject(obj, "BlockForward", cJSON_CreateNumber(sensorMsg.blockForward));
         cJSON_AddItemToObject(root, "MotorPulse", obj);
         cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
         xQueueSend(RosTxQueue, local_txbuf, xDelay10);

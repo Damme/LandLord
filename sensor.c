@@ -101,9 +101,9 @@ void EINT3_IRQHandler(void) {
     return;
 }
 
-volatile uint8_t lastpulsel = 0;
-volatile uint8_t lastpulser = 0;
-volatile uint8_t lastpulseb = 0;
+volatile bool lastpulsel = 0;
+volatile bool lastpulser = 0;
+volatile bool lastpulseb = 0;
 
 void TIMER2_IRQHandler(void) {
     sensorMsg.globalticksms++;
@@ -157,10 +157,8 @@ void sensor_Task(void *pvParameters) {
 
     I2C1_Send_Addr(L3GD20, 0x39, 0x01); // Low_ODR
    
-    
-    
 
-    vTaskDelay(xDelay250);
+    vTaskDelay(xDelay100);
 
     for (;;) {
         vTaskDelay(xDelay10);
