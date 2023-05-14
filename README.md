@@ -15,15 +15,17 @@ General schematic, work in progress. Made from memory - no guarantee it is worki
 Note code for setting up INA226 is missing at the moment, this needs to be programmed every start and should be done in a i2c module we need to write. This module should also handle the MPU9255 for the IMU data to ROS. TBD
 
 
-* ROS enviroment
-Follow and install https://wiki.openmower.de/index.php?title=System_Image but run `git clone --recursive -b worx_comms https://github.com/Damme/open_mower_ros`  instead of ClemensElflein repo, also note the branch.
+## ROS enviroment
+Follow and install https://wiki.openmower.de/index.php?title=System_Image 
+But run 
+```git clone --recursive -b worx_comms https://github.com/Damme/open_mower_ros```  instead of ClemensElflein repo, also note the branch.
 
 Edit ~/mower_config.sh, set OM_MOWER="Worx" and uncomment last line in file.
 
 ## Worx firmware
+install arm-none-eabi-gcc https://developer.arm.com/downloads/-/gnu-rm
+Note that some older versions does compile but generates a binary that does not start. I have no idea why.
 ```
-# install arm-none-eabi-gcc https://developer.arm.com/downloads/-/gnu-rm
-cd ..
 wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2
 sudo tar -xvf gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2 -C /usr/share/
 sudo ln -s /usr/share/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi* /usr/bin/
@@ -42,7 +44,7 @@ Known things that needs implemtentation
 * Working emegancy stop and communication to ROS and reset emergancy stop
 * internal tilt sensor emergancy stop if z val < threashold (mower leaning too much, upside down, standing on its side/back)
 
-* xSensorQueue and replaced with global struct sensorMsg instead. We need toadd Semaphores before updating sensorMsg! (read should be ok though...?)
+* xSensorQueue is now replaced with global struct sensorMsg instead. We need to add Semaphores before updating sensorMsg! (read should be ok though...?)
 
 * BUG - Investigate the relationship with CHARGER_CHECK, CHARGER_CONNECTED, CHARGER_ENABLE, MOTOR_MOSFET. It seems we need both MOTOR_MOSFET and CHARGER_CHECK enabled to get a reading on CHARGER_CONNECTED. Make powermgmt.c more reliable. I still want to keep the "keep alive charger" function. since the mower standby voltage is so much higher I still want to re-enable charging. Pulse the CHARGER_ENABLE for 10ms every 500ms is enough to make the charger being kept in "red" state.
 
