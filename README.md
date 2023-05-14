@@ -89,7 +89,7 @@ Known things that needs implemtentation
 * Working emegancy stop and communication to ROS and reset emergancy stop
 * internal tilt sensor emergancy stop if z val < threashold (mower leaning too much, upside down, standing on its side/back)
 
-* For some reason sensor_Task just stops running. - I do not know what line of code is halting, I think the problem is xSensorQueue. We are using it as a global struct and xQueuePeek + xQueueOverwrite and this is not used as intended. Rewrite this to use a global struct instead and xSemaphore to prevent race conditions...
+* xSensorQueue and replaced with global struct sensorMsg instead. We need toadd Semaphores before updating sensorMsg! (read should be ok though...?)
 
 * BUG - Investigate the relationship with CHARGER_CHECK, CHARGER_CONNECTED, CHARGER_ENABLE, MOTOR_MOSFET. It seems we need both MOTOR_MOSFET and CHARGER_CHECK enabled to get a reading on CHARGER_CONNECTED. Make powermgmt.c more reliable. I still want to keep the "keep alive charger" function. since the mower standby voltage is so much higher I still want to re-enable charging. Pulse the CHARGER_ENABLE for 10ms every 500ms is enough to make the charger being kept in "red" state.
 
