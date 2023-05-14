@@ -34,20 +34,17 @@ void motionSensor_Timer(void) {
 void motorCtrl_Task(void *pvParameters) {
 
     xMotorRequestType lastState = -1;
-
     xMotorMsgType MotorMsg;
-    xSensorMsgType SensorMsg;
 
     MotorCtrl_Init();
     setpwm(0, 0, 0);
-
   
     TimerHandle_t timer1 = xTimerCreate("Motion sensors", TicksPerMS, pdTRUE, NULL, motionSensor_Timer);
     xTimerStart(timer1, 0);
 
     for (;;) {
 
-        if (watchdogSPI > 4000) {
+        if (sensorMsg.watchdogSPI > 4000) {
             setpwm(0,0,0);
             xScreenMsgType screenMsg;
             screenMsg.time=50;

@@ -13,9 +13,8 @@
 #include "task.h"
 #include "message_buffer.h"
 
-extern bool run;
-
 extern TickType_t xDelay1;
+extern TickType_t xDelay5;
 extern TickType_t xDelay10;
 extern TickType_t xDelay25;
 extern TickType_t xDelay50;
@@ -27,12 +26,10 @@ extern TickType_t xDelay500;
 extern TickType_t xDelay1000;
 extern TickType_t xDelay2000;
 
-extern xQueueHandle xSensorQueue;
 extern xQueueHandle xScreenMsgQueue;
 extern xQueueHandle xMotorMsgQueue;
 extern xQueueHandle xBoundaryMsgQueue;
 extern xQueueHandle xJSONMessageQueue;
-//extern MessageBufferHandle_t TxMessageBuffer;
 extern MessageBufferHandle_t SPI0RxMessageBuffer;
 extern MessageBufferHandle_t SPI0TxMessageBuffer;
 extern xQueueHandle RosTxQueue;
@@ -46,35 +43,41 @@ typedef struct {
     bool stuck;
     bool stuck2;
     bool door;
+    bool door2;
     bool lift;
     bool collision;
     bool stop;
-    bool door2;
     bool rain;
-    bool incharger;
     bool batteryCellLow;
     bool batteryCellHigh;
+    bool inCharger;
+    bool blockForward;
+    bool emergancyStop;
+    int32_t globalticksms;
+    int32_t watchdogSPI;
     int32_t rainAnalog;
     int32_t batteryTemp;
     int32_t batteryVolt;
     int32_t batteryChargeCurrent;
-    int32_t motorRCurrent;
-    int32_t motorLCurrent;
-    int32_t motorBRpm;
     int32_t boardTemp;
-    int16_t AccelX;
-    int16_t AccelY;
-    int16_t AccelZ;
-    int16_t GyroYaw;
-    int16_t GyroPitch;
-    int16_t GyroRoll;
-    uint16_t CurrentPWMRight;
-    uint16_t CurrentPWMLeft;
-    uint16_t CurrentPWMSpindle;
-    int32_t motorpulseleft;
-    int32_t motorpulseright;
-    int32_t motorpulseblade;
-} xSensorMsgType;
+    int16_t accelX;
+    int16_t accelY;
+    int16_t accelZ;
+    int16_t gyroYaw;
+    int16_t gyroPitch;
+    int16_t gyroRoll;
+    uint16_t currentPWMRight;
+    uint16_t currentPWMLeft;
+    uint16_t currentPWMBlade;
+    uint16_t motorCurrentRight;
+    uint16_t motorCurrentLeft;
+    uint16_t motorCurrentBlade;
+    int32_t motorPulseLeft;
+    int32_t motorPulseRight;
+    int32_t motorPulseBlade;
+} SensorType;
+
+
 
 // V0.7#S-239568|+502936#N035|143#C073#
 typedef struct {
@@ -123,10 +126,6 @@ typedef struct {
     } pwm;
 } xMotorMsgType;
 
-extern volatile uint32_t pulsecounterl;
-extern volatile uint32_t pulsecounterr;
-extern volatile uint32_t pulsecounterb;
-
 /*
 #pragma anon_unions
 typedef struct {
@@ -148,9 +147,8 @@ extern volatile uint32_t cpuID;
 
 extern volatile TaskHandle_t xHandle[15];
 extern volatile uint8_t taskcounter;
-extern volatile uint64_t globaltickms;
-extern volatile uint32_t watchdogSPI;
 
+extern SensorType sensorMsg;
 
 //int _write(int fd, char *ptr, int len);
 void delay_uS(uint32_t uS);

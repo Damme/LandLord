@@ -66,7 +66,7 @@ int main(void) {
     hardware_Init();
     
     xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
-    xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
+    //xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
     xBoundaryMsgQueue = xQueueCreate(1, sizeof(xBoundaryMsgType));
     xJSONMessageQueue = xQueueCreate(8, sizeof(xJSONMessageType));
@@ -74,6 +74,8 @@ int main(void) {
     SPI0RxMessageBuffer = xMessageBufferCreate( 1000 );
     //TxMessageBuffer = xMessageBufferCreate( 250 * 5 );
     RosTxQueue = xQueueCreate(15, 250);
+
+    memset(&sensorMsg, 0, sizeof(SensorType));
     
     
   //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);

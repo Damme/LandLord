@@ -148,27 +148,25 @@ void lcdPrintDebug() {
 
 
 void lcdPrintSensor() {
-    xSensorMsgType sensor;
-    xQueuePeek(xSensorQueue, &sensor, xDelay1);
 
     //u8g_SetDefaultBackgroundColor(&u8g);
     //u8g_DrawBox(&u8g, 0, 0, 128, 64);
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
     
-    sprintf(buffer, "Battery: %iC %imV %imA| %i %i %i", sensor.batteryTemp, sensor.batteryVolt, sensor.batteryChargeCurrent, GPIO_CHK_PIN(MOTOR_MOSFET), GPIO_CHK_PIN(MOTOR_BLADE_BRAKE), LPC_PWM1->MR1);
+    sprintf(buffer, "Battery: %iC %imV %imA| %i %i %i", sensorMsg.batteryTemp, sensorMsg.batteryVolt, sensorMsg.batteryChargeCurrent, GPIO_CHK_PIN(MOTOR_MOSFET), GPIO_CHK_PIN(MOTOR_BLADE_BRAKE), LPC_PWM1->MR1);
     u8g_DrawStr(&u8g,  0, 20, buffer);
 
-    sprintf(buffer, "T: %iC Rain %i C%iL%iS1%iS2%iD%i", sensor.boardTemp, sensor.rainAnalog, sensor.collision, sensor.lift, sensor.stuck, sensor.stuck2, sensor.door);
+    sprintf(buffer, "T: %iC Rain %i C%iL%iS1%iS2%iD%i", sensorMsg.boardTemp, sensorMsg.rainAnalog, sensorMsg.collision, sensorMsg.lift, sensorMsg.stuck, sensorMsg.stuck2, sensorMsg.door);
     u8g_DrawStr(&u8g,  0, 28, buffer);
 
-    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensor.motorBRpm, sensor.motorLCurrent, sensor.motorRCurrent);
+    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensorMsg.motorCurrentLeft, sensorMsg.motorCurrentRight, sensorMsg.motorCurrentBlade);
     u8g_DrawStr(&u8g,  0, 36, buffer);
 
-    sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensor.AccelX, sensor.AccelY, sensor.AccelZ);
+    sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensorMsg.accelX, sensorMsg.accelY, sensorMsg.accelZ);
     u8g_DrawStr(&u8g,  0, 44, buffer);
     
-    sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d", sensor.GyroYaw, sensor.GyroPitch, sensor.GyroRoll);
+    sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d", sensorMsg.gyroYaw, sensorMsg.gyroPitch, sensorMsg.gyroRoll);
     u8g_DrawStr(&u8g,  0, 52, buffer);    
 
 

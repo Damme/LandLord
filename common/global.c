@@ -3,6 +3,7 @@
 //int stack_Keypad, stack_Counter, stack_LCD, stack_ADC = 0;
 
 TickType_t xDelay1 = TicksPerMS * 1;
+TickType_t xDelay5 = TicksPerMS * 5;
 TickType_t xDelay10 = TicksPerMS * 10;
 TickType_t xDelay25 = TicksPerMS * 25;
 TickType_t xDelay50 = TicksPerMS * 50;
@@ -14,27 +15,18 @@ TickType_t xDelay500 = TicksPerMS * 500;
 TickType_t xDelay1000 = TicksPerMS * 1000;
 TickType_t xDelay2000 = TicksPerMS * 2000;
 
-
-volatile uint32_t debug1 = 0;
-
 volatile uint32_t cpuID = 0;
 
 volatile TaskHandle_t xHandle[15] = {[0 ... 14] = NULL};
 volatile uint8_t taskcounter = 0;
-volatile uint64_t globaltickms = 0;
-volatile uint32_t watchdogSPI = 0;
-
-volatile uint32_t pulsecounterl = 0;
-volatile uint32_t pulsecounterr = 0;
-volatile uint32_t pulsecounterb = 0;
 
 xQueueHandle xScreenMsgQueue;
 xQueueHandle xMotorMsgQueue;
-xQueueHandle xSensorQueue;
 xQueueHandle xBoundaryMsgQueue;
 xQueueHandle xJSONMessageQueue;
 
-//MessageBufferHandle_t TxMessageBuffer;
+SensorType sensorMsg;
+
 MessageBufferHandle_t SPI0RxMessageBuffer;
 MessageBufferHandle_t SPI0TxMessageBuffer;
 xQueueHandle RosTxQueue;

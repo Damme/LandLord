@@ -123,7 +123,7 @@ void ROSCommsRx_Task(void *pvParameters) {
                             cJSON_PrintPreallocated(msg, local_txbuf, buflen, false);
                             xQueueSend(RosTxQueue, local_txbuf, xDelay25);
                             cJSON_Delete(msg);
-                            watchdogSPI=0;
+                            sensorMsg.watchdogSPI=0;
                         }
                     } else if (!strcasecmp(command->string, "MOTORREQ_DISABLE")) {
                         cJSON* REQ = cJSON_GetObj(root, "MOTORREQ_DISABLE");
@@ -177,7 +177,6 @@ void ROSCommsTx_Task(void *pvParameters) {
     vTaskDelay(xDelay1000);
     ROScomms_Init();
 
-    xSensorMsgType sensor;
     xBoundaryMsgType BoundaryMsg;
     HeapStats_t xHeapStats;
 
@@ -204,17 +203,15 @@ void ROSCommsTx_Task(void *pvParameters) {
             cJSON_Delete(root);
         }
         
-        xQueuePeek(xSensorQueue, &sensor, xDelay10);
-
         // IMU Data:
         cJSON* root = cJSON_CreateObject();
         cJSON* obj = cJSON_CreateObject();
-        cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(sensor.GyroYaw));
-        cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(sensor.GyroPitch));
-        cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(sensor.GyroRoll));
-        cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(sensor.AccelX));
-        cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(sensor.AccelY));
-        cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(sensor.AccelZ));
+        cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(sensorMsg.gyroYaw));
+        cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(sensorMsg.gyroPitch));
+        cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(sensorMsg.gyroRoll));
+        cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(sensorMsg.accelX));
+        cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(sensorMsg.accelY));
+        cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(sensorMsg.accelZ));
         cJSON_AddItemToObject(root, "I2C_IMU", obj);
         cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
         xQueueSend(RosTxQueue, local_txbuf, xDelay10);
@@ -222,9 +219,9 @@ void ROSCommsTx_Task(void *pvParameters) {
 
         root = cJSON_CreateObject();
         obj = cJSON_CreateObject();
-        cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(pulsecounterl));
-        cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(pulsecounterr));
-        cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(pulsecounterb));
+        cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensorMsg.motorPulseLeft));
+        cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensorMsg.motorPulseRight));
+        cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(sensorMsg.motorPulseBlade));
         cJSON_AddItemToObject(obj, "DirLeft", cJSON_CreateNumber(!GPIO_CHK_PIN(MOTOR_LEFT_FORWARD)));
         cJSON_AddItemToObject(obj, "DirRight", cJSON_CreateNumber(GPIO_CHK_PIN(MOTOR_RIGHT_FORWARD)));
         cJSON_AddItemToObject(root, "MotorPulse", obj);
@@ -250,28 +247,28 @@ if (!(counter % 5)) {
         obj = cJSON_CreateObject();
         switch (printmsg) {
             case 1:
-                cJSON_AddItemToObject(obj, "mV", cJSON_CreateNumber(sensor.batteryVolt));
-                cJSON_AddItemToObject(obj, "mA", cJSON_CreateNumber(sensor.batteryChargeCurrent));
-                cJSON_AddItemToObject(obj, "Temp", cJSON_CreateNumber(sensor.batteryTemp));
-                cJSON_AddItemToObject(obj, "CellLow", cJSON_CreateNumber(sensor.batteryCellLow));
-                cJSON_AddItemToObject(obj, "CellHigh", cJSON_CreateNumber(sensor.batteryCellHigh));
-                cJSON_AddItemToObject(obj, "InCharger", cJSON_CreateNumber(sensor.incharger));
+                cJSON_AddItemToObject(obj, "mV", cJSON_CreateNumber(sensorMsg.batteryVolt));
+                cJSON_AddItemToObject(obj, "mA", cJSON_CreateNumber(sensorMsg.batteryChargeCurrent));
+                cJSON_AddItemToObject(obj, "Temp", cJSON_CreateNumber(sensorMsg.batteryTemp));
+                cJSON_AddItemToObject(obj, "CellLow", cJSON_CreateNumber(sensorMsg.batteryCellLow));
+                cJSON_AddItemToObject(obj, "CellHigh", cJSON_CreateNumber(sensorMsg.batteryCellHigh));
+                cJSON_AddItemToObject(obj, "InCharger", cJSON_CreateNumber(sensorMsg.inCharger));
                 cJSON_AddItemToObject(root, "Battery", obj);
                 break;
             case 2:
-                cJSON_AddItemToObject(obj, "Stuck", cJSON_CreateNumber(sensor.stuck));
-                cJSON_AddItemToObject(obj, "Stuck2", cJSON_CreateNumber(sensor.stuck2));
-                cJSON_AddItemToObject(obj, "Door", cJSON_CreateNumber(sensor.door));
-                cJSON_AddItemToObject(obj, "Door2", cJSON_CreateNumber(sensor.door2));
-                cJSON_AddItemToObject(obj, "Lift", cJSON_CreateNumber(sensor.lift));
-                cJSON_AddItemToObject(obj, "Collision", cJSON_CreateNumber(sensor.collision));
-                cJSON_AddItemToObject(obj, "Stop", cJSON_CreateNumber(sensor.stop));
-                cJSON_AddItemToObject(obj, "Rain", cJSON_CreateNumber(sensor.rain));
+                cJSON_AddItemToObject(obj, "Stuck", cJSON_CreateNumber(sensorMsg.stuck));
+                cJSON_AddItemToObject(obj, "Stuck2", cJSON_CreateNumber(sensorMsg.stuck2));
+                cJSON_AddItemToObject(obj, "Door", cJSON_CreateNumber(sensorMsg.door));
+                cJSON_AddItemToObject(obj, "Door2", cJSON_CreateNumber(sensorMsg.door2));
+                cJSON_AddItemToObject(obj, "Lift", cJSON_CreateNumber(sensorMsg.lift));
+                cJSON_AddItemToObject(obj, "Collision", cJSON_CreateNumber(sensorMsg.collision));
+                cJSON_AddItemToObject(obj, "Stop", cJSON_CreateNumber(sensorMsg.stop));
+                cJSON_AddItemToObject(obj, "Rain", cJSON_CreateNumber(sensorMsg.rain));
                 cJSON_AddItemToObject(root, "Digital", obj);
                 break;
             case 3:
-                cJSON_AddItemToObject(obj, "Rain", cJSON_CreateNumber(sensor.rainAnalog));
-                cJSON_AddItemToObject(obj, "boardTemp", cJSON_CreateNumber(sensor.boardTemp)); // RAW
+                cJSON_AddItemToObject(obj, "Rain", cJSON_CreateNumber(sensorMsg.rainAnalog));
+                cJSON_AddItemToObject(obj, "boardTemp", cJSON_CreateNumber(sensorMsg.boardTemp)); // RAW
                 cJSON_AddItemToObject(root, "Analog", obj);
                 break;
             case 4:
@@ -281,15 +278,15 @@ if (!(counter % 5)) {
                 cJSON_AddItemToObject(root, "MotorPWM", obj);
                 break;
             /*case 5:
-                cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensor.motorpulseleft));
-                cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensor.motorpulseright));
-                cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(sensor.motorpulseblade));
+                cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensorMsg.motorpulseleft));
+                cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensorMsg.motorpulseright));
+                cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(sensorMsg.motorpulseblade));
                 cJSON_AddItemToObject(root, "MotorPulse", obj);
                 break;*/
             case 5:
-                cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensor.motorRCurrent));
-                cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensor.motorLCurrent));
-                cJSON_AddItemToObject(obj, "MowRPM", cJSON_CreateNumber(sensor.motorBRpm));
+                cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensorMsg.motorCurrentLeft));
+                cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensorMsg.motorCurrentRight));
+                cJSON_AddItemToObject(obj, "MowRPM", cJSON_CreateNumber(sensorMsg.motorCurrentBlade));
                 cJSON_AddItemToObject(root, "MotorCurrent", obj);
                 printmsg = 0;
                 break;
@@ -297,19 +294,19 @@ if (!(counter % 5)) {
                 printmsg = 0;
                 break;
             /*case 7:
-                cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(sensor.GyroYaw));
-                cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(sensor.GyroPitch));
-                cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(sensor.GyroRoll));
-                cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(sensor.AccelX));
-                cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(sensor.AccelY));
-                cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(sensor.AccelZ));
+                cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(sensorMsg.GyroYaw));
+                cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(sensorMsg.GyroPitch));
+                cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(sensorMsg.GyroRoll));
+                cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(sensorMsg.AccelX));
+                cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(sensorMsg.AccelY));
+                cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(sensorMsg.AccelZ));
                 cJSON_AddItemToObject(root, "I2C_IMU", obj);
                 
                 break;
             case 8:
-                cJSON_AddItemToObject(obj, "AccelX", cJSON_CreateNumber(sensor.AccelX));
-                cJSON_AddItemToObject(obj, "AccelY", cJSON_CreateNumber(sensor.AccelY));
-                cJSON_AddItemToObject(obj, "AccelZ", cJSON_CreateNumber(sensor.AccelZ));
+                cJSON_AddItemToObject(obj, "AccelX", cJSON_CreateNumber(sensorMsg.AccelX));
+                cJSON_AddItemToObject(obj, "AccelY", cJSON_CreateNumber(sensorMsg.AccelY));
+                cJSON_AddItemToObject(obj, "AccelZ", cJSON_CreateNumber(sensorMsg.AccelZ));
                 cJSON_AddItemToObject(root, "I2C_MMA8452Q", obj);
                 break;
             case 9:

@@ -59,7 +59,6 @@ void powerMgmt_Task(void *pvParameters) {
     powerStates powerState = StartCharging; // Ugly fix for forcing charger active when restarting aldready connected to charger.
     powerStates lastState = 0;
     
-    xSensorMsgType sensor;
     xScreenMsgType screenMsg;
     uint16_t count = 5;
     
@@ -71,7 +70,6 @@ void powerMgmt_Task(void *pvParameters) {
             strcpy(JSONMsg.value, powerStateStrings[powerState]);
             xQueueSend(xJSONMessageQueue, &JSONMsg, xDelay100);
         }
-        xQueuePeek(xSensorQueue, &sensor, TicksPerMS*10);
         switch(powerState) {
             case Startup:
 
@@ -116,13 +114,12 @@ void powerMgmt_Task(void *pvParameters) {
                     sprintf(screenMsg.text, "No charger found!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);*/
                 }
-                if (GPIO_CHK_PIN(CHARGER_CONNECTED) || sensor.batteryChargeCurrent > 5) {
+                if (GPIO_CHK_PIN(CHARGER_CONNECTED) || sensorMsg.batteryChargeCurrent > 5) {
                     setpwm(0,0,0);
                     GPIO_CLR_PIN(CHARGER_CHECK);
                     //GPIO_CLR_PIN(MOTOR_MOSFET);                    
                     
-                    sensor.incharger = 1;
-                    xQueueOverwrite(xSensorQueue, &sensor);
+                    sensorMsg.inCharger = 1;
                     
                     powerState = StartCharging;
                     
@@ -148,19 +145,18 @@ void powerMgmt_Task(void *pvParameters) {
                 break;
 
             case Charging:
-                if (sensor.batteryChargeCurrent > 5) {
+                if (sensorMsg.batteryChargeCurrent > 5) {
                     count = 50;
                     // TODO Tempeature checks
-                    if (sensor.batteryTemp > 430) powerState = BatteryCooldown;
+                    if (sensorMsg.batteryTemp > 430) powerState = BatteryCooldown;
                     // TODO Count mAh/Wh charged
                     // TODO Start time and elapsed charging time
-                    if (!sensor.incharger) {
-                        sensor.incharger = 1;
-                        xQueueOverwrite(xSensorQueue, &sensor);
+                    if (!sensorMsg.inCharger) {
+                        sensorMsg.inCharger = 1;
                     }
                 }
 
-                if (sensor.batteryVolt > BATTERY_MAX_VOLT) {
+                if (sensorMsg.batteryVolt > BATTERY_MAX_VOLT) {
                     GPIO_SET_PIN(CHARGER_CHECK);
                     powerState = ChargingFinished;
                     
@@ -184,7 +180,7 @@ void powerMgmt_Task(void *pvParameters) {
                 GPIO_SET_PIN(CHARGER_ENABLE);
                 vTaskDelay(xDelay10); // 10ms is enough
                 GPIO_CLR_PIN(CHARGER_ENABLE);
-                if (sensor.batteryTemp < 420) powerState = StartCharging;
+                if (sensorMsg.batteryTemp < 420) powerState = StartCharging;
                 break;
 
             case ChargingFinished:
@@ -198,11 +194,11 @@ void powerMgmt_Task(void *pvParameters) {
                 // second we still get a value of > 300mA. maybe we should "correct" this in software?
 
                 // check if we get ADC value to see if charger is still alive? (how long time charge period does this require?)
-                if (!sensor.incharger) powerState = Idle;
+                if (!sensorMsg.inCharger) powerState = Idle;
                 // TODO TODO Noone clears incharger state as of now, Either ROS comms when backing out of charger or sensor when 
                 // forward motion is detected.
                 
-                if (sensor.batteryVolt < ( BATTERY_MAX_VOLT - BATTERY_DELTA_VOLT) ) powerState = StartCharging;
+                if (sensorMsg.batteryVolt < ( BATTERY_MAX_VOLT - BATTERY_DELTA_VOLT) ) powerState = StartCharging;
                 break;
 
             case ChargingFailed:
@@ -222,9 +218,9 @@ void powerMgmt_Task(void *pvParameters) {
                 break;
 
         }
-        if (sensor.batteryVolt < (BATTERY_MIN_VOLT + BATTERY_DELTA_VOLT)) {
+        if (sensorMsg.batteryVolt < (BATTERY_MIN_VOLT + BATTERY_DELTA_VOLT)) {
             // Signal ROS need charge!            
-        } else if (sensor.batteryVolt < (BATTERY_MIN_VOLT - BATTERY_DELTA_VOLT)) {
+        } else if (sensorMsg.batteryVolt < (BATTERY_MIN_VOLT - BATTERY_DELTA_VOLT)) {
             // Signal ROS to shutdown - also enter shutdown state!
         }
 
