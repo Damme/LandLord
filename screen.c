@@ -8,7 +8,7 @@ char buffer[50];
 
 u8g_t u8g;
 
-uint8_t lcdCounter;
+uint8_t lcdCounter = 0;
 const listItem_t mainMenuList[7];
 const listItem_t menuSublist1[7];
 
@@ -154,13 +154,13 @@ void lcdPrintSensor() {
     u8g_SetDefaultForegroundColor(&u8g);
     u8g_SetFont(&u8g, u8g_font_4x6);
     
-    sprintf(buffer, "Battery: %iC %imV %imA| %i %i %i", sensorMsg.batteryTemp, sensorMsg.batteryVolt, sensorMsg.batteryChargeCurrent, GPIO_CHK_PIN(MOTOR_MOSFET), GPIO_CHK_PIN(MOTOR_BLADE_BRAKE), LPC_PWM1->MR1);
+        sprintf(buffer, "Battery: %liC %limV %limA", sensorMsg.batteryTemp, sensorMsg.batteryVolt, sensorMsg.batteryChargeCurrent);
     u8g_DrawStr(&u8g,  0, 20, buffer);
 
-    sprintf(buffer, "T: %iC Rain %i C%iL%iS1%iS2%iD%i", sensorMsg.boardTemp, sensorMsg.rainAnalog, sensorMsg.collision, sensorMsg.lift, sensorMsg.stuck, sensorMsg.stuck2, sensorMsg.door);
+    sprintf(buffer, "T: %liC Rain %li C%iL%iS1%iS2%iD%i", sensorMsg.boardTemp, sensorMsg.rainAnalog, sensorMsg.collision, sensorMsg.lift, sensorMsg.stuck, sensorMsg.stuck2, sensorMsg.door);
     u8g_DrawStr(&u8g,  0, 28, buffer);
 
-    sprintf(buffer, "Motor (RPM??): %ld %ld %ld", sensorMsg.motorCurrentLeft, sensorMsg.motorCurrentRight, sensorMsg.motorCurrentBlade);
+    sprintf(buffer, "MotorCurr: %d %d %d", sensorMsg.motorCurrentLeft, sensorMsg.motorCurrentRight, sensorMsg.motorCurrentBlade);
     u8g_DrawStr(&u8g,  0, 36, buffer);
 
     sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensorMsg.accelX, sensorMsg.accelY, sensorMsg.accelZ);
@@ -171,35 +171,27 @@ void lcdPrintSensor() {
 
 
     if (keypad_GetKey() == KEY1 && !keypressed) {
-        GPIO_CLR_PIN(MOTOR_MOSFET);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY2 && !keypressed) {
-        GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY3 && !keypressed) {
-        LPC_PWM1->MR1 = 0;
         keypressed = true;
     }
     if (keypad_GetKey() == KEY4 && !keypressed) {
-        GPIO_SET_PIN(MOTOR_MOSFET);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY5 && !keypressed) {
-        GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY6 && !keypressed) {
-        LPC_PWM1->MR1 = 2047;
         keypressed = true;
     }
     if (keypad_GetKey() == KEY7 && !keypressed) {
-        GPIO_CLR_PIN(MOTOR_BLADE_ENABLE);
         keypressed = true;
     }
     if (keypad_GetKey() == KEY8 && !keypressed) {
-        GPIO_SET_PIN(MOTOR_BLADE_ENABLE);
         keypressed = true;
     }
 
@@ -292,11 +284,8 @@ const menuItem_t M0 = {/*0, SCREEN,*/ "Boot", menuBootfnc, NULL};
 const menuItem_t M1 = {/*1, SCREEN,*/ "WARNING!", menuBootWarnfnc, NULL};
 const menuItem_t M2 = {/*1, SCREEN,*/ "Main", menuListfnc, &mainMenuList};
 
-//currentDisp_t currentDisplay = {&M0, NULL, NULL, 0}; // Startscreen with warning
-currentDisp_t currentDisplay = {&M2, &lcdPrintSensor, NULL, 0}; // Startscreen
-
-uint8_t lcdCounter = 0;
-
+currentDisp_t currentDisplay = {&M0, NULL, NULL, 0}; // Startscreen with warning
+//currentDisp_t currentDisplay = {&M2, &lcdPrintSensor, NULL, 0}; // Startscreen
 
 void menuListfnc(void *ptr) {
     uint8_t h, w, count;
@@ -357,11 +346,11 @@ void testfunc(void) {
 
 
 void motortest(void) {
-    int enb, brk, dir = 0;
+/*    int enb, brk, dir = 0;
     int *enbPort, *brkPort, *dirPort, *pwmPort;
 
     char tmp[2] = "";
-/*
+
     if (keypad_GetKey() == KEYSTART && !keypressed) {
         keypressed = true;
 
@@ -480,6 +469,13 @@ void menuBootWarnfnc(void) {
         currentDisplay.command = NULL;
         currentDisplay.parm = NULL;
         keypressed = true;
+    }
+    lcdCounter++;
+    if (lcdCounter > 100) {
+        currentDisplay.selected = &M2;
+        currentDisplay.command = NULL;
+        currentDisplay.parm = NULL;
+        lcdCounter = 0;
     }
 
 }
