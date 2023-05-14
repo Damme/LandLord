@@ -17,9 +17,10 @@ Note code for setting up INA226 is missing at the moment, this needs to be progr
 
 ## ROS enviroment
 Follow and install https://wiki.openmower.de/index.php?title=System_Image 
-But run 
-```git clone --recursive -b worx_comms https://github.com/Damme/open_mower_ros```  instead of ClemensElflein repo, also note the branch.
-
+But run the following instead of ClemensElflein repo, also note the branch.
+```
+git clone --recursive -b worx_comms https://github.com/Damme/open_mower_ros
+```  
 Edit ~/mower_config.sh, set OM_MOWER="Worx" and uncomment last line in file.
 
 ## Worx firmware
