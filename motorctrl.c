@@ -29,8 +29,8 @@ void motionSensor_Timer(void) {
     if (!GPIO_CHK_PIN(SENSOR_STUCK) || !GPIO_CHK_PIN(SENSOR_STUCK2) || !GPIO_CHK_PIN(SENSOR_LIFT) || !GPIO_CHK_PIN(SENSOR_COLLISION))
         sensorMsg.blockForward = 1;
 
-    // If robot tilted too much / upside down
-    if (sensorMsg.accelZ < 500) {
+    // If robot tilted too much / upside down and blade on emergancy stop!
+    if (sensorMsg.accelZ < 500 && sensorMsg.currentPWMBlade > 0) {
         xMotorMsgType MotorMsg;
         MotorMsg.action = MOTORREQ_EMGSTOP;
         MotorMsg.pwm.left = 0;
