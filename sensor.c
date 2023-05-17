@@ -126,8 +126,8 @@ void TIMER2_IRQHandler(void) {
 
 void sensor_Task(void *pvParameters) {
     sensor_Init();
-    GenericSensor accel;
-    GenericSensor gyro;
+    GenericSensor accel = {0,0,0,0,0,0};
+    GenericSensor gyro = {0,0,0,0,0,0};
 
     // Setup timer for pulse counter isr.
     LPC_SC->PCONP |= PCONP_PCTIM2;
@@ -181,7 +181,7 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.currentPWMBlade = LPC_PWM1->MR1;
 
 // MMA8452Q
-        I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), &accel);
+        //I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), (uint8_t*)&accel); // Bug? seem to freeze sensor task? go through i2c code!
         sensorMsg.accelX = ((accel.X2 << 8) + accel.X1) >> 4;
         sensorMsg.accelY = ((accel.Y2 << 8) + accel.Y1) >> 4;
         sensorMsg.accelZ = ((accel.Z2 << 8) + accel.Z1) >> 4;
@@ -191,7 +191,7 @@ void sensor_Task(void *pvParameters) {
 
 // L3GD20  
         // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
-        I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), &gyro);
+        //I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro); // Bug? seem to freeze sensor task? i2c code!
         sensorMsg.gyroYaw = (gyro.X1 << 8) + gyro.X2;
         sensorMsg.gyroPitch = (gyro.Y1 << 8) + gyro.Y2;
         sensorMsg.gyroRoll = (gyro.Z1 << 8) + gyro.Z2;
