@@ -56,12 +56,11 @@ void powerMgmt_Task(void *pvParameters) {
     GPIO_CLR_PIN(CHARGER_ENABLE);
     
     TickType_t delay = xDelay50;
-    powerStates powerState = StartCharging; // Ugly fix for forcing charger active when restarting aldready connected to charger.
+    powerStates powerState = CheckChargerInit;
     powerStates lastState = 0;
     
     xScreenMsgType screenMsg;
     uint16_t count = 5;
-    
     
     for (;;) {
         if (powerState != lastState) {
@@ -72,8 +71,6 @@ void powerMgmt_Task(void *pvParameters) {
         }
         switch(powerState) {
             case Startup:
-
-
                 // if checking for charger all the time we dont need this forced charging function.
                 if (keypad_GetKey() == KEYHOME) {
                     powerState = CheckChargerInit;
@@ -87,51 +84,39 @@ void powerMgmt_Task(void *pvParameters) {
                 break;
 
             case Idle:
-                // Why not check for charger all the time? Once every 1s
                 // Todo dim display if idle > x minutes, idle is if lid is closed!
                 delay = xDelay500;
                 count = 500;
                 powerState = CheckChargerInit;
+                sensorMsg.inCharger = 0;
                 break;
-// todo logic for is motor controller is in enabled state or not, we cannot disable 
-// here without first knowing we were the one that put it on. We need it on to check 
-// if we are in charger or not.
+
             case CheckChargerInit:
                 // TODO only start charging if volt below xx?
-                delay = xDelay10;
-                //GPIO_SET_PIN(MOTOR_MOSFET);
+                count = 100;
+                delay = xDelay50;
                 GPIO_SET_PIN(CHARGER_CHECK);
                 powerState = CheckCharger;
                 break;
 
             case CheckCharger:
-                if (count < 1) {
-                    GPIO_CLR_PIN(CHARGER_CHECK);
-                    //GPIO_CLR_PIN(MOTOR_MOSFET);
-                    powerState = Idle;
-                    /*
-                    screenMsg.time=50;
-                    sprintf(screenMsg.text, "No charger found!");
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);*/
-                }
                 if (GPIO_CHK_PIN(CHARGER_CONNECTED) || sensorMsg.batteryChargeCurrent > 5) {
                     setpwm(0,0,0);
                     GPIO_CLR_PIN(CHARGER_CHECK);
-                    //GPIO_CLR_PIN(MOTOR_MOSFET);                    
-                    
                     sensorMsg.inCharger = 1;
-                    
                     powerState = StartCharging;
-                    
+
                     screenMsg.time=15;
                     sprintf(screenMsg.text, "In charger!");
                     xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
-                // BUG FIXME
-                
                 count--;
+                if (count < 1) {
+                    GPIO_CLR_PIN(CHARGER_CHECK);
+                    powerState = Idle;
+                }
                 break;
-// Catch state connected to charger but charger not ready (For example, start mower with charger already connected)
+// Catch state connected to charger but charger not ready (For example, cpu reset with charger already connected but timed out)
 // CheckCharger Yes -> StartCharging
 // StartCharging -> Charging
 // 4s elapses -> Charger disconnected! -> ChargingFailed 
@@ -157,7 +142,6 @@ void powerMgmt_Task(void *pvParameters) {
                 }
 
                 if (sensorMsg.batteryVolt > BATTERY_MAX_VOLT) {
-                    GPIO_SET_PIN(CHARGER_CHECK);
                     powerState = ChargingFinished;
                     
                     screenMsg.time=15;
@@ -218,17 +202,10 @@ void powerMgmt_Task(void *pvParameters) {
                 break;
 
         }
-        if (sensorMsg.batteryVolt < (BATTERY_MIN_VOLT + BATTERY_DELTA_VOLT)) {
-            // Signal ROS need charge!            
-        } else if (sensorMsg.batteryVolt < (BATTERY_MIN_VOLT - BATTERY_DELTA_VOLT)) {
-            // Signal ROS to shutdown - also enter shutdown state!
-        }
 
-        // TODO Check high temp -> shut down
-        // TODO Pulse charger mosfet if high temp / current? ('slow' Software PWM ?? )
+        // TODO Check too high temp -> shut down
 
         if (keypad_GetKey() == KEYPWR) {
-            
             screenMsg.time=4;
             sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
             xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
@@ -237,8 +214,6 @@ void powerMgmt_Task(void *pvParameters) {
             }
         }
         
-
-
         vTaskDelay(delay);
 #if LOWSTACKWARNING
         int stack = uxTaskGetStackHighWaterMark(NULL);
