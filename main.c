@@ -82,7 +82,7 @@ int main(void) {
 
 //                                                             Prio
     xTaskCreate(powerMgmt_Task,   "PowerMgmt",      300,  NULL, 7, &xHandle[taskcounter++]);
-    xTaskCreate(ROSCommsRx_Task,  "RosCommsRx",     2000, NULL, 6, &xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsRx_Task,  "RosCommsRx",     3000, NULL, 6, &xHandle[taskcounter++]);
     xTaskCreate(ROSCommsTx_Task,  "RosCommsTx",     4000, NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(SPI0TxQueue_Task, "SPI0TxQueue",    1500, NULL, 7, &xHandle[taskcounter++]);
     //xTaskCreate(ROSCommsTest_Task,  "RosCommsTest",   3500, NULL, 5, &xHandle[taskcounter++]);
