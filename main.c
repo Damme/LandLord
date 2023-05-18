@@ -40,7 +40,6 @@ HeapRegion_t xHeapRegions[] = {
 /*
 arm-none-eabi-gdb main.elf
 target extended-remote 10.42.43.164:3333
-
 */
 
 static void task_DigitalTest(void *pvParameters) {

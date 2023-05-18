@@ -5,15 +5,14 @@
 #include "keypad.h"
 
 #define BATTERY_MAX_TEMP  400
-//#define BATTERY_MAX_VOLT  28700
-#define BATTERY_MAX_VOLT  29000 // test with higher volt
-#define BATTERY_MIN_VOLT  24000
+#define BATTERY_MAX_VOLT  29300
+#define BATTERY_MIN_VOLT  22000
 #define BATTERY_DELTA_VOLT 1500
 #define BATTERY_MAX_AMP   4000
 
 /*
 7 x 18650
-
+3.2 x 7 = 22.4v
 3.4 x 7 = 23.8v
 4.1 x 7 = 28.7v
 4.2 x 7 = 29.4v
