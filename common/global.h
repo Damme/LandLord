@@ -150,6 +150,10 @@ extern volatile uint8_t taskcounter;
 
 extern SensorType sensorMsg;
 
+
+void wdt_reset();
+void wdt_init(); 
+  
 //int _write(int fd, char *ptr, int len);
 void delay_uS(uint32_t uS);
 void vAssertCalled( void );

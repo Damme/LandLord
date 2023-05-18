@@ -192,7 +192,15 @@ void ROSCommsTx_Task(void *pvParameters) {
 
     debug("ROSComms started...");
 
+    // Check if reset was caused by WDT
+    if(LPC_SC->RSID & (1 << 2)) {
+        debug("!!!! Reset was caused by watchdog timer !!!!");
+        // Clear the watchdog reset flag
+        LPC_SC->RSID |= (1 << 2);
+    }
+
     for (;;) {
+        wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(20));
         xJSONMessageType JSONMsg;
         if (xQueueReceive(xJSONMessageQueue, &JSONMsg, 0) == pdPASS) {

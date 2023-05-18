@@ -64,6 +64,7 @@ int main(void) {
     //NVIC_SetPriority(TIMER1_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
 
     hardware_Init();
+    wdt_init();
     
     xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
     //xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
@@ -85,7 +86,7 @@ int main(void) {
     xTaskCreate(ROSCommsRx_Task,  "RosCommsRx",     3000, NULL, 6, &xHandle[taskcounter++]);
     xTaskCreate(ROSCommsTx_Task,  "RosCommsTx",     4000, NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(SPI0TxQueue_Task, "SPI0TxQueue",    1500, NULL, 7, &xHandle[taskcounter++]);
-    //xTaskCreate(ROSCommsTest_Task,  "RosCommsTest",   3500, NULL, 5, &xHandle[taskcounter++]);
+    //xTaskCreate(ROSCommsTest_Task,  "RosCommsTest",   500, NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(motorCtrl_Task,   "MotorCtrl",      300,  NULL, 5, &xHandle[taskcounter++]);
     xTaskCreate(sensor_Task,      "Sensor",         500,  NULL, 4, &xHandle[taskcounter++]);
     xTaskCreate(boundary_Task,    "Boundary",       500,  NULL, 3, &xHandle[taskcounter++]);

@@ -31,6 +31,25 @@ MessageBufferHandle_t SPI0RxMessageBuffer;
 MessageBufferHandle_t SPI0TxMessageBuffer;
 xQueueHandle RosTxQueue;
 
+void wdt_reset() {
+    // Feed sequence to reset the counter
+    LPC_WDT->FEED = 0xAA;
+    LPC_WDT->FEED = 0x55;
+}
+
+void wdt_init() {
+    // Enable the clock to the WDT
+    LPC_SC->PCONP |= (1 << 15); 
+
+    // Set the time constant value
+    LPC_WDT->TC = 500000; // 2seconds
+
+    // Set the mode register to enable reset, and then enable the watchdog timer
+    LPC_WDT->MOD = (1 << 0) | (1 << 1);
+
+    wdt_reset();
+}
+
 void delay_uS(uint32_t uS) {
     portENTER_CRITICAL();
     LPC_TIM1->TCR = 0x02;                // reset timer
