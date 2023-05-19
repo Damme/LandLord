@@ -124,10 +124,18 @@ void TIMER2_IRQHandler(void) {
     LPC_TIM2->IR  |= (1 << 0); // Reset interrupt MR0
 }
 
+#define ALPHA 50 // Now alpha is 0.05 (50/1000)
+#define SCALE 1000 // Since we use mV
+
+
 void sensor_Task(void *pvParameters) {
     sensor_Init();
     GenericSensor accel = {0,0,0,0,0,0};
     GenericSensor gyro = {0,0,0,0,0,0};
+
+    
+    uint32_t ema_batteryVolt = 0;
+    uint32_t ema_batteryChargeCurrent = 0;
 
     // Setup timer for pulse counter isr.
     LPC_SC->PCONP |= PCONP_PCTIM2;
@@ -205,8 +213,15 @@ void sensor_Task(void *pvParameters) {
 
         while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
         sensorMsg.batteryTemp = temp_linear_formula(ADC_DR_RESULT(ANALOG_BATT_TEMP));
-        sensorMsg.batteryVolt = ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068; // Measured and calculated.
-        sensorMsg.batteryChargeCurrent = ((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146; // Trial and error :)
+// EMA FILTER
+// adc_ema = (0.1 * adc_raw) + ((1.0 - 0.1) * adc_ema);
+// ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068)
+        ema_batteryVolt = ((ALPHA * (ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068)) + ((SCALE - ALPHA) * ema_batteryVolt)) / SCALE;
+        sensorMsg.batteryVolt = ema_batteryVolt;
+// ((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146
+        ema_batteryChargeCurrent = ((ALPHA * (((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146)) + ((SCALE - ALPHA) * ema_batteryChargeCurrent)) / SCALE;
+        sensorMsg.batteryChargeCurrent = ema_batteryChargeCurrent;
+
         if (sensorMsg.batteryChargeCurrent < 0) sensorMsg.batteryChargeCurrent = 0;
         sensorMsg.motorCurrentRight = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
         sensorMsg.motorCurrentLeft = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);

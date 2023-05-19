@@ -174,17 +174,9 @@ void keypad_Task(void *pvParameters) {
         if (keypad_GetKey() == KEYSTOP) {
             xMotorMsgType MotorMsg;
             MotorMsg.action = MOTORREQ_EMGSTOP;
-            xQueueSendFromISR(xMotorMsgQueue, &MotorMsg, NULL);
+            xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay250);
         }
-        /*if (keypad_GetKey() == KEYPWR && keypad_GetTime() > 6) {
-            // TODO: Shut down motor! break etc, draws current from battery even in cpu-off!
-            // TODO: display shutdown counter! (doesn't shutdown until released (hardware feature))
-            // CPU in sleep??
-            xPowerMgmtMsg PowerMsg;
-            PowerMsg.xType = COMMAND_SHUTDOWN;
-            PowerMsg.shutdown.xDelay = xDelay100;
-            xQueueSend(xPowerMgmtMsgQueue, &PowerMsg, (TickType_t)0);
-        }*/
+
 #if LOWSTACKWARNING
         int stack = uxTaskGetStackHighWaterMark(NULL);
         if (stack < 50) printf("Task task_Keypad has %u words left in stack.\r\n", stack);

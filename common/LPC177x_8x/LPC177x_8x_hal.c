@@ -32,11 +32,6 @@ void hardware_Init() {
 }
 
 void sensor_Init() {
-    uint32_t fullAdcRate;
-    uint8_t div;
-    //fullAdcRate = 400000 * 31;
-    fullAdcRate = 375000 * 33;
-    div = ((PeripheralClock * 2 + fullAdcRate) / (fullAdcRate * 2)) - 1;
 /*
     GPIO_PIN_FNC(ADC_AD0);
     GPIO_PIN_FNC(ADC_AD1);
@@ -47,16 +42,18 @@ void sensor_Init() {
     GPIO_PIN_FNC(ADC_AD6);
     GPIO_PIN_FNC(ADC_AD7);
 */  
-    LPC_IOCON->P0_12 = (1 << 8) | (3 << 0);
-    LPC_IOCON->P0_13 = (1 << 8) | (3 << 0);
-    LPC_IOCON->P0_23 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P0_24 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P0_25 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P0_26 = (1 << 8) | (1 << 0);
-    LPC_IOCON->P1_30 = (1 << 8) | (3 << 0);
-    LPC_IOCON->P1_31 = (1 << 8) | (3 << 0);
+    LPC_IOCON->P0_23 = (1 << 8) | (1 << 0); // ANALOG_BATT_TEMP
+    LPC_IOCON->P0_24 = (1 << 8) | (1 << 0); // ANALOG_MOTOR_R_AMP
+    LPC_IOCON->P0_25 = (1 << 8) | (1 << 0); // ANALOG_MOTOR_L_AMP
+    LPC_IOCON->P0_26 = (1 << 8) | (1 << 0); // ANALOG_MOTOR_S_AMP
+    LPC_IOCON->P1_30 = (1 << 8) | (3 << 0); // ANALOG_RAIN
+    LPC_IOCON->P1_31 = (1 << 8) | (3 << 0); // ANALOG_BATT_CHARGE_A
+    LPC_IOCON->P0_12 = (1 << 8) | (3 << 0); // ANALOG_BATT_VOLT
+    LPC_IOCON->P0_13 = (1 << 8) | (3 << 0); // ANALOG_BOARD_TEMP
+
+    LPC_IOCON->P1_31 |= (1 << 3); // ANALOG_BATT_CHARGE_A // Test to enable pulldown for better current meas?
     
-    LPC_ADC->CR = (div << 8) | (1 << 21); //div 4 400000hz, enable ADC ändrat till div 8
+    LPC_ADC->CR = (234 << 8) | (1 << 21);
     LPC_ADC->CR |= ( 0xff ); // enable all adc channels.
     LPC_ADC->CR |= (1UL<<16); // enable Burst mode
 }
@@ -65,6 +62,8 @@ void powerMgmt_Init() {
     GPIO_DIR_OUT(CHARGER_CHECK);
     GPIO_DIR_OUT(CHARGER_ENABLE);
     GPIO_FNC_INV(CHARGER_CONNECTED, PINMODE_INV );
+//#define CHARGER_CONNECTED  (GPIO_TYPE(PORT_2, PIN_13, FUNC_0))    
+    LPC_IOCON->P2_13 |= (1 << 3); // enable pulldown 
 }
 
 void ROScomms_Init() {
@@ -134,7 +133,7 @@ void MotorCtrl_Init() {
     GPIO_DIR_OUT(MOTOR_LEFT_ENABLE);
     GPIO_DIR_OUT(MOTOR_LEFT_BRAKE);
     GPIO_DIR_OUT(MOTOR_LEFT_FORWARD);
-    
+
     GPIO_DIR_OUT(MOTOR_RIGHT_ENABLE);
     GPIO_DIR_OUT(MOTOR_RIGHT_BRAKE);
     GPIO_DIR_OUT(MOTOR_RIGHT_FORWARD);

@@ -100,7 +100,6 @@ void powerMgmt_Task(void *pvParameters) {
 
             case CheckCharger:
                 if (GPIO_CHK_PIN(CHARGER_CONNECTED) || sensorMsg.batteryChargeCurrent > 5) {
-                    setpwm(0,0,0);
                     GPIO_CLR_PIN(CHARGER_CHECK);
                     sensorMsg.inCharger = 1;
                     powerState = StartCharging;

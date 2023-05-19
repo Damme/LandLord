@@ -170,7 +170,6 @@ void ROSCommsRx_Task(void *pvParameters) {
 }
 
 void RosCommsTx_Timer(TimerHandle_t xTimer) {
-
 }
 
 void ROSCommsTx_Task(void *pvParameters) {
@@ -353,9 +352,7 @@ if (!(counter % 5)) {
 }
 
 void ROSCommsTest_Task(void *pvParameters) {
-    
 }
-
 
 void debug( const char* format, ... ) {
     char buf[buflen+1];

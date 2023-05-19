@@ -7,5 +7,6 @@
 
 
 void motorCtrl_Task(void *pvParameters);
+void allStop();
 
 #endif // MOTORCTRL_H
