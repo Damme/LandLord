@@ -65,7 +65,7 @@ int main(void) {
     hardware_Init();
     wdt_init();
     
-    xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
+    //xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
     //xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));
     xBoundaryMsgQueue = xQueueCreate(1, sizeof(xBoundaryMsgType));

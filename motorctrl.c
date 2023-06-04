@@ -151,10 +151,10 @@ void motorCtrl_Task(void *pvParameters) {
 
         if (sensorMsg.watchdogSPI > 5000) {
             allStop();
-            xScreenMsgType screenMsg;
-            screenMsg.time=50;
-            sprintf(screenMsg.text, "ROS comms lost!");
-            xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+            //xScreenMsgType screenMsg;
+            //screenMsg.time=50;
+            //sprintf(screenMsg.text, "ROS comms lost!");
+            //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
             // Queue emgstop?
         }
         

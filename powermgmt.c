@@ -58,7 +58,7 @@ void powerMgmt_Task(void *pvParameters) {
     powerStates powerState = CheckChargerInit;
     powerStates lastState = 0;
     
-    xScreenMsgType screenMsg;
+    //xScreenMsgType screenMsg;
     uint16_t count = 5;
     
     for (;;) {
@@ -74,9 +74,9 @@ void powerMgmt_Task(void *pvParameters) {
                 if (keypad_GetKey() == KEYHOME) {
                     powerState = CheckChargerInit;
                     
-                    screenMsg.time=50;
-                    sprintf(screenMsg.text, "Forced charging");      
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                    //screenMsg.time=50;
+                    //sprintf(screenMsg.text, "Forced charging");      
+                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
                 count--;
                 if (count == 0) powerState = Idle;
@@ -104,15 +104,17 @@ void powerMgmt_Task(void *pvParameters) {
                     sensorMsg.inCharger = 1;
                     powerState = StartCharging;
 
-                    screenMsg.time=15;
-                    sprintf(screenMsg.text, "In charger!");
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                    //screenMsg.time=15;
+                    //sprintf(screenMsg.text, "In charger!");
+                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
+                /*
+                // Need to rewrite this logic to handle state mowing, going to dock etc.
                 count--;
                 if (count < 1) {
                     GPIO_CLR_PIN(CHARGER_CHECK);
                     powerState = Idle;
-                }
+                }*/
                 break;
 // Catch state connected to charger but charger not ready (For example, cpu reset with charger already connected but timed out)
 // CheckCharger Yes -> StartCharging
@@ -142,18 +144,18 @@ void powerMgmt_Task(void *pvParameters) {
                 if (sensorMsg.batteryVolt > BATTERY_MAX_VOLT) {
                     powerState = ChargingFinished;
                     
-                    screenMsg.time=15;
-                    sprintf(screenMsg.text, "Charge finished!");
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                    //screenMsg.time=15;
+                    //sprintf(screenMsg.text, "Charge finished!");
+                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
 
                 count--;
                 if (count == 0) {
                     powerState = ChargingFailed;
                     
-                    screenMsg.time=15;
-                    sprintf(screenMsg.text, "Charger disconnected!");
-                    xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                    //screenMsg.time=15;
+                    //sprintf(screenMsg.text, "Charger disconnected!");
+                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
                 break;
 
@@ -204,9 +206,9 @@ void powerMgmt_Task(void *pvParameters) {
         // TODO Check too high temp -> shut down
 
         if (keypad_GetKey() == KEYPWR) {
-            screenMsg.time=4;
-            sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
-            xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+            //screenMsg.time=4;
+            //sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
+            //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
             if (keypad_GetTime() > 15) {
                 powerState = Shutdown;
             }

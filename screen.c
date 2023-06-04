@@ -480,7 +480,7 @@ void menuBootWarnfnc(void) {
 
 }
 
-uint32_t override_timer = 0;
+//uint32_t override_timer = 0;
 
 void screen_Task(void) {
     xScreenMsgType screenMsg;
@@ -496,7 +496,7 @@ void screen_Task(void) {
     const menuItem_t *curMenu;
     
     u8g_FirstPage(&u8g);
-    if (override_timer > 0) override_timer--;
+    //if (override_timer > 0) override_timer--;
 
 //    TODO: Check if screen really needs update?
     do {
@@ -519,15 +519,16 @@ void screen_Task(void) {
             currentDisplay.parm = curMenu->parm;
         }
 
-        if (override_timer == 0 ) {
+        /*if (override_timer == 0 ) {
             if (xQueueReceive(xScreenMsgQueue, &screenMsg, 0) == pdTRUE) {
                 override_timer = screenMsg.time;
             } else {
                 currentDisplay.command(currentDisplay.parm);
             }
-        }
+        }*/
+        currentDisplay.command(currentDisplay.parm);
 // Why does this only print for a short while? override_timer gets reset by it self???
-        if (override_timer != 0 ) {
+        /*if (override_timer != 0 ) {
             u8g_SetDefaultBackgroundColor(&u8g);
             u8g_DrawBox(&u8g, 0, 0, 128, 64);
             u8g_SetDefaultForegroundColor(&u8g);
@@ -535,7 +536,7 @@ void screen_Task(void) {
             w = u8g_GetStrWidth(&u8g, screenMsg.text);
             w = 64 - (w / 2);
             u8g_DrawStr(&u8g,  w, 30, screenMsg.text);
-        }
+        }*/
 
         if (keypad_GetKey() == KEYBACK && !keypressed) {
             //TODO: prev scrn

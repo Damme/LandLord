@@ -15,23 +15,22 @@ volatile uint8_t txpos;
 
 void UART2_IRQHandler(void) {
 	volatile uint8_t ch;
-	//portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 	
 	while ( LPC_UART2->LSR & (1<<0) ) { // while Receive FIFO Not Empty
 		ch = LPC_UART2->RBR;
 		if (ch == 0x56) { // Ascii "V"
 			if (txpos == 36) {
 				txbuf[txpos++] = 0;
-				xQueueSendFromISR(xBoundaryMsgQueue, &txbuf, NULL);// &xHigherPriorityTaskWoken
+				xQueueSendFromISR(xBoundaryMsgQueue, &txbuf, &xHigherPriorityTaskWoken);
 			}
 			txpos=0;
 		}
+		if (txpos >= sizeof(txbuf)) txpos = 0;
 		txbuf[txpos++] = ch;
-		if (txpos > sizeof(txbuf)) txpos = 0;
 	}
 
-	//portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-	//portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 	return;
 }
 
@@ -68,13 +67,9 @@ void boundary_Task(void *pvParameters) {
 	
     LPC_UART2->IER = (1 << 2) | (1 << 0); // Enable the RX line status interrupts. || Enable the RDA interrupts.
 
-	char buf[40];
-	char ch = 0;
-	uint8_t pos = 0;
-	char test = 0;
-
-    for (;;) {
+ /*   for (;;) {
 		vTaskDelay(xDelay1000);
     }
-
+*/
+	vTaskDelete( NULL );
 }

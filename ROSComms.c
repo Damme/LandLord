@@ -190,6 +190,8 @@ void ROSCommsTx_Task(void *pvParameters) {
     uint8_t printmsg = 0;
 
     debug("ROSComms started...");
+    //debug("CoreClk: %i Perclk: %i PCLKDIV: %i", SystemCoreClock, PeripheralClock, (LPC_SC->PCLKSEL & 0x1f));
+    
 
     // Check if reset was caused by WDT
     if(LPC_SC->RSID & (1 << 2)) {
@@ -295,7 +297,7 @@ if (!(counter % 5)) {
             case 5:
                 cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensorMsg.motorCurrentLeft));
                 cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensorMsg.motorCurrentRight));
-                cJSON_AddItemToObject(obj, "MowRPM", cJSON_CreateNumber(sensorMsg.motorCurrentBlade));
+                cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(sensorMsg.motorCurrentBlade));
                 cJSON_AddItemToObject(root, "MotorCurrent", obj);
                 printmsg = 0;
                 break;
@@ -333,7 +335,7 @@ if (!(counter % 5)) {
         cJSON_Delete(root);
 }
         
-        if (!(counter % 1000)) {
+        /*if (!(counter % 1000)) {
             int len = 0;
             for ( int i = 0; i < taskcounter; i++) {
                 len = sprintf(local_txbuf,"Task %i:%s StackHigh: %li ",i , pcTaskGetName(xHandle[i]), uxTaskGetStackHighWaterMark(xHandle[i]));
@@ -343,7 +345,7 @@ if (!(counter % 5)) {
             len = sprintf(local_txbuf, "HeapStats: Free:%i (min: %i) Allocs: %i Frees: %i", xHeapStats.xAvailableHeapSpaceInBytes, 
                 xHeapStats.xMinimumEverFreeBytesRemaining, xHeapStats.xNumberOfSuccessfulAllocations, xHeapStats.xNumberOfSuccessfulFrees); 
             xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-        }
+        }*/
         
         counter++;
         int stack = uxTaskGetStackHighWaterMark(NULL);

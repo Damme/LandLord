@@ -13,6 +13,8 @@
 #include <math.h>
 
 #define RAIN_ADC_VALUE  3500 // 3840 = dry a couple of hours after rain
+#define ALPHA 25
+#define SCALE 1000
 
 typedef struct { // Ugh, the i2c sensors uses LSB/MSB differently...
     uint8_t X1;
@@ -23,16 +25,13 @@ typedef struct { // Ugh, the i2c sensors uses LSB/MSB differently...
     uint8_t Z2;
 } GenericSensor;
 
-int32_t temperature2(int raw_value) {
-    float a = 5.8849e-05;
-    float b = -0.4366;
-    float c = 809.9;
-    float temp = a * raw_value * raw_value + b * raw_value + c;
-    return temp*10;
+int32_t conv_board_temp(int32_t raw) {
+    int32_t result = (-0.3483 * raw + 1315);
+    return result;
 }
 
 // Test to remove the code below using a table
-int32_t temp_linear_formula(int32_t raw) {
+int32_t conv_batt_temp(int32_t raw) {
     int32_t result = (-0.27 * (raw - 2800) + 55);
     return result;
 }
@@ -124,17 +123,13 @@ void TIMER2_IRQHandler(void) {
     LPC_TIM2->IR  |= (1 << 0); // Reset interrupt MR0
 }
 
-#define ALPHA 50 // Now alpha is 0.05 (50/1000)
-#define SCALE 1000 // Since we use mV
-
-
 void sensor_Task(void *pvParameters) {
     sensor_Init();
     GenericSensor accel = {0,0,0,0,0,0};
     GenericSensor gyro = {0,0,0,0,0,0};
 
     
-    uint32_t ema_batteryVolt = 0;
+    uint32_t ema_batteryVolt = 25000;
     uint32_t ema_batteryChargeCurrent = 0;
 
     // Setup timer for pulse counter isr.
@@ -210,9 +205,9 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.gyroYaw = sensorMsg.gyroYaw * GYRO_SENSITIVITY_2000DPS;
         sensorMsg.gyroPitch = sensorMsg.gyroPitch * GYRO_SENSITIVITY_2000DPS;
         sensorMsg.gyroRoll = sensorMsg.gyroRoll * GYRO_SENSITIVITY_2000DPS;
-
-        while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
-        sensorMsg.batteryTemp = temp_linear_formula(ADC_DR_RESULT(ANALOG_BATT_TEMP));
+        // Is this really necessary? test to disable wait for adc done to test stability
+        //while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
+        sensorMsg.batteryTemp = conv_batt_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
 // EMA FILTER
 // adc_ema = (0.1 * adc_raw) + ((1.0 - 0.1) * adc_ema);
 // ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068)
@@ -227,9 +222,7 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.motorCurrentLeft = ADC_DR_RESULT(ANALOG_MOTOR_L_AMP);
         sensorMsg.motorCurrentBlade = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
         sensorMsg.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
-        // TODO Not using same temperature conversion! ~0c = 3750raw ~7c = 3370raw ~22c = 3090raw ~30c = 3000raw
-        //sensorMsg.boardTemp = temperature2(ADC_DR_RESULT(ANALOG_BOARD_TEMP));
-        sensorMsg.boardTemp = ADC_DR_RESULT(ANALOG_BOARD_TEMP);
+        sensorMsg.boardTemp = conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP));
         if ( sensorMsg.rainAnalog < RAIN_ADC_VALUE ) sensorMsg.rain = 1; else sensorMsg.rain = 0;
 
     }
