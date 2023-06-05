@@ -40,8 +40,8 @@ void wdt_reset() {
 void wdt_init() {
     // Enable the clock to the WDT
     LPC_SC->PCONP |= (1 << 15); 
-    // Set reset to 2Seconds
-    LPC_WDT->TC = 500000;
+    // Set reset to 4Seconds
+    LPC_WDT->TC = 1000000;
     // Set the mode register to enable reset, and then enable the watchdog timer
     LPC_WDT->MOD = (1 << 0) | (1 << 1);
     // Init by reset

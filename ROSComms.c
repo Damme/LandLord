@@ -102,6 +102,7 @@ void ROSCommsRx_Task(void *pvParameters) {
     char local_rxbuf[buflen+1];
 
     for (;;) {
+        wdt_reset();
         while (xMessageBufferReceive(SPI0RxMessageBuffer, &local_rxbuf, buflen, xDelay10)) {
             cJSON* root = cJSON_Parse(local_rxbuf);
             if (root != NULL) {
@@ -201,7 +202,6 @@ void ROSCommsTx_Task(void *pvParameters) {
     }
 
     for (;;) {
-        wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(20));
         xJSONMessageType JSONMsg;
         if (xQueueReceive(xJSONMessageQueue, &JSONMsg, 0) == pdPASS) {

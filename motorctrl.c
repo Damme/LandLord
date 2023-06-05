@@ -137,6 +137,12 @@ void motorCtrl_Task(void *pvParameters) {
     MotorCtrl_Init();
     allStop();
 
+    MotorMsg.action = MOTORREQ_IDLE;
+    MotorMsg.pwm.left = 0;
+    MotorMsg.pwm.right = 0;
+    MotorMsg.pwm.blade = 0;
+    xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay25);
+
     // We need to wait for sensor to start.
     vTaskDelay(xDelay1000);
   
