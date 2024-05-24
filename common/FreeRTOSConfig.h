@@ -111,6 +111,8 @@
 #define configMAX_PRIORITIES			( 8 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 
+#define configUSE_NEWLIB_REENTRANT 1 // Required for thread-safety of newlib sprintf, strtok, etc...
+
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */
 

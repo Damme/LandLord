@@ -14,6 +14,8 @@
 #include "motorctrl.h"
 #include "boundary.h"
 
+#include "cJSON.h"
+
 #ifdef LPC177x_8x // LPC1788 DB504
 TODO("Cpu lpc1788 DB504")
 
@@ -61,6 +63,12 @@ int main(void) {
     // https://www.keil.com/pack/doc/CMSIS/Core/html/group__NVIC__gr.html
     NVIC_SetPriorityGrouping( 2 ); 
     //NVIC_SetPriority(TIMER1_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+    
+    cJSON_Hooks hooks;
+    hooks.malloc_fn = pvPortMalloc;
+    hooks.free_fn = vPortFree;
+    cJSON_InitHooks(&hooks);
+
 
     hardware_Init();
     wdt_init();

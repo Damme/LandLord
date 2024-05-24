@@ -64,6 +64,7 @@ void powerMgmt_Init() {
     GPIO_FNC_INV(CHARGER_CONNECTED, PINMODE_INV );
 //#define CHARGER_CONNECTED  (GPIO_TYPE(PORT_2, PIN_13, FUNC_0))    
     LPC_IOCON->P2_13 |= (1 << 3); // enable pulldown 
+    LPC_IOCON->P3_15 |= (1 << 3); // enable pulldown 
 }
 
 void ROScomms_Init() {
