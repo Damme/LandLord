@@ -7,14 +7,22 @@
 #include "event_groups.h"
 #include "global.h"
 #include "i2c.h"
+#include "cJSON.h"
 
 #include "ROSComms.h"
 
 #include <math.h>
 
+#define buflen  250
+
 #define RAIN_ADC_VALUE  3500 // 3840 = dry a couple of hours after rain
 #define ALPHA 25
 #define SCALE 1000
+
+#define GYRO_SENSITIVITY_DPS 0.00875
+#define ACCEL_SENSITIVITY_LSB 0.00981
+#define GRAVITY 9.80665
+
 
 typedef struct { // Ugh, the i2c sensors uses LSB/MSB differently...
     uint8_t X1;
@@ -125,9 +133,12 @@ void TIMER2_IRQHandler(void) {
 
 void sensor_Task(void *pvParameters) {
     sensor_Init();
+    char local_txbuf[buflen+1];
     GenericSensor accel = {0,0,0,0,0,0};
     GenericSensor gyro = {0,0,0,0,0,0};
 
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS(40);
     
     uint32_t ema_batteryVolt = 25000;
     uint32_t ema_batteryChargeCurrent = 0;
@@ -151,20 +162,38 @@ void sensor_Task(void *pvParameters) {
     I2C1_Send_Addr(MMA8452Q, 0x2a, 0x15); // ACTIVE | LNOISE | DR 200hz
     I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g
     
+
 // Three-axis digital output gyroscope
-    I2C1_Send_Addr(L3GD20, 0x20, 0x0f); // CTRL1 Enable all
-    //I2C1_Send_Addr(L3GD20, 0x21, 0x00); // CTRL2
-    //I2C1_Send_Addr(L3GD20, 0x22, 0x00); // CTRL3
-    I2C1_Send_Addr(L3GD20, 0x23, 0x40); // CTRL4 BLE (MSB lo add) 2000dps
-    //I2C1_Send_Addr(L3GD20, 0x24, 0x80); // CTRL5 Reboot memory content
-
-    I2C1_Send_Addr(L3GD20, 0x39, 0x01); // Low_ODR
-   
-
+    I2C1_Send_Addr(L3GD20, 0x20, 0x6F); // CTRL1 Enable all
+    I2C1_Send_Addr(L3GD20, 0x21, 0x00); // CTRL2
+    I2C1_Send_Addr(L3GD20, 0x22, 0x00); // CTRL3
+    I2C1_Send_Addr(L3GD20, 0x23, 0x50); // CTRL4 BLE (MSB lo add) 
+    I2C1_Send_Addr(L3GD20, 0x24, 0x10); // CTRL5 Reboot memory content
     vTaskDelay(xDelay100);
 
+    //I2C1_Send_Addr(L3GD20, 0x39, 0x01); // Low_ODR
+    int32_t rawYaw = 0;
+    int32_t rawPitch = 0;
+    int32_t rawRoll = 0;
+#define SAMPLES 1000
+
+    for (int i=0;  i < SAMPLES; i++) {
+        I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro); // Bug? seem to freeze sensor task? i2c code!
+        rawYaw += (int16_t)((gyro.X1 << 8) | gyro.X2);
+        rawPitch += (int16_t)((gyro.Y1 << 8) | gyro.Y2);
+        rawRoll += (int16_t)((gyro.Z1 << 8) | gyro.Z2);
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+    rawYaw = round(rawYaw / SAMPLES);
+    rawPitch = round(rawPitch / SAMPLES);
+    rawRoll = round(rawRoll / SAMPLES);
+   
+    vTaskDelay(xDelay10);
+    xLastWakeTime = xTaskGetTickCount();
+  
     for (;;) {
-        vTaskDelay(xDelay10);
+        //vTaskDelay(xDelay10);
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
         // handle_ADCMuxing(); // Only for LPC1768! ADC4 is muxed between 4 measurements.
 
@@ -184,7 +213,7 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.currentPWMBlade = LPC_PWM1->MR1;
 
 // MMA8452Q
-        //I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), (uint8_t*)&accel); // Bug? seem to freeze sensor task? go through i2c code!
+        I2C1_Recv_Addr_Buf(MMA8452Q, 0x01, 1, sizeof(accel), (uint8_t*)&accel);
         sensorMsg.accelX = ((accel.X2 << 8) + accel.X1) >> 4;
         sensorMsg.accelY = ((accel.Y2 << 8) + accel.Y1) >> 4;
         sensorMsg.accelZ = ((accel.Z2 << 8) + accel.Z1) >> 4;
@@ -192,19 +221,33 @@ void sensor_Task(void *pvParameters) {
         if (sensorMsg.accelY > 2047) sensorMsg.accelY -= 4096;
         if (sensorMsg.accelZ > 2047) sensorMsg.accelZ -= 4096;
 
-// L3GD20  
-        // If the MSb of the SUB field is 1, the SUB (register address) will be automatically incremented to allow multiple data read/write.
-        //I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro); // Bug? seem to freeze sensor task? i2c code!
-        sensorMsg.gyroYaw = (gyro.X1 << 8) + gyro.X2;
-        sensorMsg.gyroPitch = (gyro.Y1 << 8) + gyro.Y2;
-        sensorMsg.gyroRoll = (gyro.Z1 << 8) + gyro.Z2;
-        //if (sensorMsg.gyroYaw > INT16_MAX) sensorMsg.gyroYaw -= UINT16_MAX+1;
-        //if (sensorMsg.gyroPitch > INT16_MAX) sensorMsg.gyroPitch -= UINT16_MAX+1;
-        //if (sensorMsg.gyroRoll > INT16_MAX) sensorMsg.gyroRoll -= UINT16_MAX+1;
+        sensorMsg.accelX *= GRAVITY;
+        sensorMsg.accelY *= GRAVITY;
+        sensorMsg.accelZ *= GRAVITY;
 
-        sensorMsg.gyroYaw = sensorMsg.gyroYaw * GYRO_SENSITIVITY_2000DPS;
-        sensorMsg.gyroPitch = sensorMsg.gyroPitch * GYRO_SENSITIVITY_2000DPS;
-        sensorMsg.gyroRoll = sensorMsg.gyroRoll * GYRO_SENSITIVITY_2000DPS;
+
+
+// L3GD20  
+        I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro);
+        sensorMsg.gyroYaw = ((int16_t)((gyro.X1 << 8) | gyro.X2) - rawYaw) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
+        sensorMsg.gyroPitch = ((int16_t)((gyro.Y1 << 8) | gyro.Y2) - rawPitch) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
+        sensorMsg.gyroRoll = ((int16_t)((gyro.Z1 << 8) | gyro.Z2) - rawRoll) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
+
+
+        // IMU Data:
+        cJSON* root = cJSON_CreateObject();
+        cJSON* obj = cJSON_CreateObject();
+        cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(round(sensorMsg.gyroYaw * 100000)));
+        cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(round(sensorMsg.gyroPitch * 100000)));
+        cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(round(sensorMsg.gyroRoll * 100000)));
+        cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(round(sensorMsg.accelX)));
+        cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(round(sensorMsg.accelY)));
+        cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(round(sensorMsg.accelZ)));
+        cJSON_AddItemToObject(root, "I2C_IMU", obj);
+        cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
+        xQueueSend(RosTxQueue, local_txbuf, xDelay10);
+        cJSON_Delete(root);
+
         // Is this really necessary? test to disable wait for adc done to test stability
         //while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
         sensorMsg.batteryTemp = conv_batt_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
@@ -227,4 +270,5 @@ void sensor_Task(void *pvParameters) {
 
     }
 }
+
 

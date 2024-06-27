@@ -8,6 +8,8 @@
 #include "timers.h"
 #include "cJSON.h"
 #include <stdarg.h>
+#include <math.h>
+
 
 #define cJSON_GetInt(object, key) (cJSON_GetObjectItem(object, key) ? cJSON_GetObjectItem(object, key)->valueint : 0)
 #define cJSON_GetStr(object, key) (cJSON_GetObjectItem(object, key) ? cJSON_GetObjectItem(object, key)->valuestring : "")
@@ -102,8 +104,8 @@ void ROSCommsRx_Task(void *pvParameters) {
     char local_rxbuf[buflen+1];
 
     for (;;) {
-        wdt_reset();
         while (xMessageBufferReceive(SPI0RxMessageBuffer, &local_rxbuf, buflen, xDelay10)) {
+            wdt_reset();
             cJSON* root = cJSON_Parse(local_rxbuf);
             if (root != NULL) {
                 cJSON* command = cJSON_GetArrayItem(root, 0);
@@ -173,9 +175,42 @@ void ROSCommsRx_Task(void *pvParameters) {
 void RosCommsTx_Timer(TimerHandle_t xTimer) {
 }
 
+/*
+void DMA_IRQHandler(void) {
+    // Check if DMA channel 0 (TX) has completed the transfer
+    if (LPC_GPDMA->IntTCStat & (1 << 0)) {
+        // Clear the interrupt
+        LPC_GPDMA->IntTCClear = 1 << 0;
+
+        // Handle the completion of the DMA transfer (if needed)
+    }
+}
+
+
+void spi0_Transmit_DMA(uint8_t *data, size_t length) {
+    // Configure DMA channel 0 for SSP0 TX
+    LPC_GPDMACH0->CSrcAddr = (uint32_t)data;
+    LPC_GPDMACH0->CDestAddr = (uint32_t)&LPC_SSP0->DR;
+    LPC_GPDMACH0->CControl = (length << 0) | (1 << 18) | (1 << 21) | (1 << 31);  // Transfer length, SSP0 TX, Memory-to-Peripheral
+    LPC_GPDMACH0->CConfig = (1 << 0) | (1 << 1) | (10 << 6) | (1 << 11);  // Enable channel, SSP0 TX
+    LPC_GPDMACH0->CConfig |= (1 << 0);
+
+    // Clear DMA interrupts
+    //LPC_GPDMA->IntTCClear = 1 << 0;  // Clear DMA channel 0 interrupt
+}
+*/
+
 void ROSCommsTx_Task(void *pvParameters) {
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS(50);
+
     vTaskDelay(xDelay1000);
+    wdt_reset();
     ROScomms_Init();
+    
+
+    
+
 
     xBoundaryMsgType BoundaryMsg;
     HeapStats_t xHeapStats;
@@ -192,7 +227,27 @@ void ROSCommsTx_Task(void *pvParameters) {
 
     debug("ROSComms started...");
     //debug("CoreClk: %i Perclk: %i PCLKDIV: %i", SystemCoreClock, PeripheralClock, (LPC_SC->PCLKSEL & 0x1f));
-    
+/*
+    // Enable GPDMA power
+    LPC_SC->PCONP |= (1 << 29);
+
+    // Enable GPDMA controller
+    LPC_SSP0->DMACR = 0x02;
+
+    // Clear DMA interrupts
+    //LPC_GPDMA->IntTCClear = 0xFF;
+    //LPC_GPDMA->IntErrClr = 0xFF;
+
+    uint8_t test_message[] = "xHello, DMA SPI!x";
+//    test_message[0]=0x01;
+//    test_message[17]=0xff;
+//    test_message[18]=0x00;
+    spi0_Transmit_DMA(test_message, sizeof(test_message));
+    while (!(LPC_GPDMACH0->CConfig & (1 << 17))) {
+        // Wait until terminal count request (DMA transfer complete)
+    }
+    LPC_GPDMA->IntTCClear = (1 << 0);
+    */
 
     // Check if reset was caused by WDT
     if(LPC_SC->RSID & (1 << 2)) {
@@ -201,8 +256,10 @@ void ROSCommsTx_Task(void *pvParameters) {
         LPC_SC->RSID |= (1 << 2);
     }
 
+    xLastWakeTime = xTaskGetTickCount();
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+        
         xJSONMessageType JSONMsg;
         if (xQueueReceive(xJSONMessageQueue, &JSONMsg, 0) == pdPASS) {
             cJSON* root = cJSON_CreateObject();
@@ -211,23 +268,23 @@ void ROSCommsTx_Task(void *pvParameters) {
             xQueueSend(RosTxQueue, local_txbuf, xDelay10);
             cJSON_Delete(root);
         }
-        
+        /*
         // IMU Data:
         cJSON* root = cJSON_CreateObject();
         cJSON* obj = cJSON_CreateObject();
-        cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(sensorMsg.gyroYaw));
-        cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(sensorMsg.gyroPitch));
-        cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(sensorMsg.gyroRoll));
-        cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(sensorMsg.accelX));
-        cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(sensorMsg.accelY));
-        cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(sensorMsg.accelZ));
+        cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(round(sensorMsg.gyroYaw * 10000)));
+        cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(round(sensorMsg.gyroPitch * 10000)));
+        cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(round(sensorMsg.gyroRoll * 10000)));
+        cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(round(sensorMsg.accelX)));
+        cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(round(sensorMsg.accelY)));
+        cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(round(sensorMsg.accelZ)));
         cJSON_AddItemToObject(root, "I2C_IMU", obj);
         cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
         xQueueSend(RosTxQueue, local_txbuf, xDelay10);
         cJSON_Delete(root);
-
-        root = cJSON_CreateObject();
-        obj = cJSON_CreateObject();
+        */
+        cJSON* root = cJSON_CreateObject();
+        cJSON* obj = cJSON_CreateObject();
         cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensorMsg.motorPulseLeft));
         cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensorMsg.motorPulseRight));
         cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(sensorMsg.motorPulseBlade));
@@ -298,6 +355,7 @@ if (!(counter % 5)) {
                 cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensorMsg.motorCurrentLeft));
                 cJSON_AddItemToObject(obj, "Right", cJSON_CreateNumber(sensorMsg.motorCurrentRight));
                 cJSON_AddItemToObject(obj, "Mow", cJSON_CreateNumber(sensorMsg.motorCurrentBlade));
+
                 cJSON_AddItemToObject(root, "MotorCurrent", obj);
                 printmsg = 0;
                 break;
@@ -305,13 +363,11 @@ if (!(counter % 5)) {
                 printmsg = 0;
                 break;
             /*case 7:
-                cJSON_AddItemToObject(obj, "Yaw", cJSON_CreateNumber(sensorMsg.GyroYaw));
-                cJSON_AddItemToObject(obj, "Pitch", cJSON_CreateNumber(sensorMsg.GyroPitch));
-                cJSON_AddItemToObject(obj, "Roll", cJSON_CreateNumber(sensorMsg.GyroRoll));
-                cJSON_AddItemToObject(obj, "AccX", cJSON_CreateNumber(sensorMsg.AccelX));
-                cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(sensorMsg.AccelY));
-                cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(sensorMsg.AccelZ));
-                cJSON_AddItemToObject(root, "I2C_IMU", obj);
+                cJSON_AddItemToObject(obj, "QueueWait", cJSON_CreateNumber(uxQueueMessagesWaiting(RosTxQueue)));
+                cJSON_AddItemToObject(obj, "TxFree", cJSON_CreateNumber(xMessageBufferSpacesAvailable(SPI0TxMessageBuffer)));
+                cJSON_AddItemToObject(obj, "RxFree", cJSON_CreateNumber(xMessageBufferSpacesAvailable(SPI0RxMessageBuffer)));
+                cJSON_AddItemToObject(obj, "FreeH", cJSON_CreateNumber(xPortGetFreeHeapSize()));
+                cJSON_AddItemToObject(root, "DEBUG", obj);
                 
                 break;
             case 8:
@@ -332,6 +388,7 @@ if (!(counter % 5)) {
 
         cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
         xQueueSend(RosTxQueue, local_txbuf, xDelay10);
+
         cJSON_Delete(root);
 }
         

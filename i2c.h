@@ -38,9 +38,9 @@ void I2C1_Stop (void);
 void I2C1_Send (const uint8_t data);
 void I2C1_Send_Addr (const uint8_t addr, const uint8_t sub, const uint8_t data);
 
-uint8_t I2C1_Recv (void);
-uint8_t I2C1_Recv_Ack (void);
-uint8_t I2C1_Recv_Addr (const uint8_t addr, const uint8_t sub, const bool ack);
+uint8_t I2C1_Recv(bool ack);
+//uint8_t I2C1_Recv_Addr (const uint8_t addr, const uint8_t sub, const bool ack);
+uint8_t I2C1_Recv_Addr(const uint8_t addr, const uint8_t sub);
 void I2C1_Recv_Addr_Buf (const uint8_t addr, const uint8_t sub, const bool ack, const uint8_t len, uint8_t *buf);
 
 #endif // I2C_H

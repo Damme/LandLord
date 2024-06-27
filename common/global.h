@@ -60,12 +60,12 @@ typedef struct {
     int32_t batteryVolt;
     int32_t batteryChargeCurrent;
     int32_t boardTemp;
-    int16_t accelX;
-    int16_t accelY;
-    int16_t accelZ;
-    int16_t gyroYaw;
-    int16_t gyroPitch;
-    int16_t gyroRoll;
+    double accelX;
+    double accelY;
+    double accelZ;
+    double gyroYaw;
+    double gyroPitch;
+    double gyroRoll;
     uint16_t currentPWMRight;
     uint16_t currentPWMLeft;
     uint16_t currentPWMBlade;
