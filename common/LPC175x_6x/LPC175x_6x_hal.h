@@ -8,7 +8,7 @@
 
 #define GPIO_TYPE(port, pin, pinsel, inv)   ((gpioPin_t) { \
         ((LPC_GPIO_TypeDef *)(LPC_GPIO_BASE + (0x20 * (port)))), \
-        ((uint32_t *)LPC_PINCON_BASE + (port * 2) + (pin>15) ), \
+        ((uint32_t *)LPC_PINCON_BASE + (port * 8) + ((pin>>4)*4) ), \
         ((uint8_t)(pin)), \
         (pinsel), \
         (inv) \
@@ -36,43 +36,12 @@
 #define GPIO_GET_DIR(gpio) ((GPIO_DIR(gpio)) & (GPIO_BIT(gpio)))
 
 #define SHIFTMODE(pin)          (2 * (pin - ((pin>15)?16:0))) //?
-//#define GPIO_PINFNC(gpio)  (*(gpio.con) |= (uint32_t)(gpio.pinsel << (2 * (gpio.pin - ((gpio.pin>15)?16:0))) ))
-// Dubbelkolla denna med! oven med if, nedan inte ? kolla manualus
-#define GPIO_PIN_FNC(gpio)           (*(gpio.con)  = (uint32_t)((*(gpio.con) & ~(3 << 0)) | (gpio.pinsel << 0)))
-#define GPIO_FNC_PULL(gpio, val)    (*(gpio.con+16) = (uint32_t)((*(gpio.con+16) & ~(3 << ( SHIFTMODE(gpio.pin) ))) \
-                                                        | (val << ( SHIFTMODE(gpio.pin) ) )))
+#define GPIO_PIN_FNC(gpio)         (*(gpio.con)       = (uint32_t)(((*(gpio.con     ) & ~(3 << ((gpio.pin&15)<<1))) | (gpio.pinsel << ((gpio.pin&15)<<1)))))
+#define GPIO_FNC_PULL(gpio, val)   (*(gpio.con+0x10)  = (uint32_t)(((*(gpio.con+0x10) & ~(3 << ((gpio.pin&15)<<1))) | (val << ((gpio.pin&15)<<1)))))
 
 #define GPIO_FNC_OD(gpio, val)       (*(gpio.con+25) = (uint32_t)((*(gpio.con+25) & ~(1 << 10)) | (val << 10)))
 #define test_get_con(gpio)           (*(gpio.con+16))
 #define test_get_od(gpio)            (*(gpio.con+25))
-
-/* Chatgpt:
-#define GPIO_PIN_FNC(gpio)   (*(gpio.con) = (*gpio.con & ~(3 << ((gpio.pin & 0xF) * 2))) | (gpio.pinsel << ((gpio.pin & 0xF) * 2)))
-#define GPIO_FNC_PULL(gpio, val) (*(gpio.con) = (*gpio.con & ~(3 << (((gpio.pin & 0xF) * 2) + 3))) | (val << (((gpio.pin & 0xF) * 2) + 3)))
-#define GPIO_FNC_INV(gpio, val)  (*(gpio.con) = (*gpio.con & ~(1 << (((gpio.pin & 0xF) * 2) + 6))) | (val << (((gpio.pin & 0xF) * 2) + 6)))
-#define GPIO_FNC_OD(gpio, val)   (*(gpio.con) = (*gpio.con & ~(1 << (((gpio.pin & 0xF) * 2) + 10))) | (val << (((gpio.pin & 0xF) * 2) + 10)))
-*/
-
-//FEL FEL FEL verkar bara sätta bitar men inte 0:or när man ändrar tillbaka! Måste nolla först!
-//#define GPIO_FNC_PULL(gpio, val)    (*(gpio.con+16) = (uint32_t)(*(gpio.con+16) & ~(val << ( (gpio.pin > 15)?((gpio.pin*2)-32):(gpio.pin*2) ) )))
-//#define GPIO_FNC_PULL(gpio, val)    (*(gpio.con+16) = (uint32_t)((*(gpio.con+16) & ~(3 << 0 )) | (val << 0 )))
-//#define GPIO_FNC_PULL(gpio, val)    (*(gpio.con+16) = (uint32_t)( \
-
-// inte ens denna fungerar ?!??!?
-
-//                                                (*(gpio.con+16) & ~(3 << 3)) \
-//                                                                 | (val << 3 )  \
-//                                                                ))
-//varför?
-// 0x03000000 0x00000003 ???????
-                                                                         
-
-//#define GPIO_FNC_PULL(gpio, val)    (*(gpio.con+16) = (uint32_t)((*(gpio.con+16) & ~(3 << ( (gpio.pin > 15)?((gpio.pin*2)-32):(gpio.pin*2) ))) \
-//                                                                         | (val << ( (gpio.pin > 15)?((gpio.pin*2)-32):(gpio.pin*2) ) )))
-///// 1788 -> #define GPIO_FNC_PULL(gpio, val) (*(gpio.con) = (uint32_t)((*gpio.con & ~(3 << 3)) | (val << 3))) nolla först och sätt sen
-//#define SPCR_BITS(n) ((n==0) ? ((uint32_t)0) : ((uint32_t)((n&0x0F)<<8)))
-//#define GPIO_FNC_PULL(gpio, val) (*(gpio.con+16) = (uint32_t)(*((gpio.con+16) & ~(0b11 << 0)) | (val << 0 )))
-//#define GPIO_FNC_PULL(gpio, val) (*(gpio.con+16) = (uint32_t)(*((gpio.con+16) & ~(0b11 << SHIFTMODE(gpio))) | (val << SHIFTMODE(gpio) )))
 
 #define GPIO_FNC_INV(gpio, val)  // warning( - LPC1768 does not support port pin mode inverted polarity, change in aprotiate _HAL.h file instead!)
 

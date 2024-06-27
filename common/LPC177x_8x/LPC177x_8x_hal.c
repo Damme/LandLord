@@ -87,17 +87,7 @@ void ROScomms_Init() {
     // 120 = 500khz
     // 60 = 1Mhz
 
-    //LPC_SSP0->CR0 |= (6 << 8); // Serial Clock Rate.
-    //LPC_SSP0->CR1 |= (1 << 0); // loopback
     LPC_SSP0->CR1 |= (1 << 2); // Slave mode
-    
-    /*if ( LPC_SSP0->CR1 & (1 << 1) ) {
-	// The slave bit can't be set until SSE bit is zero. 
-	    LPC_SSP0->CR1 &= ~(1 << 1);
-    }
-    LPC_SSP0->CR1 = (1 << 2);	// Enable slave bit first 
-    LPC_SSP0->CR1 |= (1 << 1);	// Enable SSP 
-*/
 }
 
 void MotorCtrl_Init() {

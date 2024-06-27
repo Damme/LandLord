@@ -28,10 +28,7 @@ HeapRegion_t xHeapRegions[] = {
 };
 #else // LPC1768 DB275
 TODO("Cpu lpc1768 DB275")
-#error "I fucked something up in LPC175x_6x_hal, check all pin setup, chkpin, pindir etc and also the special invert functions. \
-(5x/6x does not have hw invert polarity!) \
-Make a complete testsuite and test all those things. LCD does work and print though so it is probably something with reading a pin state. \
-Something fishy going on.. :("
+
 HeapRegion_t xHeapRegions[] = {
     { (uint8_t *) 0x10001000UL, 0x7000 }, // 28kB
     { (uint8_t *) 0x2007C000UL, 0x4000 }, // 16kB
