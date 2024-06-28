@@ -37,16 +37,14 @@ void motionSensor_Timer(void) {
         sensorMsg.blockForward = 1;
 
     // If robot tilted too much / upside down and blade on emergancy stop!
-// TODO FIX i2c.c!!!!!
-// Since we disabled i2c this does not work..............................
-    /*if (sensorMsg.accelZ < 500 && sensorMsg.currentPWMBlade > 0) {
+    if (sensorMsg.accelZ < 5000 && sensorMsg.currentPWMBlade > 0) {
         xMotorMsgType MotorMsg;
         MotorMsg.action = MOTORREQ_EMGSTOP;
         MotorMsg.pwm.left = 0;
         MotorMsg.pwm.right = 0;
         MotorMsg.pwm.blade = 0;
         xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay500);
-    }*/
+    }
 }
 void allStop() {
     setpwm(0,0,0);
