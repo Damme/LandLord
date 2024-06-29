@@ -4,6 +4,7 @@
 
 int16_t setPWMBlade, setPWMLeft, setPWMRight = 0;
 int16_t curPWMBlade, curPWMLeft, curPWMRight = 0;
+int32_t tiltCounter = 0;
 
 void setpwm(uint16_t blade, uint16_t left, uint16_t right) {
     if (blade > 2047) blade=2047;
@@ -32,12 +33,15 @@ const char *MotorRequestStrings[] = {
 };
 
 
-void motionSensor_Timer(void) {
+void motionSensor_Timer(TimerHandle_t xTimer) {
     if (!GPIO_CHK_PIN(SENSOR_STUCK) || !GPIO_CHK_PIN(SENSOR_STUCK2) || !GPIO_CHK_PIN(SENSOR_LIFT) || !GPIO_CHK_PIN(SENSOR_COLLISION))
         sensorMsg.blockForward = 1;
 
     // If robot tilted too much / upside down and blade on emergancy stop!
     if (sensorMsg.accelZ < 5000 && sensorMsg.currentPWMBlade > 0) {
+        tiltCounter++;
+        if (tiltCounter > 500) {
+            debug(" TILT EMG STOP");
         xMotorMsgType MotorMsg;
         MotorMsg.action = MOTORREQ_EMGSTOP;
         MotorMsg.pwm.left = 0;
@@ -45,6 +49,7 @@ void motionSensor_Timer(void) {
         MotorMsg.pwm.blade = 0;
         xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay500);
     }
+}
 }
 void allStop() {
     setpwm(0,0,0);
@@ -67,7 +72,7 @@ void ramp(int16_t* target_speed, int16_t* current_speed) {
 }
 
 
-void motorcontrol_timer(void) {
+void motorcontrol_timer(TimerHandle_t xTimer) {
     uint16_t PWMBlade, PWMLeft, PWMRight = 0;
 
     // Quick ramp to setpwm
