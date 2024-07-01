@@ -33,54 +33,21 @@ typedef struct { // Ugh, the i2c sensors uses LSB/MSB differently...
     uint8_t Z2;
 } GenericSensor;
 
+int32_t imu_temp_offset_z(int32_t raw) {
+    int32_t result = round(-0.565f * raw + 147.4f);
+    return result;
+}
+
 int32_t conv_board_temp(int32_t raw) {
-    int32_t result = (-0.3483 * raw + 1315);
+    int32_t result = round(-0.3483 * raw + 1315);
     return result;
 }
 
 // Test to remove the code below using a table
 int32_t conv_batt_temp(int32_t raw) {
-    int32_t result = (-0.27 * (raw - 2800) + 55);
+    int32_t result = round(-0.27 * (raw - 2800) + 55);
     return result;
 }
-/*
-const uint16_t tempCalTbl[110] = {
-    0xCF3, 0xCD6, 0xCB9, 0xC9B, 0xC7C, 0xC5A, 0xC3B, 0xC1B, 0xBFB, 0xBDB,
-    0xBB5, 0xB93, 0xB72, 0xB50, 0xB2E, 0xB01, 0xADE, 0xABA, 0xA97, 0xA73,
-    0xA46, 0xA23, 0x9FF, 0x9DB, 0x9B7, 0x984, 0x960, 0x93B, 0x917, 0x8F3,
-    0x8C1, 0x89E, 0x87A, 0x857, 0x834, 0x800, 0x7DD, 0x7BA, 0x798, 0x776,
-    0x743, 0x722, 0x701, 0x6E0, 0x6C0, 0x68E, 0x66F, 0x651, 0x633, 0x616,
-    0x5E4, 0x5C7, 0x5AB, 0x590, 0x575, 0x545, 0x52B, 0x511, 0x4F8, 0x4DF,
-    0x4B3, 0x49B, 0x484, 0x46E, 0x457, 0x42E, 0x419, 0x404, 0x3F0, 0x3DC,
-    0x3B6, 0x3A3, 0x391, 0x37F, 0x36D, 0x34A, 0x339, 0x329, 0x319, 0x30A,
-    0x2EA, 0x2DC, 0x2CD, 0x2C0, 0x2B2, 0x295, 0x288, 0x27C, 0x270, 0x264,
-    0x249, 0x23E, 0x234, 0x229, 0x21F, 0x207, 0x1FD, 0x1F3, 0x1EA, 0x1E1,
-    0x1CC, 0x1C4, 0x1BB, 0x1B3, 0x1AB, 0x198, 0x191, 0x18A, 0x183, 0x17C,
-};
-
-int32_t convert_temp(uint16_t raw_temp) {
-    // table holds 110 entries from -10°C to 100°C in full °C 
-    int32_t fullDegree; // full degrees
-    int32_t tenthDegree = 0; // 10th-degrees
-    for (fullDegree = 0; fullDegree < (sizeof(tempCalTbl) / sizeof(uint16_t)); fullDegree++) {
-        if (tempCalTbl[fullDegree] < raw_temp) { // just one above
-            if (fullDegree > 0) { // valid range?
-                --fullDegree; // one back
-                for (tenthDegree = 0; (tenthDegree < 10); tenthDegree++) { // search along gradient
-                    if ((tempCalTbl[fullDegree] - (tempCalTbl[fullDegree] - tempCalTbl[fullDegree + 1]) * tenthDegree / 10) <= raw_temp)
-                        break;
-                }
-            }
-            goto out;
-        }
-        if (tempCalTbl[fullDegree] == raw_temp) {
-            tenthDegree = 0;
-            goto out;
-        }
-    }
-out:
-    return tenthDegree + 10 * (fullDegree - 10);
-}*/
 
 // DB275 uses interrupt to read front sensor, need work and more testing.
 void EINT3_IRQHandler(void) {
@@ -175,7 +142,9 @@ void sensor_Task(void *pvParameters) {
     int32_t rawYaw = 0;
     int32_t rawPitch = 0;
     int32_t rawRoll = 0;
-#define SAMPLES 1000
+    int32_t offsetRoll;
+
+#define SAMPLES 2000
 
     for (int i=0;  i < SAMPLES; i++) {
         I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro); // Bug? seem to freeze sensor task? i2c code!
@@ -184,9 +153,11 @@ void sensor_Task(void *pvParameters) {
         rawRoll += (int16_t)((gyro.Z1 << 8) | gyro.Z2);
         vTaskDelay(pdMS_TO_TICKS(5));
     }
+    offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
     rawYaw = round(rawYaw / SAMPLES);
     rawPitch = round(rawPitch / SAMPLES);
-    rawRoll = round(rawRoll / SAMPLES);
+    rawRoll = round(rawRoll / SAMPLES) - offsetRoll;
+
    
     vTaskDelay(xDelay10);
     xLastWakeTime = xTaskGetTickCount();
@@ -229,10 +200,11 @@ void sensor_Task(void *pvParameters) {
 
 // L3GD20  
         I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro);
+        offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
+
         sensorMsg.gyroYaw = ((int16_t)((gyro.X1 << 8) | gyro.X2) - rawYaw) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
         sensorMsg.gyroPitch = ((int16_t)((gyro.Y1 << 8) | gyro.Y2) - rawPitch) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
-        sensorMsg.gyroRoll = ((int16_t)((gyro.Z1 << 8) | gyro.Z2) - rawRoll) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
-
+        sensorMsg.gyroRoll = (((int16_t)((gyro.Z1 << 8) | gyro.Z2) - rawRoll + offsetRoll) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0));
 
         // IMU Data:
         cJSON* root = cJSON_CreateObject();
