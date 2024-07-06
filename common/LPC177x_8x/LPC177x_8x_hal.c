@@ -17,11 +17,7 @@ void hardware_Init() {
     GPIO_PIN_FNC(KEYPAD_POWER);
     GPIO_FNC_PULL(KEYPAD_POWER, PINMODE_PULLDOWN);
 
-    // Pulse charger to keep it in "red mode"
-    GPIO_DIR_OUT(CHARGER_ENABLE);
-    GPIO_SET_PIN(CHARGER_ENABLE);
-    delay_uS(10000);
-    GPIO_CLR_PIN(CHARGER_ENABLE);    
+
     
     GPIO_DIR_OUT(BUZZER_LO);
     GPIO_DIR_OUT(BUZZER_HI);
@@ -62,9 +58,15 @@ void powerMgmt_Init() {
     GPIO_DIR_OUT(CHARGER_CHECK);
     GPIO_DIR_OUT(CHARGER_ENABLE);
     GPIO_FNC_INV(CHARGER_CONNECTED, PINMODE_INV );
+
 //#define CHARGER_CONNECTED  (GPIO_TYPE(PORT_2, PIN_13, FUNC_0))    
     LPC_IOCON->P2_13 |= (1 << 3); // enable pulldown 
     LPC_IOCON->P3_15 |= (1 << 3); // enable pulldown 
+    
+    // Pulse charger to keep it in "red mode"
+    GPIO_SET_PIN(CHARGER_ENABLE);
+    delay_uS(10000);
+    GPIO_CLR_PIN(CHARGER_ENABLE);
 }
 
 void ROScomms_Init() {

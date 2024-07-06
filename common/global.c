@@ -1,4 +1,5 @@
 #include <global.h>
+#include <sys/stat.h>
 
 //int stack_Keypad, stack_Counter, stack_LCD, stack_ADC = 0;
 
@@ -41,11 +42,16 @@ void wdt_init() {
     // Enable the clock to the WDT
     LPC_SC->PCONP |= (1 << 15); 
     // Set reset to 4Seconds
-    LPC_WDT->TC = 1000000;
+    LPC_WDT->TC = 500000;
     // Set the mode register to enable reset, and then enable the watchdog timer
     LPC_WDT->MOD = (1 << 0) | (1 << 1);
     // Init by reset
     wdt_reset();
+}
+
+void wdt_disable() {
+    // Disable the watchdog timer
+    LPC_WDT->MOD &= ~((1 << 0) | (1 << 1));  // Clear both WDEN and WDRESET bits
 }
 
 void delay_uS(uint32_t uS) {
@@ -85,6 +91,33 @@ void vApplicationMallocFailedHook(void) {
     for (;;);
 }
 
+int _close_r(struct _reent *r, int file) {
+    return 0;
+}
+
+int _fstat_r(struct _reent *r, int file, struct stat *st) {
+    return 0;
+}
+
+pid_t _getpid_r(struct _reent *r) {
+    return 0;
+}
+
+int _isatty_r(struct _reent *r, int file) {
+    return 0;
+}
+
+int _kill_r(struct _reent *r, int pid, int sig) {
+    return 0;
+}
+
+off_t _lseek_r(struct _reent *r, int file, off_t ptr, int dir) {
+    return 0;
+}
+
+ssize_t _read_r(struct _reent *r, int file, void *ptr, size_t len) {
+    return 0;
+}
 /*
 typedef void (*IAP)(uint32_t[5], uint32_t[5]);
 const IAP IAP_entry = (IAP)0x1FFF1FF1;

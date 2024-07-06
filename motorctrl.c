@@ -42,14 +42,14 @@ void motionSensor_Timer(TimerHandle_t xTimer) {
         tiltCounter++;
         if (tiltCounter > 500) {
             debug(" TILT EMG STOP");
-        xMotorMsgType MotorMsg;
-        MotorMsg.action = MOTORREQ_EMGSTOP;
-        MotorMsg.pwm.left = 0;
-        MotorMsg.pwm.right = 0;
-        MotorMsg.pwm.blade = 0;
-        xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay500);
+            xMotorMsgType MotorMsg;
+            MotorMsg.action = MOTORREQ_EMGSTOP;
+            MotorMsg.pwm.left = 0;
+            MotorMsg.pwm.right = 0;
+            MotorMsg.pwm.blade = 0;
+            xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay500);
+        }
     }
-}
 }
 void allStop() {
     setpwm(0,0,0);
@@ -177,9 +177,12 @@ void motorCtrl_Task(void *pvParameters) {
 
             switch (MotorMsg.action) {
                 case MOTORREQ_IDLE:
+                    wdt_disable();
                     GPIO_CLR_PIN(MOTOR_MOSFET);
                     break;
                 case MOTORREQ_ENABLE:
+                    wdt_init();
+                    
                 // this need investigation... I tried a couple of different order of sequence:
                 // enable controller, brake on, brake off (signals inverted I know)
                 // This seem to work for all 3 controllers.
@@ -201,6 +204,7 @@ void motorCtrl_Task(void *pvParameters) {
                     GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
                     break;
                 case MOTORREQ_DISABLE:
+                    wdt_disable(); 
                     allStop();
                     GPIO_CLR_PIN(MOTOR_MOSFET);
                     GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
@@ -230,6 +234,7 @@ void motorCtrl_Task(void *pvParameters) {
                     GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
                     break;
                 case MOTORREQ_EMGSTOP:
+                    wdt_disable();
                     allStop();
                     GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
                     GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);

@@ -16,6 +16,7 @@
 //#define cJSON_GetObj(object, key) (cJSON_GetObjectItem(object, key) ? cJSON_GetObjectItem(object, key) : cJSON_CreateObject())
 #define cJSON_GetObj(object, key) (cJSON_GetObjectItem(object, key) ? cJSON_GetObjectItem(object, key) : NULL)
 
+#undef EOF
 #define NOP 0x00
 #define SOF 0x01
 #define EOF 0xFF

@@ -163,7 +163,6 @@ void sensor_Task(void *pvParameters) {
     xLastWakeTime = xTaskGetTickCount();
   
     for (;;) {
-        //vTaskDelay(xDelay10);
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
         // handle_ADCMuxing(); // Only for LPC1768! ADC4 is muxed between 4 measurements.
@@ -196,8 +195,6 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.accelY *= GRAVITY;
         sensorMsg.accelZ *= GRAVITY;
 
-
-
 // L3GD20  
         I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro);
         offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
@@ -223,12 +220,9 @@ void sensor_Task(void *pvParameters) {
         // Is this really necessary? test to disable wait for adc done to test stability
         //while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
         sensorMsg.batteryTemp = conv_batt_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
-// EMA FILTER
-// adc_ema = (0.1 * adc_raw) + ((1.0 - 0.1) * adc_ema);
-// ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068)
+
         ema_batteryVolt = ((ALPHA * (ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068)) + ((SCALE - ALPHA) * ema_batteryVolt)) / SCALE;
         sensorMsg.batteryVolt = ema_batteryVolt;
-// ((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146
         ema_batteryChargeCurrent = ((ALPHA * (((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146)) + ((SCALE - ALPHA) * ema_batteryChargeCurrent)) / SCALE;
         sensorMsg.batteryChargeCurrent = ema_batteryChargeCurrent;
 
@@ -242,5 +236,3 @@ void sensor_Task(void *pvParameters) {
 
     }
 }
-
-

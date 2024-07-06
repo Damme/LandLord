@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "global.h"
+#include <math.h>
 
 char buffer[50];
 
@@ -163,10 +164,10 @@ void lcdPrintSensor() {
     sprintf(buffer, "MotorCurr: %d %d %d", sensorMsg.motorCurrentLeft, sensorMsg.motorCurrentRight, sensorMsg.motorCurrentBlade);
     u8g_DrawStr(&u8g,  0, 36, buffer);
 
-    sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", sensorMsg.accelX, sensorMsg.accelY, sensorMsg.accelZ);
+    sprintf(buffer, "Accel XYZ: %+04d %+04d %+04d", (uint16_t)round(sensorMsg.accelX), (uint16_t)round(sensorMsg.accelY), (uint16_t)round(sensorMsg.accelZ));
     u8g_DrawStr(&u8g,  0, 44, buffer);
     
-    sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d", sensorMsg.gyroYaw, sensorMsg.gyroPitch, sensorMsg.gyroRoll);
+    sprintf(buffer, "Ya Pi Ro: %+06d %+06d %+06d",  (uint16_t)(sensorMsg.gyroYaw * 100000), (uint16_t)round(sensorMsg.gyroPitch * 100000), (uint16_t)round(sensorMsg.gyroRoll * 100000));
     u8g_DrawStr(&u8g,  0, 52, buffer);    
 
 
@@ -483,7 +484,7 @@ void menuBootWarnfnc(void) {
 //uint32_t override_timer = 0;
 
 void screen_Task(void) {
-    xScreenMsgType screenMsg;
+    //xScreenMsgType screenMsg;
     
     // quick and featureless backlight control    
     if (!GPIO_CHK_PIN(SENSOR_DOOR) || !GPIO_CHK_PIN(SENSOR_DOOR2)) {

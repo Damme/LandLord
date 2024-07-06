@@ -22,7 +22,7 @@ void UART2_IRQHandler(void) {
 		if (ch == 0x56) { // Ascii "V"
 			if (txpos == 36) {
 				txbuf[txpos++] = 0;
-				xQueueSendFromISR(xBoundaryMsgQueue, &txbuf, &xHigherPriorityTaskWoken);
+				xQueueSendFromISR(xBoundaryMsgQueue, (const void * const)&txbuf, &xHigherPriorityTaskWoken);
 			}
 			txpos=0;
 		}

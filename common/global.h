@@ -153,6 +153,7 @@ extern SensorType sensorMsg;
 
 void wdt_reset();
 void wdt_init(); 
+void wdt_disable();
   
 //int _write(int fd, char *ptr, int len);
 void delay_uS(uint32_t uS);

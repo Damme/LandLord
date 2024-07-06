@@ -17,8 +17,7 @@
 #include "cJSON.h"
 
 #ifdef LPC177x_8x // LPC1788 DB504
-TODO("Cpu lpc1788 DB504")
-
+#pragma message("Cpu lpc1788 DB504")
 HeapRegion_t xHeapRegions[] = {
     { (uint8_t *) 0x10001000UL, 0xF000 }, // 60kB
     { (uint8_t *) 0x20000000UL, 0x2000 }, // 8kB
@@ -27,8 +26,7 @@ HeapRegion_t xHeapRegions[] = {
     { NULL, 0 }                           // Tot: 92kB
 };
 #else // LPC1768 DB275
-TODO("Cpu lpc1768 DB275")
-
+#pragma message("Cpu lpc1768 DB275")
 HeapRegion_t xHeapRegions[] = {
     { (uint8_t *) 0x10001000UL, 0x7000 }, // 28kB
     { (uint8_t *) 0x2007C000UL, 0x4000 }, // 16kB
@@ -36,11 +34,8 @@ HeapRegion_t xHeapRegions[] = {
     { NULL, 0 }                           // Tot: 60kB
 };
 #endif
-/*
-arm-none-eabi-gdb main.elf
-target extended-remote 10.42.43.164:3333
-*/
 
+/*
 static void task_DigitalTest(void *pvParameters) {
     for (;;) {
         GPIO_SET_PIN(LCD_BACKLIGHT);
@@ -49,9 +44,9 @@ static void task_DigitalTest(void *pvParameters) {
         vTaskDelay(xDelay500);
     }
 }
+*/
 
 int main(void) {
-//    setbuf(stdout, NULL);
     vPortDefineHeapRegions(xHeapRegions);
     
     //SystemInit();
@@ -68,7 +63,7 @@ int main(void) {
 
 
     hardware_Init();
-    wdt_init();
+    powerMgmt_Init();
     
     //xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
     //xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
@@ -83,21 +78,22 @@ int main(void) {
     memset(&sensorMsg, 0, sizeof(SensorType));
     
     
-  //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, &xHandle[taskcounter++]);
+  //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, (TaskHandle_t *)&xHandle[taskcounter++]);
 
 //                                                             Prio
-    xTaskCreate(powerMgmt_Task,   "PowerMgmt",      300,  NULL, 7, &xHandle[taskcounter++]);
-    xTaskCreate(ROSCommsRx_Task,  "RosCommsRx",     3000, NULL, 6, &xHandle[taskcounter++]);
-    xTaskCreate(ROSCommsTx_Task,  "RosCommsTx",     4000, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(SPI0TxQueue_Task, "SPI0TxQueue",    1500, NULL, 7, &xHandle[taskcounter++]);
-    //xTaskCreate(ROSCommsTest_Task,  "RosCommsTest",   500, NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(motorCtrl_Task,   "MotorCtrl",      300,  NULL, 5, &xHandle[taskcounter++]);
-    xTaskCreate(sensor_Task,      "Sensor",         500,  NULL, 4, &xHandle[taskcounter++]);
-    xTaskCreate(boundary_Task,    "Boundary",       500,  NULL, 3, &xHandle[taskcounter++]);
-    xTaskCreate(LCD_Task,         "LCD",            400,  NULL, 2, &xHandle[taskcounter++]);
-    xTaskCreate(keypad_Task,      "Keypad",         200,  NULL, 2, &xHandle[taskcounter++]);
+    xTaskCreate(powerMgmt_Task,   "PowerMgmt",      300,  NULL, 7, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsRx_Task,  "RosCommsRx",     3000, NULL, 6, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(ROSCommsTx_Task,  "RosCommsTx",     4000, NULL, 5, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(SPI0TxQueue_Task, "SPI0TxQueue",    1500, NULL, 7, (TaskHandle_t *)&xHandle[taskcounter++]);
+    //xTaskCreate(ROSCommsTest_Task,  "RosCommsTest",   500, NULL, 5, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(motorCtrl_Task,   "MotorCtrl",      300,  NULL, 5, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(sensor_Task,      "Sensor",         500,  NULL, 4, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(boundary_Task,    "Boundary",       500,  NULL, 3, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(LCD_Task,         "LCD",            400,  NULL, 2, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(keypad_Task,      "Keypad",         200,  NULL, 2, (TaskHandle_t *)&xHandle[taskcounter++]);
 
     vTaskStartScheduler();
+
     // Should never get here.
     printf("Insufficient RAM!");
     for (;;) {
