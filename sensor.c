@@ -147,12 +147,15 @@ void sensor_Task(void *pvParameters) {
 #define SAMPLES 2000
 
     for (int i=0;  i < SAMPLES; i++) {
-        I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro); // Bug? seem to freeze sensor task? i2c code!
+        I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro);
         rawYaw += (int16_t)((gyro.X1 << 8) | gyro.X2);
         rawPitch += (int16_t)((gyro.Y1 << 8) | gyro.Y2);
         rawRoll += (int16_t)((gyro.Z1 << 8) | gyro.Z2);
         vTaskDelay(pdMS_TO_TICKS(5));
     }
+    
+    while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
+    
     offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
     rawYaw = round(rawYaw / SAMPLES);
     rawPitch = round(rawPitch / SAMPLES);
@@ -195,6 +198,8 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.accelY *= GRAVITY;
         sensorMsg.accelZ *= GRAVITY;
 
+        while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
+
 // L3GD20  
         I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro);
         offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
@@ -217,8 +222,8 @@ void sensor_Task(void *pvParameters) {
         xQueueSend(RosTxQueue, local_txbuf, xDelay10);
         cJSON_Delete(root);
 
-        // Is this really necessary? test to disable wait for adc done to test stability
-        //while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
+        
+        
         sensorMsg.batteryTemp = conv_batt_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
 
         ema_batteryVolt = ((ALPHA * (ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068)) + ((SCALE - ALPHA) * ema_batteryVolt)) / SCALE;

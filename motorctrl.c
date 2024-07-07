@@ -1,6 +1,7 @@
+#include <stdio.h>
+#include "common.h"
 #include "motorctrl.h"
 #include "timers.h"
-#include <stdio.h>
 
 int16_t setPWMBlade, setPWMLeft, setPWMRight = 0;
 int16_t curPWMBlade, curPWMLeft, curPWMRight = 0;
@@ -41,7 +42,7 @@ void motionSensor_Timer(TimerHandle_t xTimer) {
     if (sensorMsg.accelZ < 5000 && sensorMsg.currentPWMBlade > 0) {
         tiltCounter++;
         if (tiltCounter > 500) {
-            debug(" TILT EMG STOP");
+            //debug(" TILT EMG STOP");
             xMotorMsgType MotorMsg;
             MotorMsg.action = MOTORREQ_EMGSTOP;
             MotorMsg.pwm.left = 0;
