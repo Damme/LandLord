@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include "common.h"
 #include "motorctrl.h"
+#include "common.h"
+#include "global.h"
 #include "timers.h"
 
 int16_t setPWMBlade, setPWMLeft, setPWMRight = 0;

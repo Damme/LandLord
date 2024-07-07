@@ -1,5 +1,6 @@
-#include <global.h>
 #include <sys/stat.h>
+#include "common.h"
+#include "global.h"
 
 //int stack_Keypad, stack_Counter, stack_LCD, stack_ADC = 0;
 

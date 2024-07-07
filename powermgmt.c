@@ -1,4 +1,8 @@
 #include <stdio.h>
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "common.h"
+
 #include "powermgmt.h"
 #include "timers.h"
 #include "global.h"

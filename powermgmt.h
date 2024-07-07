@@ -1,10 +1,6 @@
 #ifndef POWERMGMT_H
 #define POWERMGMT_H
 
-#include "FreeRTOS.h"
-#include "queue.h"
-#include "common.h"
-#include "global.h"
 /*
 #pragma anon_unions
 typedef struct
