@@ -51,6 +51,8 @@ void motionSensor_Timer(TimerHandle_t xTimer) {
             MotorMsg.pwm.blade = 0;
             xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay500);
         }
+    } else {
+        tiltCounter=0;
     }
 }
 void allStop() {
