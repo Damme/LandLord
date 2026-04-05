@@ -41,9 +41,9 @@ make cpu=1788 #for db504 (the only board that is working atm)
 
 
 ## TODOOOOOOO
-Known things that needs implemtentation
-* Working emegancy stop and communication to ROS and reset emergancy stop
-* internal tilt sensor emergancy stop if z val < threashold (mower leaning too much, upside down, standing on its side/back)
+Known things that needs implementation
+* Working emegancy stop and communication to ROS and reset emergency stop
+* internal tilt sensor emergency stop if z val < threashold (mower leaning too much, upside down, standing on its side/back)
 
 * xSensorQueue is now replaced with global struct sensorMsg instead. We need to add Semaphores before updating sensorMsg! (read should be ok though...?)
 
