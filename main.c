@@ -16,8 +16,6 @@
 
 #include "cJSON.h"
 
-#define LPC177x_8x
-
 #ifdef LPC177x_8x // LPC1788 DB504
 #pragma message("Cpu lpc1788 DB504")
 HeapRegion_t xHeapRegions[] = {

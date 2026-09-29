@@ -1,8 +1,9 @@
-BASE:=/usr
+# Toolchain: BASE=<dir with bin/arm-none-eabi-gcc>. Default: the ARM GNU toolchain
+# unpacked in /opt if present (WSL dev host), else /usr (distro package).
+ARMGNU:=/opt/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi
+BASE?=$(if $(wildcard $(ARMGNU)/bin/arm-none-eabi-gcc),$(ARMGNU),/usr)
 
 GCCPATH:=$(BASE)
-CPU:=1788
-TARGETCPU:=LPC177x_8x
 
 #TARGETNAME:=$(firstword $(basename $(wildcard *.c)))
 TARGETNAME:=main
@@ -16,10 +17,12 @@ LDSCRIPTDIR:=$(SYSINC)
 SRC:=$(wildcard *.c)
 MCPU:=cortex-m3
 
-ifeq ($(cpu),1788)
-	TARGETCPU:=LPC177x_8x
-else
+# make cpu=1788 (DB504, default) or cpu=1768 (DB275); CPU= works too.
+cpu?=$(if $(CPU),$(CPU),1788)
+ifeq ($(cpu),1768)
 	TARGETCPU:=LPC175x_6x
+else
+	TARGETCPU:=LPC177x_8x
 endif
 
 SYSSRC:=$(wildcard $(SYSINC)/*.c)
