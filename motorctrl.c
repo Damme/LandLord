@@ -9,6 +9,11 @@ int16_t setPWMBlade, setPWMLeft, setPWMRight = 0;
 int16_t curPWMBlade, curPWMLeft, curPWMRight = 0;
 int32_t tiltCounter = 0;
 int32_t liftCounter = 0;
+int32_t bumpOn = 0, bumpOff = 0;
+bool bumpLatched = false;
+
+#define BUMP_ON_MS  5  // pressed this long = one bump
+#define BUMP_OFF_MS 50 // released this long before the next one counts
 
 #define TILT_EMG_MS 500
 #define LIFT_EMG_MS 100 // filters contact glitches at the charger (seen 2026-09-28)
@@ -51,6 +56,20 @@ void requestEmergency(uint8_t reason) {
 void motionSensor_Timer(TimerHandle_t xTimer) {
     if (!GPIO_CHK_PIN(SENSOR_STUCK) || !GPIO_CHK_PIN(SENSOR_STUCK2) || !GPIO_CHK_PIN(SENSOR_LIFT) || !GPIO_CHK_PIN(SENSOR_COLLISION))
         sensorMsg.blockForward = 1;
+
+    // Bump counter: bumper pins (low = pressed; all three go low on the dock).
+    // ROS sees every press, even one shorter than a report period.
+    bool bump = !GPIO_CHK_PIN(SENSOR_STUCK) || !GPIO_CHK_PIN(SENSOR_STUCK2) || !GPIO_CHK_PIN(SENSOR_COLLISION);
+    if (bump) {
+        bumpOff = 0;
+        if (!bumpLatched && ++bumpOn >= BUMP_ON_MS) {
+            bumpLatched = true;
+            sensorMsg.bumps++;
+        }
+    } else {
+        bumpOn = 0;
+        if (bumpLatched && ++bumpOff >= BUMP_OFF_MS) bumpLatched = false;
+    }
 
     // If robot tilted too much / upside down and blade on emergancy stop!
     if (sensorMsg.accelZ < 5000 && sensorMsg.currentPWMBlade > 0) {

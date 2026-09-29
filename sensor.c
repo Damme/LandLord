@@ -80,10 +80,18 @@ volatile bool lastpulser = 0;
 volatile bool lastpulseb = 0;
 volatile uint32_t timer2counter= 0;
 volatile uint32_t motorPulseBladetemp = 0;
+volatile uint8_t timer2sub = 0;
+
+// Pulse pins are polled (P1.14/P3.30 have no GPIO interrupt on the LPC1788).
+// 4 kHz so short hall levels are not missed; ms counters advance every 4th tick.
+#define PULSE_POLL_HZ 4000
 
 void TIMER2_IRQHandler(void) {
-    sensorMsg.globalticksms++;
-    sensorMsg.watchdogSPI++;
+    if (++timer2sub >= PULSE_POLL_HZ / 1000) {
+        timer2sub = 0;
+        sensorMsg.globalticksms++;
+        sensorMsg.watchdogSPI++;
+    }
     
     if (lastpulsel != GPIO_CHK_PIN(MOTOR_LEFT_PULSE)) {
         lastpulsel = GPIO_CHK_PIN(MOTOR_LEFT_PULSE);
@@ -99,7 +107,7 @@ void TIMER2_IRQHandler(void) {
     }
     
     timer2counter++;
-    if (timer2counter > 500) {
+    if (timer2counter >= PULSE_POLL_HZ / 2) { // blade pulses per 0.5 s
         sensorMsg.motorPulseBlade = motorPulseBladetemp;
         motorPulseBladetemp = 0;
         timer2counter = 0;
@@ -123,7 +131,7 @@ void sensor_Task(void *pvParameters) {
         LPC_SC->PCONP |= PCONP_PCTIM2;
         LPC_TIM2->TCR = 0x02;
         LPC_TIM2->PR  = 0x00;
-        LPC_TIM2->MR0 = 1000 * (SystemCoreClock / 1000000) - 1; // 1ms
+        LPC_TIM2->MR0 = SystemCoreClock / PULSE_POLL_HZ - 1;
         LPC_TIM2->IR  = 0xff;
         LPC_TIM2->MCR = 0x03; // Trigger INT on match + reset TC
         NVIC_SetPriority(TIMER2_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
@@ -203,8 +211,10 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.stuck = GPIO_CHK_PIN(SENSOR_STUCK);
         sensorMsg.stuck2 = GPIO_CHK_PIN(SENSOR_STUCK2);
         sensorMsg.door = GPIO_CHK_PIN(SENSOR_DOOR); 
-        sensorMsg.lift = GPIO_CHK_PIN(SENSOR_LIFT); // Might be swapped with Collision
-        sensorMsg.collision = GPIO_CHK_PIN(SENSOR_COLLISION);  // Might be swapped with LIFT
+        // Robot logs 2026-09: bumper pressed on the dock -> Stuck, Stuck2 and Collision
+        // read 0, Lift stays 1. So Collision is the bumper and Lift is not swapped with it.
+        sensorMsg.lift = GPIO_CHK_PIN(SENSOR_LIFT);
+        sensorMsg.collision = GPIO_CHK_PIN(SENSOR_COLLISION);
         sensorMsg.stop = GPIO_CHK_PIN(SENSOR_STOP);
         sensorMsg.door2 = GPIO_CHK_PIN(SENSOR_DOOR2);
         

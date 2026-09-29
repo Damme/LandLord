@@ -57,6 +57,7 @@ typedef struct {
     uint8_t emergencyReason; // EMG_* bits, latched until MOTORREQ_RESETEMG
     bool motorsEnabled;      // real state: MOTOR_MOSFET on and controllers enabled
     int32_t globalticksms;
+    uint32_t bumps;          // debounced bumper/collision presses since boot
     int32_t watchdogSPI;
     int32_t rainAnalog;
     int32_t batteryTemp;

@@ -201,6 +201,24 @@ void spi0_Transmit_DMA(uint8_t *data, size_t length) {
 }
 */
 
+// Digital inputs as a bitmask, read straight from the pins (the sensor task
+// copies are up to 40 ms old). Order = the Digital frame's keys.
+static uint8_t digitalInputs(void) {
+    return  (GPIO_CHK_PIN(SENSOR_STUCK)     << 0) | (GPIO_CHK_PIN(SENSOR_STUCK2)    << 1) |
+            (GPIO_CHK_PIN(SENSOR_DOOR)      << 2) | (GPIO_CHK_PIN(SENSOR_DOOR2)     << 3) |
+            (GPIO_CHK_PIN(SENSOR_LIFT)      << 4) | (GPIO_CHK_PIN(SENSOR_COLLISION) << 5) |
+            (GPIO_CHK_PIN(SENSOR_STOP)      << 6) | (sensorMsg.rain                 << 7);
+}
+
+static void sendDigital(uint8_t in) {
+    static const char * const names[] = {"Stuck", "Stuck2", "Door", "Door2", "Lift", "Collision", "Stop", "Rain"};
+    cJSON* root = cJSON_CreateObject();
+    cJSON* obj = cJSON_CreateObject();
+    for (int i = 0; i < 8; i++) cJSON_AddItemToObject(obj, names[i], cJSON_CreateNumber((in >> i) & 1));
+    cJSON_AddItemToObject(root, "Digital", obj);
+    rosSendJSON(root);
+}
+
 void ROSCommsTx_Task(void *pvParameters) {
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = pdMS_TO_TICKS(50);
@@ -225,6 +243,7 @@ void ROSCommsTx_Task(void *pvParameters) {
     
     uint16_t counter = 0;
     uint8_t printmsg = 0;
+    uint8_t lastDigital = digitalInputs();
 
     debug("ROSComms started...");
     //debug("CoreClk: %i Perclk: %i PCLKDIV: %i", SystemCoreClock, PeripheralClock, (LPC_SC->PCLKSEL & 0x1f));
@@ -280,6 +299,13 @@ void ROSCommsTx_Task(void *pvParameters) {
         cJSON_AddItemToObject(root, "I2C_IMU", obj);
         rosSendJSON(root);
         */
+        // Digital at once on any change (plus every 1.25 s in the rotation below)
+        uint8_t digital = digitalInputs();
+        if (digital != lastDigital) {
+            lastDigital = digital;
+            sendDigital(digital);
+        }
+
         cJSON* root = cJSON_CreateObject();
         cJSON* obj = cJSON_CreateObject();
         cJSON_AddItemToObject(obj, "Left", cJSON_CreateNumber(sensorMsg.motorPulseLeft));
@@ -291,6 +317,8 @@ void ROSCommsTx_Task(void *pvParameters) {
         cJSON_AddItemToObject(obj, "EmgReason", cJSON_CreateNumber(sensorMsg.emergencyReason));
         cJSON_AddItemToObject(obj, "Motors", cJSON_CreateNumber(sensorMsg.motorsEnabled));
         cJSON_AddItemToObject(obj, "BlockForward", cJSON_CreateNumber(sensorMsg.blockForward));
+        cJSON_AddItemToObject(obj, "Bumps", cJSON_CreateNumber(sensorMsg.bumps));
+        cJSON_AddItemToObject(obj, "ms", cJSON_CreateNumber(sensorMsg.globalticksms)); // board time of this sample
         cJSON_AddItemToObject(root, "MotorPulse", obj);
         rosSendJSON(root);
 
@@ -319,15 +347,10 @@ if (!(counter % 5)) {
                 cJSON_AddItemToObject(root, "Battery", obj);
                 break;
             case 2:
-                cJSON_AddItemToObject(obj, "Stuck", cJSON_CreateNumber(sensorMsg.stuck));
-                cJSON_AddItemToObject(obj, "Stuck2", cJSON_CreateNumber(sensorMsg.stuck2));
-                cJSON_AddItemToObject(obj, "Door", cJSON_CreateNumber(sensorMsg.door));
-                cJSON_AddItemToObject(obj, "Door2", cJSON_CreateNumber(sensorMsg.door2));
-                cJSON_AddItemToObject(obj, "Lift", cJSON_CreateNumber(sensorMsg.lift));
-                cJSON_AddItemToObject(obj, "Collision", cJSON_CreateNumber(sensorMsg.collision));
-                cJSON_AddItemToObject(obj, "Stop", cJSON_CreateNumber(sensorMsg.stop));
-                cJSON_AddItemToObject(obj, "Rain", cJSON_CreateNumber(sensorMsg.rain));
-                cJSON_AddItemToObject(root, "Digital", obj);
+                cJSON_Delete(obj);
+                cJSON_Delete(root);
+                root = NULL;
+                sendDigital(lastDigital = digitalInputs());
                 break;
             case 3:
                 cJSON_AddItemToObject(obj, "Rain", cJSON_CreateNumber(sensorMsg.rainAnalog));
@@ -381,7 +404,7 @@ if (!(counter % 5)) {
         }
         printmsg++;
 
-        rosSendJSON(root);
+        if (root) rosSendJSON(root);
 }
         
         if (!(counter % 1000)) {
