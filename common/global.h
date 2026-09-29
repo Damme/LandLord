@@ -12,6 +12,7 @@
 #include "queue.h"
 #include "task.h"
 #include "message_buffer.h"
+#include "stream_buffer.h"
 
 extern TickType_t xDelay1;
 extern TickType_t xDelay5;
@@ -31,7 +32,7 @@ extern xQueueHandle xMotorMsgQueue;
 extern xQueueHandle xBoundaryMsgQueue;
 extern xQueueHandle xJSONMessageQueue;
 extern MessageBufferHandle_t SPI0RxMessageBuffer;
-extern MessageBufferHandle_t SPI0TxMessageBuffer;
+extern StreamBufferHandle_t SPI0TxStreamBuffer;
 extern xQueueHandle RosTxQueue;
 
 typedef struct {

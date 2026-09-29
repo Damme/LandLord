@@ -30,7 +30,7 @@ xQueueHandle xJSONMessageQueue;
 SensorType sensorMsg;
 
 MessageBufferHandle_t SPI0RxMessageBuffer;
-MessageBufferHandle_t SPI0TxMessageBuffer;
+StreamBufferHandle_t SPI0TxStreamBuffer;
 xQueueHandle RosTxQueue;
 
 void wdt_reset() {

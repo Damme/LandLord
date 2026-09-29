@@ -11,6 +11,10 @@ void ROSCommsTx_Task(void *pvParameters);
 void SPI0TxQueue_Task(void *pvParameters);
 void ROSCommsTest_Task(void *pvParameters);
 
+#include <stdbool.h>
+#include "cJSON.h"
+
+bool rosSendJSON(cJSON *root);
 void debug( const char* format, ... );
 
 __attribute__((used)) int _write(int fd, char *ptr, int len);

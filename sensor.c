@@ -110,7 +110,6 @@ void TIMER2_IRQHandler(void) {
 
 void sensor_Task(void *pvParameters) {
     sensor_Init();
-    char local_txbuf[buflen+1];
     GenericSensor accel = {0,0,0,0,0,0};
     GenericSensor gyro = {0,0,0,0,0,0};
 
@@ -249,9 +248,7 @@ void sensor_Task(void *pvParameters) {
         cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(round(sensorMsg.accelY)));
         cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(round(sensorMsg.accelZ)));
         cJSON_AddItemToObject(root, "I2C_IMU", obj);
-        cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
-        xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-        cJSON_Delete(root);
+        rosSendJSON(root);
 
         
         

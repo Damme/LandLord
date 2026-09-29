@@ -24,6 +24,7 @@
 #define buflen  250
 
 uint8_t SSP0_rxpos = 0;
+bool SSP0_inframe = false;
 uint8_t SSP0_rxbuf[buflen+1];
 
 void SSP0_IRQHandler(void) { // SSP0_IRQn 14 (lpc1788)
@@ -41,22 +42,28 @@ void SSP0_IRQHandler(void) { // SSP0_IRQn 14 (lpc1788)
         rxByte = LPC_SSP0->DR; // Read the received byte
 
         // Transmit the byte
-        if (xMessageBufferReceiveFromISR(SPI0TxMessageBuffer, &txByte, 1, &xHigherPriorityTaskWoken) == pdFAIL) {
+        if (xStreamBufferReceiveFromISR(SPI0TxStreamBuffer, &txByte, 1, &xHigherPriorityTaskWoken) == 0) {
             txByte=NOP;
         }
         LPC_SSP0->DR = txByte;
 
-        // Process the received byte
-        if (rxByte == SOF) { // If start of frame
-            // Reset the rxpos index to 0
+        // Process the received byte. Bytes outside SOF..EOF are ignored, and a
+        // frame that overflows the buffer is dropped whole (not passed on cut).
+        if (rxByte == SOF) {
             SSP0_rxpos = 0;
-        } else if (rxByte == EOF || (SSP0_rxpos >= buflen - 1)) {
+            SSP0_inframe = true;
+        } else if (!SSP0_inframe || rxByte == NOP) {
+            // idle / padding
+        } else if (rxByte == EOF) {
             SSP0_rxbuf[SSP0_rxpos++] = 0;
-            // Send received data to the RxMessageBuffer
-            if (SSP0_rxpos > 0) xMessageBufferSendFromISR(SPI0RxMessageBuffer, &SSP0_rxbuf, SSP0_rxpos, &xHigherPriorityTaskWoken);
+            if (SSP0_rxpos > 1) xMessageBufferSendFromISR(SPI0RxMessageBuffer, &SSP0_rxbuf, SSP0_rxpos, &xHigherPriorityTaskWoken);
             SSP0_rxpos = 0;
-        } else if (rxByte != NOP) { // If regular data byte
-            SSP0_rxbuf[SSP0_rxpos++] = rxByte; // Add received byte to the rxbuf
+            SSP0_inframe = false;
+        } else if (SSP0_rxpos >= buflen - 1) {
+            SSP0_rxpos = 0;
+            SSP0_inframe = false;
+        } else {
+            SSP0_rxbuf[SSP0_rxpos++] = rxByte;
         }
         
         // Wait for the transmission to complete
@@ -72,33 +79,39 @@ void SSP0_IRQHandler(void) { // SSP0_IRQn 14 (lpc1788)
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
+// Moves whole frames (SOF + JSON + EOF) from RosTxQueue into the byte stream the
+// SSP0 ISR clocks out. A frame goes in only when it fits completely: the old
+// byte-by-byte message buffer (5 bytes of space per byte) dropped single bytes
+// whenever the Pi paused the SPI clock, giving frames like "Rai:0" or "Coll".
+// If the Pi stops reading, RosTxQueue fills and producers drop whole frames.
 void SPI0TxQueue_Task(void *pvParameters) {
+    uint8_t frame[buflen+2];
     char local_txbuf[buflen+1];
-    char txByte;
-    size_t txpos;
 
     while (1) {
-        // Check if the SPI0TxMessageBuffer has room for message
-        if (xMessageBufferSpaceAvailable(SPI0TxMessageBuffer) > buflen + 2) {
-            // Receive data from the TxMessageBuffer
-            if (xQueueReceive(RosTxQueue, local_txbuf, xDelay1) > 0) {
-                // Enqueue the SOF byte
-                txByte = SOF;
-                xMessageBufferSend(SPI0TxMessageBuffer, &txByte, 1, xDelay1);
-
-                // Enqueue the received data
-                for (txpos = 0; txpos < strnlen(local_txbuf, buflen); txpos++) {
-                    xMessageBufferSend(SPI0TxMessageBuffer, &local_txbuf[txpos], 1, xDelay1);
-                }
-
-                // Enqueue the EOF byte
-                txByte = EOF;
-                xMessageBufferSend(SPI0TxMessageBuffer, &txByte, 1, xDelay1);
+        if (xQueueReceive(RosTxQueue, local_txbuf, portMAX_DELAY) == pdPASS) {
+            local_txbuf[buflen] = 0;
+            size_t len = strnlen(local_txbuf, buflen);
+            frame[0] = SOF;
+            memcpy(&frame[1], local_txbuf, len);
+            frame[len + 1] = EOF;
+            len += 2;
+            while (xStreamBufferSpacesAvailable(SPI0TxStreamBuffer) < len) {
+                vTaskDelay(xDelay1);
             }
+            xStreamBufferSend(SPI0TxStreamBuffer, frame, len, 0);
         }
-        
-        vTaskDelay(pdMS_TO_TICKS(5));
     }
+}
+
+// Prints root into a frame and queues it; frees root. Returns false if the JSON
+// didn't fit in buflen (never send a half-printed buffer) or the queue was full.
+bool rosSendJSON(cJSON *root) {
+    char local_txbuf[buflen+1];
+    bool ok = cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
+    cJSON_Delete(root);
+    if (!ok) return false;
+    return xQueueSend(RosTxQueue, local_txbuf, xDelay10) == pdPASS;
 }
 
 void ROSCommsRx_Task(void *pvParameters) {
@@ -119,14 +132,11 @@ void ROSCommsRx_Task(void *pvParameters) {
                             xQueueSend(xJSONMessageQueue, &JSONMsg, xDelay25);*/
 
                             //debug("Pong! last: %i", watchdogSPI);
-                            char local_txbuf[buflen+1];
                             cJSON* msg = cJSON_CreateObject();
                             cJSON* obj = cJSON_CreateObject();
                             cJSON_AddItemToObject(obj, "Count", cJSON_CreateNumber(cJSON_GetInt(REQ, "count")));
                             cJSON_AddItemToObject(msg, "pong", obj);
-                            cJSON_PrintPreallocated(msg, local_txbuf, buflen, false);
-                            xQueueSend(RosTxQueue, local_txbuf, xDelay25);
-                            cJSON_Delete(msg);
+                            rosSendJSON(msg);
                             sensorMsg.watchdogSPI=0;
                         }
                     } else if (!strcasecmp(command->string, "MOTORREQ_DISABLE")) {
@@ -265,9 +275,7 @@ void ROSCommsTx_Task(void *pvParameters) {
         if (xQueueReceive(xJSONMessageQueue, &JSONMsg, 0) == pdPASS) {
             cJSON* root = cJSON_CreateObject();
             cJSON_AddStringToObject(root, JSONMsg.topic, JSONMsg.value);
-            cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
-            xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-            cJSON_Delete(root);
+            rosSendJSON(root);
         }
         /*
         // IMU Data:
@@ -280,9 +288,7 @@ void ROSCommsTx_Task(void *pvParameters) {
         cJSON_AddItemToObject(obj, "AccY", cJSON_CreateNumber(round(sensorMsg.accelY)));
         cJSON_AddItemToObject(obj, "AccZ", cJSON_CreateNumber(round(sensorMsg.accelZ)));
         cJSON_AddItemToObject(root, "I2C_IMU", obj);
-        cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
-        xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-        cJSON_Delete(root);
+        rosSendJSON(root);
         */
         cJSON* root = cJSON_CreateObject();
         cJSON* obj = cJSON_CreateObject();
@@ -294,9 +300,7 @@ void ROSCommsTx_Task(void *pvParameters) {
         cJSON_AddItemToObject(obj, "Emergancy", cJSON_CreateNumber(sensorMsg.emergancyStop));
         cJSON_AddItemToObject(obj, "BlockForward", cJSON_CreateNumber(sensorMsg.blockForward));
         cJSON_AddItemToObject(root, "MotorPulse", obj);
-        cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
-        xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-        cJSON_Delete(root);
+        rosSendJSON(root);
 
         // Boundary wire data:
 		if (xQueueReceive(xBoundaryMsgQueue, &BoundaryMsg, 0) == pdPASS) {
@@ -307,9 +311,7 @@ void ROSCommsTx_Task(void *pvParameters) {
             cJSON_AddItemToObject(obj, "nleft", cJSON_CreateNumber(atoi(BoundaryMsg.nleft)));
             cJSON_AddItemToObject(obj, "nright", cJSON_CreateNumber(atoi(BoundaryMsg.nright)));
             cJSON_AddItemToObject(root, "Boundary", obj);    
-            cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
-            xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-            cJSON_Delete(root);
+            rosSendJSON(root);
         }
 if (!(counter % 5)) {
         root = cJSON_CreateObject();
@@ -387,10 +389,7 @@ if (!(counter % 5)) {
         }
         printmsg++;
 
-        cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
-        xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-
-        cJSON_Delete(root);
+        rosSendJSON(root);
 }
         
         if (!(counter % 1000)) {
@@ -415,14 +414,11 @@ void ROSCommsTest_Task(void *pvParameters) {
 
 void debug( const char* format, ... ) {
     char buf[buflen+1];
-    uint8_t len;
     va_list args;
-    len = sprintf( buf, "DEBUG: " );
+    int len = snprintf( buf, sizeof(buf), "DEBUG: " );
     va_start( args, format );
-    len += vsprintf( buf + len, format, args );
+    vsnprintf( buf + len, sizeof(buf) - len, format, args );
     va_end( args );
-    //len += sprintf( buf + len, "\n" );
-    buf[len++]=0;
     xQueueSend(RosTxQueue, buf, xDelay10);
 }
 
