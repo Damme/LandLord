@@ -68,6 +68,8 @@ COMMON_FLAGS += -I. -I$(SYSINC) -I$(SYSINC)/$(TARGETCPU) -I$(U8GPATH) -I$(FREERT
 COMMON_FLAGS += -D__STACK_SIZE=0x0a00 -DdebugPrintf -DLOWSTACKWARNING -D$(TARGETCPU) -DENABLE_SANITIZERS=On -DENABLE_SAFE_STACK
 COMMON_FLAGS += -Os -flto
 COMMON_FLAGS += -ffunction-sections -fdata-sections
+# Header dependencies (.d files): a changed header rebuilds its users
+COMMON_FLAGS += -MMD -MP
 # Assembler flags
 ASFLAGS:=$(COMMON_FLAGS) -D__STARTUP_CLEAR_BSS -D__START=main
 # C flags
@@ -112,7 +114,7 @@ upload: $(DISNAME) $(HEXNAME) $(ELFNAME)
 .PHONY: clean
 clean:
 	@echo -e "\e[1;37mRemoving all files...\e[0m\e[1;37m"
-	@$(RM) $(OBJ) $(HEXNAME) $(BINNAME) $(ELFNAME) $(DISNAME) $(MAPNAME)
+	@$(RM) $(OBJ) $(OBJ:.o=.d) $(HEXNAME) $(BINNAME) $(ELFNAME) $(DISNAME) $(MAPNAME)
 
 cleansmall:
 	@echo -e "\e[1;37mRemoving some files...\e[0m\e[1;37m"
@@ -135,6 +137,8 @@ cleansmall:
 
 .elf.bin:
 	@$(OBJCOPY) -O binary $< $@
+
+-include $(OBJ:.o=.d)
 
 # explicit rules
 $(ELFNAME): $(OBJ)

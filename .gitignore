@@ -3,6 +3,7 @@
 *.lo
 *.o
 *.obj
+*.d
 *.bin
 *.hex
 *.elf
