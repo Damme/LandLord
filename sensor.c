@@ -44,6 +44,25 @@ int32_t conv_board_temp(int32_t raw) {
 }
 
 // Test to remove the code below using a table
+// Exponential moving average in fixed point (state = value * SCALE). The old
+// integer form (ALPHA*x + (SCALE-ALPHA)*ema) / SCALE never moved for a step below
+// SCALE/ALPHA = 40 units: the charge current read 0 up to ~40 mA and sat up to
+// 40 mA (40 mV) below the real value.
+typedef struct {
+    int32_t state;
+    bool init;
+} Ema;
+
+static int32_t ema_update(Ema *e, int32_t x, int32_t alpha) {
+    if (!e->init) {
+        e->state = x * SCALE;
+        e->init = true;
+    } else {
+        e->state += (alpha * (x * SCALE - e->state)) / SCALE;
+    }
+    return (e->state + (e->state >= 0 ? SCALE / 2 : -SCALE / 2)) / SCALE;
+}
+
 int32_t conv_batt_temp(int32_t raw) {
     int32_t result = round(-0.27 * (raw - 2800) + 55);
     return result;
@@ -124,8 +143,9 @@ void sensor_Task(void *pvParameters) {
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = pdMS_TO_TICKS(40);
     
-    int32_t ema_batteryVolt = 25000;
-    int32_t ema_batteryChargeCurrent = 0;
+    Ema ema_batteryVolt = {0, false};
+    Ema ema_batteryChargeCurrent = {0, false};
+    Ema ema_batteryTemp = {0, false};
 
     // Setup timer for pulse counter isr.
         LPC_SC->PCONP |= PCONP_PCTIM2;
@@ -262,12 +282,12 @@ void sensor_Task(void *pvParameters) {
 
         
         
-        sensorMsg.batteryTemp = conv_batt_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP));
+        // 0.1 degC; raw readings jump +-1.5 degC while the motors run: slower filter (~4 s)
+        sensorMsg.batteryTemp = ema_update(&ema_batteryTemp, conv_batt_temp(ADC_DR_RESULT(ANALOG_BATT_TEMP)), 10);
 
-        ema_batteryVolt = ((ALPHA * (ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068)) + ((SCALE - ALPHA) * ema_batteryVolt)) / SCALE;
-        sensorMsg.batteryVolt = ema_batteryVolt;
-        ema_batteryChargeCurrent = ((ALPHA * (((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146)) + ((SCALE - ALPHA) * ema_batteryChargeCurrent)) / SCALE;
-        sensorMsg.batteryChargeCurrent = ema_batteryChargeCurrent;
+        sensorMsg.batteryVolt = ema_update(&ema_batteryVolt, ADC_DR_RESULT(ANALOG_BATT_VOLT) * 100000 / 13068, ALPHA);
+        int32_t chargeCurrent = (int32_t)lround(((ADC_DR_RESULT(ANALOG_BATT_CHARGE_A) + 24) * 0.8) - 146);
+        sensorMsg.batteryChargeCurrent = ema_update(&ema_batteryChargeCurrent, chargeCurrent, ALPHA);
 
         if (sensorMsg.batteryChargeCurrent < 0) sensorMsg.batteryChargeCurrent = 0;
         sensorMsg.motorCurrentRight = ADC_DR_RESULT(ANALOG_MOTOR_R_AMP);
