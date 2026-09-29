@@ -16,6 +16,7 @@
 #define buflen  250
 
 #define RAIN_ADC_VALUE  3500 // 3840 = dry a couple of hours after rain
+#define RAIN_ADC_HYST   100
 #define ALPHA 25
 #define SCALE 1000
 
@@ -295,7 +296,9 @@ void sensor_Task(void *pvParameters) {
         sensorMsg.motorCurrentBlade = ADC_DR_RESULT(ANALOG_MOTOR_S_AMP);
         sensorMsg.rainAnalog = ADC_DR_RESULT(ANALOG_RAIN);
         sensorMsg.boardTemp = conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP));
-        if ( sensorMsg.rainAnalog < RAIN_ADC_VALUE ) sensorMsg.rain = 1; else sensorMsg.rain = 0;
+        // Hysteresis: Digital is sent on every change, a flickering flag would flood it.
+        if (sensorMsg.rainAnalog < RAIN_ADC_VALUE) sensorMsg.rain = 1;
+        else if (sensorMsg.rainAnalog > RAIN_ADC_VALUE + RAIN_ADC_HYST) sensorMsg.rain = 0;
 
     }
 }
