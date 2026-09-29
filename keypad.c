@@ -171,9 +171,8 @@ void keypad_Task(void *pvParameters) {
         vTaskDelay(xDelay100);
         keypad_ProcessTask();
 
-        if (keypad_GetKey() == KEYSTOP) {
-            xMotorMsgType MotorMsg;
-            MotorMsg.action = MOTORREQ_EMGSTOP;
+        if (keypad_GetKey() == KEYSTOP && !(sensorMsg.emergancyStop && (sensorMsg.emergencyReason & EMG_STOP))) {
+            xMotorMsgType MotorMsg = { .action = MOTORREQ_EMGSTOP, .reason = EMG_STOP, .pwm = {0, 0, 0} };
             xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay250);
         }
 

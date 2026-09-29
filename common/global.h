@@ -54,6 +54,8 @@ typedef struct {
     bool inCharger;
     bool blockForward;
     bool emergancyStop;
+    uint8_t emergencyReason; // EMG_* bits, latched until MOTORREQ_RESETEMG
+    bool motorsEnabled;      // real state: MOTOR_MOSFET on and controllers enabled
     int32_t globalticksms;
     int32_t watchdogSPI;
     int32_t rainAnalog;
@@ -118,8 +120,14 @@ typedef enum {
     MOTORREQ_RESETEMG
 } xMotorRequestType;
 
+// Emergency reasons (sensorMsg.emergencyReason, "EmgReason" in MotorPulse)
+#define EMG_TILT  (1 << 0) // accelZ < 5000 with the blade on for 0.5 s
+#define EMG_STOP  (1 << 1) // STOP key
+#define EMG_LIFT  (1 << 2) // lift sensor with the motors on (debounced)
+
 typedef struct {
     xMotorRequestType action;
+    uint8_t reason; // EMG_* for MOTORREQ_EMGSTOP
     struct {
         int16_t blade;
         int16_t left;

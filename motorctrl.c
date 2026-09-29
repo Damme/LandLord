@@ -3,10 +3,15 @@
 #include "common.h"
 #include "global.h"
 #include "timers.h"
+#include "ROSComms.h"
 
 int16_t setPWMBlade, setPWMLeft, setPWMRight = 0;
 int16_t curPWMBlade, curPWMLeft, curPWMRight = 0;
 int32_t tiltCounter = 0;
+int32_t liftCounter = 0;
+
+#define TILT_EMG_MS 500
+#define LIFT_EMG_MS 100 // filters contact glitches at the charger (seen 2026-09-28)
 
 void setpwm(uint16_t blade, uint16_t left, uint16_t right) {
     if (blade > 2047) blade=2047;
@@ -35,24 +40,30 @@ const char *MotorRequestStrings[] = {
 };
 
 
+// Queues an emergency stop. Callable from the timer task: never blocks.
+void requestEmergency(uint8_t reason) {
+    xMotorMsgType MotorMsg = { .action = MOTORREQ_EMGSTOP, .reason = reason, .pwm = {0, 0, 0} };
+    xQueueSend(xMotorMsgQueue, &MotorMsg, 0);
+}
+
+// 1 ms software timer. Runs in the timer task: must not block (the old tilt
+// code waited up to 500 ms on a full queue for every tick, stalling the PWM ramp).
 void motionSensor_Timer(TimerHandle_t xTimer) {
     if (!GPIO_CHK_PIN(SENSOR_STUCK) || !GPIO_CHK_PIN(SENSOR_STUCK2) || !GPIO_CHK_PIN(SENSOR_LIFT) || !GPIO_CHK_PIN(SENSOR_COLLISION))
         sensorMsg.blockForward = 1;
 
     // If robot tilted too much / upside down and blade on emergancy stop!
     if (sensorMsg.accelZ < 5000 && sensorMsg.currentPWMBlade > 0) {
-        tiltCounter++;
-        if (tiltCounter > 500) {
-            //debug(" TILT EMG STOP");
-            xMotorMsgType MotorMsg;
-            MotorMsg.action = MOTORREQ_EMGSTOP;
-            MotorMsg.pwm.left = 0;
-            MotorMsg.pwm.right = 0;
-            MotorMsg.pwm.blade = 0;
-            xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay500);
-        }
+        if (++tiltCounter == TILT_EMG_MS) requestEmergency(EMG_TILT);
     } else {
-        tiltCounter=0;
+        tiltCounter = 0;
+    }
+
+    // Lift (pin low = lifted) while the motors are on.
+    if (sensorMsg.motorsEnabled && !GPIO_CHK_PIN(SENSOR_LIFT)) {
+        if (++liftCounter == LIFT_EMG_MS) requestEmergency(EMG_LIFT);
+    } else {
+        liftCounter = 0;
     }
 }
 void allStop() {
@@ -164,9 +175,27 @@ Also check current to motors and blade pulses/time if it is bogged down or not
  Initial test seems that reversing direction bit will brake less than full brake.
 */
 
+// Reported as motorState whenever it changes: the real state, not the last
+// request (which was MOTORREQ_SETSPEED almost always, even with motors off).
+static xMotorRequestType motorStateNow(bool idle) {
+    if (sensorMsg.emergancyStop) return MOTORREQ_EMGSTOP;
+    if (sensorMsg.motorsEnabled) return MOTORREQ_ENABLE;
+    return idle ? MOTORREQ_IDLE : MOTORREQ_DISABLE;
+}
+
+// Emergency causes that are still present (a reset is refused while any is).
+static uint8_t emergencyCauses(void) {
+    uint8_t causes = 0;
+    if (GPIO_CHK_PIN(SENSOR_STOP)) causes |= EMG_STOP;
+    if (!GPIO_CHK_PIN(SENSOR_LIFT)) causes |= EMG_LIFT;
+    return causes;
+}
+
 void motorCtrl_Task(void *pvParameters) {
 
     xMotorRequestType lastState = -1;
+    bool idle = true;
+    bool spiLost = false;
     xMotorMsgType MotorMsg;
 
     MotorCtrl_Init();
@@ -192,27 +221,27 @@ void motorCtrl_Task(void *pvParameters) {
 
         if (sensorMsg.watchdogSPI > 5000) {
             allStop();
-            //xScreenMsgType screenMsg;
-            //screenMsg.time=50;
-            //sprintf(screenMsg.text, "ROS comms lost!");
-            //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-            // Queue emgstop?
+            if (!spiLost) debug("No command from ROS for 5 s: wheels and blade stopped");
+            spiLost = true;
+        } else {
+            spiLost = false;
         }
         
         if (xQueueReceive(xMotorMsgQueue, &MotorMsg, xDelay25) == pdTRUE) {
-            if (MotorMsg.action != lastState) {
-                lastState = MotorMsg.action;
-                xJSONMessageType JSONMsg = {"motorState", {0}};
-                strcpy(JSONMsg.value, MotorRequestStrings[MotorMsg.action]);
-                xQueueSend(xJSONMessageQueue, &JSONMsg, xDelay25);
-            }
-
             switch (MotorMsg.action) {
                 case MOTORREQ_IDLE:
                     wdt_disable();
                     GPIO_CLR_PIN(MOTOR_MOSFET);
+                    sensorMsg.motorsEnabled = false;
+                    idle = true;
                     break;
                 case MOTORREQ_ENABLE:
+                    if (sensorMsg.emergancyStop) {
+                        debug("MOTORREQ_ENABLE refused: emergency latched (EmgReason %u), send MOTORREQ_RESETEMG", sensorMsg.emergencyReason);
+                        break;
+                    }
+                    if (sensorMsg.motorsEnabled) break;
+                    allStop(); // no stale speed from before the enable
                     wdt_init();
                     
                 // this need investigation... I tried a couple of different order of sequence:
@@ -234,6 +263,8 @@ void motorCtrl_Task(void *pvParameters) {
                     vTaskDelay(xDelay50);
                     GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
                     GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
+                    sensorMsg.motorsEnabled = true;
+                    idle = false;
                     break;
                 case MOTORREQ_DISABLE:
                     wdt_disable(); 
@@ -242,8 +273,15 @@ void motorCtrl_Task(void *pvParameters) {
                     GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
                     GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
                     GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
+                    sensorMsg.motorsEnabled = false;
+                    idle = false;
                     break;
                 case MOTORREQ_SETSPEED:
+                    if (!sensorMsg.motorsEnabled || sensorMsg.emergancyStop) {
+                        // Would otherwise be kept and run as soon as the motors come on.
+                        setPWMBlade = setPWMLeft = setPWMRight = 0;
+                        break;
+                    }
                     if (sensorMsg.blockForward) {
                         if (MotorMsg.pwm.left > 0) MotorMsg.pwm.left = 0;
                         if (MotorMsg.pwm.right > 0) MotorMsg.pwm.right = 0;
@@ -267,24 +305,49 @@ void motorCtrl_Task(void *pvParameters) {
                     GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
                     break;
                 case MOTORREQ_EMGSTOP:
+                    sensorMsg.emergencyReason |= MotorMsg.reason;
+                    if (sensorMsg.emergancyStop) break; // already stopped, just add the reason
+                    sensorMsg.emergancyStop = 1;
+                    debug("EMERGENCY STOP, EmgReason %u", sensorMsg.emergencyReason);
                     wdt_disable();
                     allStop();
                     GPIO_CLR_PIN(MOTOR_BLADE_BRAKE);
                     GPIO_CLR_PIN(MOTOR_LEFT_BRAKE);
                     GPIO_CLR_PIN(MOTOR_RIGHT_BRAKE);
-                    sensorMsg.emergancyStop = 1;
                     vTaskDelay(xDelay500);
                     GPIO_CLR_PIN(MOTOR_MOSFET);
-                    // Queue idle?
+                    sensorMsg.motorsEnabled = false;
                     break;
-                case MOTORREQ_RESETEMG:
+                case MOTORREQ_RESETEMG: {
+                    uint8_t causes = emergencyCauses();
+                    if (causes) {
+                        debug("MOTORREQ_RESETEMG refused: cause still present (EmgReason %u)", causes);
+                        sensorMsg.emergencyReason |= causes;
+                        break;
+                    }
+                    if (!sensorMsg.emergancyStop) break;
                     sensorMsg.emergancyStop = 0;
+                    sensorMsg.emergencyReason = 0;
+                    allStop();
                     GPIO_CLR_PIN(MOTOR_MOSFET);
                     GPIO_SET_PIN(MOTOR_BLADE_BRAKE);
                     GPIO_SET_PIN(MOTOR_LEFT_BRAKE);
                     GPIO_SET_PIN(MOTOR_RIGHT_BRAKE);
+                    sensorMsg.motorsEnabled = false;
+                    idle = false;
+                    break;
+                }
+                default:
                     break;
             }
+        }
+
+        xMotorRequestType state = motorStateNow(idle);
+        if (state != lastState) {
+            lastState = state;
+            xJSONMessageType JSONMsg = {"motorState", {0}};
+            strcpy(JSONMsg.value, MotorRequestStrings[state]);
+            xQueueSend(xJSONMessageQueue, &JSONMsg, xDelay25);
         }
     }
 }

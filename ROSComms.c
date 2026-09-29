@@ -114,66 +114,56 @@ bool rosSendJSON(cJSON *root) {
     return xQueueSend(RosTxQueue, local_txbuf, xDelay10) == pdPASS;
 }
 
+// Motor commands from ROS: {"<name>": {...}}. Any valid command also counts as
+// a sign of life for the SPI watchdog (was: only ping).
+static const struct {
+    const char *name;
+    xMotorRequestType action;
+} motorCommands[] = {
+    { "MOTORREQ_ENABLE",   MOTORREQ_ENABLE },
+    { "MOTORREQ_DISABLE",  MOTORREQ_DISABLE },
+    { "MOTORREQ_SETSPEED", MOTORREQ_SETSPEED },
+    { "MOTORREQ_RESETEMG", MOTORREQ_RESETEMG },
+};
+
 void ROSCommsRx_Task(void *pvParameters) {
     char local_rxbuf[buflen+1];
 
     for (;;) {
         while (xMessageBufferReceive(SPI0RxMessageBuffer, &local_rxbuf, buflen, xDelay10)) {
+            local_rxbuf[buflen] = 0;
             wdt_reset();
             cJSON* root = cJSON_Parse(local_rxbuf);
             if (root != NULL) {
                 cJSON* command = cJSON_GetArrayItem(root, 0);
-                if (command != NULL) {
-                   if (!strcasecmp(command->string, "ping")) {
-                        cJSON* REQ = cJSON_GetObj(root, "ping");
-                        if (REQ != NULL) {
-                            /*xJSONMessageType JSONMsg = {"pong", {0}};
-                            strcpy(JSONMsg.value, cJSON_CreateNumber(cJSON_GetInt(REQ, "count")));
-                            xQueueSend(xJSONMessageQueue, &JSONMsg, xDelay25);*/
-
-                            //debug("Pong! last: %i", watchdogSPI);
-                            cJSON* msg = cJSON_CreateObject();
-                            cJSON* obj = cJSON_CreateObject();
-                            cJSON_AddItemToObject(obj, "Count", cJSON_CreateNumber(cJSON_GetInt(REQ, "count")));
-                            cJSON_AddItemToObject(msg, "pong", obj);
-                            rosSendJSON(msg);
-                            sensorMsg.watchdogSPI=0;
-                        }
-                    } else if (!strcasecmp(command->string, "MOTORREQ_DISABLE")) {
-                        cJSON* REQ = cJSON_GetObj(root, "MOTORREQ_DISABLE");
-                        if (REQ != NULL) {
-                            xMotorMsgType MotorMsg;
-                            MotorMsg.action = MOTORREQ_DISABLE;
-                            MotorMsg.pwm.left = 0;
-                            MotorMsg.pwm.right = 0;
-                            MotorMsg.pwm.blade = 0;
+                if (command != NULL && command->string != NULL) {
+                    bool known = false;
+                    if (!strcasecmp(command->string, "ping")) {
+                        known = true;
+                        cJSON* msg = cJSON_CreateObject();
+                        cJSON* obj = cJSON_CreateObject();
+                        cJSON_AddItemToObject(obj, "Count", cJSON_CreateNumber(cJSON_GetInt(command, "count")));
+                        cJSON_AddItemToObject(msg, "pong", obj);
+                        rosSendJSON(msg);
+                    } else {
+                        for (size_t i = 0; i < sizeof(motorCommands) / sizeof(motorCommands[0]); i++) {
+                            if (strcasecmp(command->string, motorCommands[i].name)) continue;
+                            known = true;
+                            xMotorMsgType MotorMsg = { .action = motorCommands[i].action, .reason = 0, .pwm = {0, 0, 0} };
+                            if (MotorMsg.action == MOTORREQ_SETSPEED) {
+                                MotorMsg.pwm.left = cJSON_GetInt(command, "left");
+                                MotorMsg.pwm.right = cJSON_GetInt(command, "right");
+                                MotorMsg.pwm.blade = cJSON_GetInt(command, "mow");
+                            }
                             xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay25);
+                            break;
                         }
-                    } else if (!strcasecmp(command->string, "MOTORREQ_ENABLE")) {
-                        cJSON* REQ = cJSON_GetObj(root, "MOTORREQ_ENABLE");
-                        if (REQ != NULL) {
-                            xMotorMsgType MotorMsg;
-                            MotorMsg.action = MOTORREQ_ENABLE;
-                            MotorMsg.pwm.left = 0;
-                            MotorMsg.pwm.right = 0;
-                            MotorMsg.pwm.blade = 0;
-                            xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay25);
-                        }
-                    } else if (!strcasecmp(command->string, "MOTORREQ_SETSPEED")) {
-                        cJSON* REQ = cJSON_GetObj(root, "MOTORREQ_SETSPEED");
-                        if (REQ != NULL) {
-                            xMotorMsgType MotorMsg;
-                            MotorMsg.action = MOTORREQ_SETSPEED;
-                            MotorMsg.pwm.left = cJSON_GetInt(REQ, "left");
-                            MotorMsg.pwm.right = cJSON_GetInt(REQ, "right");
-                            MotorMsg.pwm.blade = cJSON_GetInt(REQ, "mow");
-                            //debug("setpwm: l%d r%d m%d\n", MotorMsg.pwm.left, MotorMsg.pwm.right, MotorMsg.pwm.blade);
-                            xQueueSend(xMotorMsgQueue, &MotorMsg, xDelay25);
-                        }
+                    }
+                    if (known) {
+                        sensorMsg.watchdogSPI = 0;
                     } else {
                         debug("Unknown command: %s", command->string);
                     }
-                    
                 }
                 cJSON_Delete(root); // Will also delete children.
             }
@@ -298,6 +288,8 @@ void ROSCommsTx_Task(void *pvParameters) {
         cJSON_AddItemToObject(obj, "DirLeft", cJSON_CreateNumber(!GPIO_CHK_PIN(MOTOR_LEFT_FORWARD)));
         cJSON_AddItemToObject(obj, "DirRight", cJSON_CreateNumber(GPIO_CHK_PIN(MOTOR_RIGHT_FORWARD)));
         cJSON_AddItemToObject(obj, "Emergancy", cJSON_CreateNumber(sensorMsg.emergancyStop));
+        cJSON_AddItemToObject(obj, "EmgReason", cJSON_CreateNumber(sensorMsg.emergencyReason));
+        cJSON_AddItemToObject(obj, "Motors", cJSON_CreateNumber(sensorMsg.motorsEnabled));
         cJSON_AddItemToObject(obj, "BlockForward", cJSON_CreateNumber(sensorMsg.blockForward));
         cJSON_AddItemToObject(root, "MotorPulse", obj);
         rosSendJSON(root);
