@@ -76,17 +76,45 @@ void ramp(int16_t* target_speed, int16_t* current_speed) {
 }
 
 
+// Blade direction is MOTOR_BLADE_FORWARD: low = normal (the only direction used
+// until 2026-09), high = reverse. It only changes while the blade stands still:
+// a new sign holds the PWM at 0 until the blade pulses (counted over 0.5 s in
+// sensor.c) have been 0 for BLADE_STOP_TICKS ramp periods. Before this, a
+// negative PWM went through uint16_t and setpwm() clamped it to 2047: full speed
+// forward.
+#define BLADE_STOP_TICKS 10 // x 50 ms
+static uint8_t bladeStoppedTicks = 0;
+
+static void bladeDirection(void) {
+    bool reverse = GPIO_CHK_PIN(MOTOR_BLADE_FORWARD);
+    bool wantReverse = setPWMBlade < 0;
+
+    if (curPWMBlade == 0 && sensorMsg.motorPulseBlade == 0) {
+        if (bladeStoppedTicks < BLADE_STOP_TICKS) bladeStoppedTicks++;
+    } else {
+        bladeStoppedTicks = 0;
+    }
+    if (setPWMBlade == 0 || wantReverse == reverse) return;
+
+    if (curPWMBlade == 0 && bladeStoppedTicks >= BLADE_STOP_TICKS) {
+        if (wantReverse) GPIO_SET_PIN(MOTOR_BLADE_FORWARD); else GPIO_CLR_PIN(MOTOR_BLADE_FORWARD);
+    }
+}
+
 void motorcontrol_timer(TimerHandle_t xTimer) {
     uint16_t PWMBlade, PWMLeft, PWMRight = 0;
 
     // Quick ramp to setpwm
     ramp(&setPWMLeft, &curPWMLeft);
     ramp(&setPWMRight, &curPWMRight);
-    ramp(&setPWMBlade, &curPWMBlade);
-    
-    /*curPWMLeft = setPWMLeft;
-    curPWMRight = setPWMRight;
-    */
+
+    // Blade: ramp the magnitude in the current direction; a sign change ramps
+    // down to 0 and waits in bladeDirection() for the blade to stop.
+    bladeDirection();
+    bool bladeReverse = GPIO_CHK_PIN(MOTOR_BLADE_FORWARD);
+    int16_t bladeTarget = ((setPWMBlade < 0) == bladeReverse) ? abs(setPWMBlade) : 0;
+    ramp(&bladeTarget, &curPWMBlade);
+
     PWMBlade = curPWMBlade;
     // Make PWM value positive and correct the wheel direction
     if (curPWMLeft < 0) {
