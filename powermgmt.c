@@ -11,7 +11,7 @@
 #define BATTERY_MAX_TEMP  400
 #define BATTERY_MAX_VOLT  29300
 #define BATTERY_MIN_VOLT  22000
-#define BATTERY_DELTA_VOLT 1500
+#define BATTERY_DELTA_VOLT 750
 #define BATTERY_MAX_AMP   4000
 
 /*
@@ -22,6 +22,16 @@
 4.2 x 7 = 29.4v
 2sec until red
 4sec red
+
+8 x lifepo4:
+2.3  x 8 = 18.4v MINMIN cutoff (2.50v release)
+2.4  x 8 = 19.2v
+2.5  x 8 = 20.0v MIN
+2.6  x 8 = 20.8v
+3.65 x 8 = 29.2v
+3.7  x 8 = 29.6v MAX
+3.75 x 8 = 30.0v MAXMAX cutoff (3.55v release)
+
 */
 
 typedef enum {

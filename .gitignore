@@ -33,15 +33,19 @@
 *.app
 
 # Ignore
-.ignore/
-ignore/
+.ignore
+ignore
+.vscode
 /Objects
 /Listings
 /JLinkLog.txt
 /JLinkSettings.ini
 /LandLord.uvgui.*
 /OriginalFirmware
-.vscode/*
-build/*
+
+/build
+/cJSON-old
 
 .*#
+
+

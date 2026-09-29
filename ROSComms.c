@@ -393,17 +393,16 @@ if (!(counter % 5)) {
         cJSON_Delete(root);
 }
         
-        /*if (!(counter % 1000)) {
-            int len = 0;
+        if (!(counter % 1000)) {
             for ( int i = 0; i < taskcounter; i++) {
-                len = sprintf(local_txbuf,"Task %i:%s StackHigh: %li ",i , pcTaskGetName(xHandle[i]), uxTaskGetStackHighWaterMark(xHandle[i]));
+                sprintf(local_txbuf,"Task %i:%s StackHigh: %li ",i , pcTaskGetName(xHandle[i]), uxTaskGetStackHighWaterMark(xHandle[i]));
                 xQueueSend(RosTxQueue, local_txbuf, xDelay10);
             }
             vPortGetHeapStats( &xHeapStats );
-            len = sprintf(local_txbuf, "HeapStats: Free:%i (min: %i) Allocs: %i Frees: %i", xHeapStats.xAvailableHeapSpaceInBytes, 
+            sprintf(local_txbuf, "HeapStats: Free:%i (min: %i) Allocs: %i Frees: %i", xHeapStats.xAvailableHeapSpaceInBytes, 
                 xHeapStats.xMinimumEverFreeBytesRemaining, xHeapStats.xNumberOfSuccessfulAllocations, xHeapStats.xNumberOfSuccessfulFrees); 
             xQueueSend(RosTxQueue, local_txbuf, xDelay10);
-        }*/
+        }
         
         counter++;
         int stack = uxTaskGetStackHighWaterMark(NULL);

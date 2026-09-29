@@ -72,9 +72,9 @@ typedef struct {
     uint16_t motorCurrentRight;
     uint16_t motorCurrentLeft;
     uint16_t motorCurrentBlade;
-    int32_t motorPulseLeft;
-    int32_t motorPulseRight;
-    int32_t motorPulseBlade;
+    uint32_t motorPulseLeft;
+    uint32_t motorPulseRight;
+    uint32_t motorPulseBlade;
 } SensorType;
 
 

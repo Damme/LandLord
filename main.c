@@ -16,6 +16,8 @@
 
 #include "cJSON.h"
 
+#define LPC177x_8x
+
 #ifdef LPC177x_8x // LPC1788 DB504
 #pragma message("Cpu lpc1788 DB504")
 HeapRegion_t xHeapRegions[] = {
@@ -64,7 +66,7 @@ int main(void) {
 
     hardware_Init();
     powerMgmt_Init();
-    
+        
     //xScreenMsgQueue = xQueueCreate(6, sizeof(xScreenMsgType));
     //xSensorQueue = xQueueCreate(1, sizeof(xSensorMsgType));
     xMotorMsgQueue = xQueueCreate(10, sizeof(xMotorMsgType));

@@ -220,6 +220,7 @@ void motorCtrl_Task(void *pvParameters) {
                         if (MotorMsg.pwm.left > 0) MotorMsg.pwm.left = 0;
                         if (MotorMsg.pwm.right > 0) MotorMsg.pwm.right = 0;
                         if (MotorMsg.pwm.left < 0 || MotorMsg.pwm.right < 0) sensorMsg.blockForward = 0;
+                        if (MotorMsg.pwm.left == 0 && MotorMsg.pwm.right == 0) sensorMsg.blockForward = 0;
                     } 
 
                     //setpwm(MotorMsg.pwm.blade, MotorMsg.pwm.left, MotorMsg.pwm.right);

@@ -78,6 +78,8 @@ void EINT3_IRQHandler(void) {
 volatile bool lastpulsel = 0;
 volatile bool lastpulser = 0;
 volatile bool lastpulseb = 0;
+volatile uint32_t timer2counter= 0;
+volatile uint32_t motorPulseBladetemp = 0;
 
 void TIMER2_IRQHandler(void) {
     sensorMsg.globalticksms++;
@@ -93,8 +95,16 @@ void TIMER2_IRQHandler(void) {
     }
     if (lastpulseb != GPIO_CHK_PIN(MOTOR_BLADE_PULSE)) {
         lastpulseb = GPIO_CHK_PIN(MOTOR_BLADE_PULSE);
-        sensorMsg.motorPulseBlade++;
+        motorPulseBladetemp++;
     }
+    
+    timer2counter++;
+    if (timer2counter > 500) {
+        sensorMsg.motorPulseBlade = motorPulseBladetemp;
+        motorPulseBladetemp = 0;
+        timer2counter = 0;
+    }
+
     LPC_TIM2->IR  |= (1 << 0); // Reset interrupt MR0
 }
 
@@ -107,43 +117,47 @@ void sensor_Task(void *pvParameters) {
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = pdMS_TO_TICKS(40);
     
-    uint32_t ema_batteryVolt = 25000;
-    uint32_t ema_batteryChargeCurrent = 0;
+    int32_t ema_batteryVolt = 25000;
+    int32_t ema_batteryChargeCurrent = 0;
 
     // Setup timer for pulse counter isr.
-    LPC_SC->PCONP |= PCONP_PCTIM2;
-    LPC_TIM2->TCR = 0x02;
-    LPC_TIM2->PR  = 0x00;
-    LPC_TIM2->MR0 = 1000 * (SystemCoreClock / 1000000) - 1; // 1ms
-    LPC_TIM2->IR  = 0xff;
-    LPC_TIM2->MCR = 0x03; // Trigger INT on match + reset TC
-    NVIC_SetPriority(TIMER2_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
-    NVIC_EnableIRQ(TIMER2_IRQn);
-    LPC_TIM2->TCR = 0x01;
+        LPC_SC->PCONP |= PCONP_PCTIM2;
+        LPC_TIM2->TCR = 0x02;
+        LPC_TIM2->PR  = 0x00;
+        LPC_TIM2->MR0 = 1000 * (SystemCoreClock / 1000000) - 1; // 1ms
+        LPC_TIM2->IR  = 0xff;
+        LPC_TIM2->MCR = 0x03; // Trigger INT on match + reset TC
+        NVIC_SetPriority(TIMER2_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+        NVIC_EnableIRQ(TIMER2_IRQn);
+        LPC_TIM2->TCR = 0x01;
 
 #ifdef LPC177x_8x
     I2C1Init();
 #endif
 
 // 3-axis, 12-bit/8-bit digital accelerometer
-    I2C1_Send_Addr(MMA8452Q, 0x2a, 0x15); // ACTIVE | LNOISE | DR 200hz
     I2C1_Send_Addr(MMA8452Q, 0x0e, 0x00); // Set range to +/- 2g
-    
+    I2C1_Send_Addr(MMA8452Q, 0x2a, 0x15); // ACTIVE | LNOISE | DR 200hz
+
+
 
 // Three-axis digital output gyroscope
+    I2C1_Send_Addr(L3GD20, 0x24, 0x10); // CTRL5 Reboot memory content
+    I2C1_Send_Addr(L3GD20, 0x39, 0x01); // LOW_ODR SW_RES
     I2C1_Send_Addr(L3GD20, 0x20, 0x6F); // CTRL1 Enable all
     I2C1_Send_Addr(L3GD20, 0x21, 0x00); // CTRL2
     I2C1_Send_Addr(L3GD20, 0x22, 0x00); // CTRL3
     I2C1_Send_Addr(L3GD20, 0x23, 0x50); // CTRL4 BLE (MSB lo add) 
-    I2C1_Send_Addr(L3GD20, 0x24, 0x10); // CTRL5 Reboot memory content
-    vTaskDelay(xDelay100);
+//    I2C1_Send_Addr(L3GD20, 0x24, 0x10); // CTRL5 Reboot memory content
+    vTaskDelay(xDelay200);
 
     //I2C1_Send_Addr(L3GD20, 0x39, 0x01); // Low_ODR
     int32_t rawYaw = 0;
     int32_t rawPitch = 0;
     int32_t rawRoll = 0;
-    int32_t offsetRoll;
+    int32_t offsetRoll = 0;
 
+/*
 #define SAMPLES 2000
 
     for (int i=0;  i < SAMPLES; i++) {
@@ -156,12 +170,29 @@ void sensor_Task(void *pvParameters) {
     
     while (!(LPC_ADC->GDR & (1<<31))); // Wait for ADC conv. Done
     
-    offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
+    //offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
     rawYaw = round(rawYaw / SAMPLES);
     rawPitch = round(rawPitch / SAMPLES);
     rawRoll = round(rawRoll / SAMPLES) - offsetRoll;
+*/
+    rawYaw = 0;
+    rawPitch = 0;
+    rawRoll = 0;
 
-   
+
+    uint8_t temp = I2C1_Recv_Addr(L3GD20, 0x26);
+
+    debug("Cal: %i %i %i, offset: %i (Temp: %i, %i [%i])", 
+        (uint32_t)round(rawYaw*100000), (uint32_t)round(rawPitch*100000), (uint32_t)round(rawRoll*100000), (uint32_t)round(offsetRoll*100000),
+        temp, conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)), ADC_DR_RESULT(ANALOG_BOARD_TEMP));
+
+/*
+
+!!! DEBUG: Cal: -5400000 -8300000 100000, offset: 900000 (Temp: 11, 245 [3073]) offset: 9
+!!! DEBUG: Cal: -6500000 -9900000 -100000, offset: 700000 (Temp: 10, 249 [3061]) offset: 7
+
+
+*/ 
     vTaskDelay(xDelay10);
     xLastWakeTime = xTaskGetTickCount();
   
@@ -202,7 +233,7 @@ void sensor_Task(void *pvParameters) {
 
 // L3GD20  
         I2C1_Recv_Addr_Buf(L3GD20, 0x28 | (1 << 7), 1, sizeof(gyro), (uint8_t*)&gyro);
-        offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
+        //offsetRoll = imu_temp_offset_z(conv_board_temp(ADC_DR_RESULT(ANALOG_BOARD_TEMP)));
 
         sensorMsg.gyroYaw = ((int16_t)((gyro.X1 << 8) | gyro.X2) - rawYaw) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
         sensorMsg.gyroPitch = ((int16_t)((gyro.Y1 << 8) | gyro.Y2) - rawPitch) * GYRO_SENSITIVITY_500DPS * (M_PI / 180.0);
