@@ -7,6 +7,7 @@
 #include "task.h"
 #include "timers.h"
 #include "cJSON.h"
+#include "powermgmt.h"
 #include <stdarg.h>
 #include <math.h>
 
@@ -344,6 +345,9 @@ if (!(counter % 5)) {
                 cJSON_AddItemToObject(obj, "CellLow", cJSON_CreateNumber(sensorMsg.batteryCellLow));
                 cJSON_AddItemToObject(obj, "CellHigh", cJSON_CreateNumber(sensorMsg.batteryCellHigh));
                 cJSON_AddItemToObject(obj, "InCharger", cJSON_CreateNumber(sensorMsg.inCharger));
+                cJSON_AddItemToObject(obj, "State", cJSON_CreateString(powerStateStrings[sensorMsg.powerState]));
+                cJSON_AddItemToObject(obj, "Contact", cJSON_CreateNumber(GPIO_CHK_PIN(CHARGER_CONNECTED)));
+                cJSON_AddItemToObject(obj, "Enable", cJSON_CreateNumber(GPIO_CHK_PIN(CHARGER_ENABLE)));
                 cJSON_AddItemToObject(root, "Battery", obj);
                 break;
             case 2:

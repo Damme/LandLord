@@ -7,12 +7,26 @@
 #include "timers.h"
 #include "global.h"
 #include "keypad.h"
+#include "ROSComms.h"
 
-#define BATTERY_MAX_TEMP  400
-#define BATTERY_MAX_VOLT  29300
-#define BATTERY_MIN_VOLT  22000
-#define BATTERY_DELTA_VOLT 750
-#define BATTERY_MAX_AMP   4000
+// Battery: 7S Li-ion (29.4 V max), the charger ends at about 29.1 V.
+#define BATTERY_MAX_VOLT   29300 // charging above this -> finished
+#define BATTERY_DELTA_VOLT 750   // finished: recharge below BATTERY_MAX_VOLT - this
+#define BATTERY_FULL_VOLT  28800 // charge current stopped at/above this = the charger finished
+
+// Charge temperature window, 0.1 degC (filtered in sensor.c), with hysteresis.
+#define CHARGE_TEMP_HOT      430
+#define CHARGE_TEMP_HOT_OK   400
+#define CHARGE_TEMP_COLD     0
+#define CHARGE_TEMP_COLD_OK  30
+
+#define CHARGE_MIN_MA      20       // current that counts as charging
+#define CHARGE_START_MS    15000    // after enabling: wait this long for current
+#define CHARGE_LOST_MS     10000    // current gone this long -> charge ended
+#define CHARGE_RETRY_MS    60000    // after a failure, while not moved: try again
+#define CHARGE_RETRY_SLOW_MS 600000 // ... after CHARGE_RETRY_FAST failures
+#define CHARGE_RETRY_FAST  3
+#define MOVED_TICKS        200      // left+right pulses (~24 cm): left the dock
 
 /*
 7 x 18650
@@ -32,20 +46,13 @@
 3.7  x 8 = 29.6v MAX
 3.75 x 8 = 30.0v MAXMAX cutoff (3.55v release)
 
+Charging (robot logs 2026-09-29): the current tapers to ~160 mA at 29.07 V and
+then stops without reaching BATTERY_MAX_VOLT. The old code called that
+ChargingFailed and waited in CheckCharger for CHARGER_CONNECTED, which only
+reads with MOTOR_MOSFET on: with the motors off (at night) it never charged
+again. Now a charge that ends at >= BATTERY_FULL_VOLT is finished, and a failed
+start is retried while the robot hasn't moved.
 */
-
-typedef enum {
-    Startup,
-    Idle,
-    CheckChargerInit,
-    CheckCharger,
-    StartCharging,
-    Charging,
-    BatteryCooldown,
-    ChargingFinished,
-    ChargingFailed,
-    Shutdown
-} powerStates;
 
 const char *powerStateStrings[] = {
     "Startup",
@@ -57,151 +64,170 @@ const char *powerStateStrings[] = {
     "BatteryCooldown",
     "ChargingFinished",
     "ChargingFailed",
-    "Shutdown"
+    "Shutdown",
+    "BatteryCold"
 };
+
+static uint32_t wheelTicks(void) {
+    return sensorMsg.motorPulseLeft + sensorMsg.motorPulseRight;
+}
+
+static bool elapsed(TickType_t since, uint32_t ms) {
+    return (xTaskGetTickCount() - since) >= pdMS_TO_TICKS(ms);
+}
+
+// Charger keep-alive: a short ENABLE pulse keeps the station in its red
+// (charging) state while we don't take current.
+static void keepAlivePulse(void) {
+    GPIO_SET_PIN(CHARGER_ENABLE);
+    vTaskDelay(xDelay10); // 10ms is enough
+    GPIO_CLR_PIN(CHARGER_ENABLE);
+}
+
+static bool tempOk(int32_t temp) {
+    return temp <= CHARGE_TEMP_HOT && temp >= CHARGE_TEMP_COLD;
+}
 
 void powerMgmt_Task(void *pvParameters) {
     powerMgmt_Init();
 
     // pulse charger mosfet incase we already is in charger.    
-    GPIO_SET_PIN(CHARGER_ENABLE);
-    vTaskDelay(xDelay10); // 10ms is enough
-    GPIO_CLR_PIN(CHARGER_ENABLE);
+    keepAlivePulse();
+    vTaskDelay(xDelay2000); // battery filters settle (sensor task)
     
-    TickType_t delay = xDelay50;
-    powerStates powerState = CheckChargerInit;
-    powerStates lastState = 0;
-    
-    //xScreenMsgType screenMsg;
-    uint16_t count = 5;
+    // Boot probe: try to charge once. CHARGER_CONNECTED can't tell (it needs
+    // MOTOR_MOSFET), and a CPU reset on the dock must not leave us not charging.
+    TickType_t delay = xDelay100;
+    powerStates powerState = StartCharging;
+    powerStates lastState = -1;
+
+    TickType_t stateSince = xTaskGetTickCount();
+    TickType_t lastCurrentAt = 0;
+    TickType_t retryAt = 0;
+    bool retryPending = false;
+    bool seenCurrent = false;
+    int32_t chargeMv = 0;         // voltage while current last flowed
+    uint32_t contactTicks = wheelTicks(); // wheel ticks when we last had contact evidence
+    uint8_t failures = 0;
     
     for (;;) {
         if (powerState != lastState) {
             lastState = powerState;
+            stateSince = xTaskGetTickCount();
+            sensorMsg.powerState = powerState;
             xJSONMessageType JSONMsg = {"powerState", {0}};
             strcpy(JSONMsg.value, powerStateStrings[powerState]);
             xQueueSend(xJSONMessageQueue, &JSONMsg, xDelay100);
         }
+
+        // Contact evidence: charge current. Without it, driving away clears InCharger.
+        bool current = sensorMsg.batteryChargeCurrent >= CHARGE_MIN_MA;
+        if (current) {
+            contactTicks = wheelTicks();
+            sensorMsg.inCharger = 1;
+            failures = 0;
+        } else if (sensorMsg.inCharger && wheelTicks() - contactTicks > MOVED_TICKS) {
+            sensorMsg.inCharger = 0;
+            retryPending = false;
+            if (powerState != CheckCharger && powerState != CheckChargerInit && powerState != Shutdown) {
+                GPIO_CLR_PIN(CHARGER_ENABLE);
+                powerState = Idle;
+            }
+        }
+
         switch(powerState) {
             case Startup:
-                // if checking for charger all the time we dont need this forced charging function.
-                if (keypad_GetKey() == KEYHOME) {
-                    powerState = CheckChargerInit;
-                    
-                    //screenMsg.time=50;
-                    //sprintf(screenMsg.text, "Forced charging");      
-                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-                }
-                count--;
-                if (count == 0) powerState = Idle;
-                break;
-
             case Idle:
-                // Todo dim display if idle > x minutes, idle is if lid is closed!
-                delay = xDelay500;
-                count = 500;
-                powerState = CheckChargerInit;
+                GPIO_CLR_PIN(CHARGER_ENABLE);
                 sensorMsg.inCharger = 0;
+                powerState = CheckChargerInit;
                 break;
 
             case CheckChargerInit:
-                // TODO only start charging if volt below xx?
-                count = 100;
-                delay = xDelay50;
+                delay = xDelay100;
                 GPIO_SET_PIN(CHARGER_CHECK);
                 powerState = CheckCharger;
                 break;
 
             case CheckCharger:
-                if (GPIO_CHK_PIN(CHARGER_CONNECTED) || sensorMsg.batteryChargeCurrent > 5) {
-                    GPIO_CLR_PIN(CHARGER_CHECK);
+                if (GPIO_CHK_PIN(CHARGER_CONNECTED) || current) {
                     sensorMsg.inCharger = 1;
+                    contactTicks = wheelTicks();
                     powerState = StartCharging;
-
-                    //screenMsg.time=15;
-                    //sprintf(screenMsg.text, "In charger!");
-                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
+                } else if (retryPending && sensorMsg.inCharger && xTaskGetTickCount() - retryAt < 0x80000000UL) {
+                    retryPending = false;
+                    debug("Charging: retry %u", failures);
+                    powerState = StartCharging;
                 }
-                /*
-                // Need to rewrite this logic to handle state mowing, going to dock etc.
-                count--;
-                if (count < 1) {
-                    GPIO_CLR_PIN(CHARGER_CHECK);
-                    powerState = Idle;
-                }*/
                 break;
-// Catch state connected to charger but charger not ready (For example, cpu reset with charger already connected but timed out)
-// CheckCharger Yes -> StartCharging
-// StartCharging -> Charging
-// 4s elapses -> Charger disconnected! -> ChargingFailed 
-// -> CheckChargerInit -> CheckChargerInit
 
             case StartCharging:
+                GPIO_CLR_PIN(CHARGER_CHECK);
+                if (!tempOk(sensorMsg.batteryTemp)) {
+                    powerState = sensorMsg.batteryTemp > CHARGE_TEMP_HOT ? BatteryCooldown : BatteryCold;
+                    break;
+                }
                 GPIO_SET_PIN(CHARGER_ENABLE);
                 delay = xDelay100;
+                seenCurrent = false;
                 powerState = Charging;
-                count = 50;
                 break;
 
             case Charging:
-                if (sensorMsg.batteryChargeCurrent > 5) {
-                    count = 50;
-                    // TODO Tempeature checks
-                    if (sensorMsg.batteryTemp > 430) powerState = BatteryCooldown;
+                if (current) {
+                    seenCurrent = true;
+                    lastCurrentAt = xTaskGetTickCount();
+                    chargeMv = sensorMsg.batteryVolt;
                     // TODO Count mAh/Wh charged
-                    // TODO Start time and elapsed charging time
-                    if (!sensorMsg.inCharger) {
-                        sensorMsg.inCharger = 1;
-                    }
                 }
-
-                if (sensorMsg.batteryVolt > BATTERY_MAX_VOLT) {
+                if (sensorMsg.batteryTemp > CHARGE_TEMP_HOT) {
+                    GPIO_CLR_PIN(CHARGER_ENABLE);
+                    powerState = BatteryCooldown;
+                } else if (sensorMsg.batteryTemp < CHARGE_TEMP_COLD) {
+                    GPIO_CLR_PIN(CHARGER_ENABLE);
+                    powerState = BatteryCold;
+                } else if (sensorMsg.batteryVolt > BATTERY_MAX_VOLT) {
+                    GPIO_CLR_PIN(CHARGER_ENABLE);
                     powerState = ChargingFinished;
-                    
-                    //screenMsg.time=15;
-                    //sprintf(screenMsg.text, "Charge finished!");
-                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
-                }
-
-                count--;
-                if (count == 0) {
+                } else if (seenCurrent && elapsed(lastCurrentAt, CHARGE_LOST_MS)) {
+                    // The charger stopped: full, or contact/charger lost.
+                    GPIO_CLR_PIN(CHARGER_ENABLE);
+                    powerState = chargeMv >= BATTERY_FULL_VOLT ? ChargingFinished : ChargingFailed;
+                } else if (!seenCurrent && elapsed(stateSince, CHARGE_START_MS)) {
+                    GPIO_CLR_PIN(CHARGER_ENABLE);
                     powerState = ChargingFailed;
-                    
-                    //screenMsg.time=15;
-                    //sprintf(screenMsg.text, "Charger disconnected!");
-                    //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
                 }
                 break;
 
             case BatteryCooldown:
+            case BatteryCold:
                 delay = xDelay1000;
-                GPIO_SET_PIN(CHARGER_ENABLE);
-                vTaskDelay(xDelay10); // 10ms is enough
-                GPIO_CLR_PIN(CHARGER_ENABLE);
-                if (sensorMsg.batteryTemp < 420) powerState = StartCharging;
+                keepAlivePulse();
+                if (powerState == BatteryCooldown ? sensorMsg.batteryTemp < CHARGE_TEMP_HOT_OK
+                                                  : sensorMsg.batteryTemp > CHARGE_TEMP_COLD_OK) {
+                    delay = xDelay100;
+                    powerState = StartCharging;
+                }
                 break;
 
             case ChargingFinished:
                 // TODO Signal ROS charge finished
                 delay = xDelay100;
                 vTaskDelay(xDelay500);
-                GPIO_SET_PIN(CHARGER_ENABLE);
-                vTaskDelay(xDelay10); // 10ms is enough
-                GPIO_CLR_PIN(CHARGER_ENABLE);
+                keepAlivePulse();
                 // TODO Seems analog charge current is peak value, so even if we only have the charge enabled for 0.025s per
                 // second we still get a value of > 300mA. maybe we should "correct" this in software?
-
-                // check if we get ADC value to see if charger is still alive? (how long time charge period does this require?)
-                if (!sensorMsg.inCharger) powerState = Idle;
-                // TODO TODO Noone clears incharger state as of now, Either ROS comms when backing out of charger or sensor when 
-                // forward motion is detected.
-                
                 if (sensorMsg.batteryVolt < ( BATTERY_MAX_VOLT - BATTERY_DELTA_VOLT) ) powerState = StartCharging;
                 break;
 
             case ChargingFailed:
-                delay = xDelay1000;
-                // mains power loss ? retry start charging over and over again until success?
+                // Contact bounce, a charger that isn't ready, mains loss...: try again
+                // while the robot stays where it is (moving away clears InCharger).
+                failures++;
+                debug("Charging failed (%u), mV %li mA %li Temp %li Contact %u", failures, sensorMsg.batteryVolt,
+                    sensorMsg.batteryChargeCurrent, sensorMsg.batteryTemp, GPIO_CHK_PIN(CHARGER_CONNECTED));
+                retryAt = xTaskGetTickCount() + pdMS_TO_TICKS(failures <= CHARGE_RETRY_FAST ? CHARGE_RETRY_MS : CHARGE_RETRY_SLOW_MS);
+                retryPending = true;
                 powerState = CheckChargerInit;
                 break;
 
@@ -220,9 +246,6 @@ void powerMgmt_Task(void *pvParameters) {
         // TODO Check too high temp -> shut down
 
         if (keypad_GetKey() == KEYPWR) {
-            //screenMsg.time=4;
-            //sprintf(screenMsg.text, "Shutting down! %i", keypad_GetTime());
-            //xQueueSend(xScreenMsgQueue, &screenMsg, (TickType_t)0);
             if (keypad_GetTime() > 15) {
                 powerState = Shutdown;
             }

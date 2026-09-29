@@ -25,6 +25,22 @@ extern xQueueHandle xPowerMgmtMsgQueue;
 */
 
 
+typedef enum {
+    Startup,
+    Idle,
+    CheckChargerInit,
+    CheckCharger,
+    StartCharging,
+    Charging,
+    BatteryCooldown,
+    ChargingFinished,
+    ChargingFailed,
+    Shutdown,
+    BatteryCold
+} powerStates;
+
+extern const char *powerStateStrings[];
+
 void powerMgmt_Task(void *pvParameters);
 
 #endif // POWERMGMT_H

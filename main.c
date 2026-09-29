@@ -81,12 +81,12 @@ int main(void) {
   //xTaskCreate(task_DigitalTest, "Digital", 128, NULL, 4, (TaskHandle_t *)&xHandle[taskcounter++]);
 
 //                                                             Prio
-    xTaskCreate(powerMgmt_Task,   "PowerMgmt",      300,  NULL, 7, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(powerMgmt_Task,   "PowerMgmt",      450,  NULL, 7, (TaskHandle_t *)&xHandle[taskcounter++]);
     xTaskCreate(ROSCommsRx_Task,  "RosCommsRx",     3000, NULL, 6, (TaskHandle_t *)&xHandle[taskcounter++]);
     xTaskCreate(ROSCommsTx_Task,  "RosCommsTx",     4000, NULL, 5, (TaskHandle_t *)&xHandle[taskcounter++]);
     xTaskCreate(SPI0TxQueue_Task, "SPI0TxQueue",    1500, NULL, 7, (TaskHandle_t *)&xHandle[taskcounter++]);
     //xTaskCreate(ROSCommsTest_Task,  "RosCommsTest",   500, NULL, 5, (TaskHandle_t *)&xHandle[taskcounter++]);
-    xTaskCreate(motorCtrl_Task,   "MotorCtrl",      300,  NULL, 5, (TaskHandle_t *)&xHandle[taskcounter++]);
+    xTaskCreate(motorCtrl_Task,   "MotorCtrl",      450,  NULL, 5, (TaskHandle_t *)&xHandle[taskcounter++]);
     xTaskCreate(sensor_Task,      "Sensor",         500,  NULL, 4, (TaskHandle_t *)&xHandle[taskcounter++]);
     xTaskCreate(boundary_Task,    "Boundary",       500,  NULL, 3, (TaskHandle_t *)&xHandle[taskcounter++]);
     xTaskCreate(LCD_Task,         "LCD",            400,  NULL, 2, (TaskHandle_t *)&xHandle[taskcounter++]);
