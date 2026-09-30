@@ -77,61 +77,120 @@ static bool frameCrcOk(char *msg) {
     return true;
 }
 
-uint8_t SSP0_rxpos = 0;
-bool SSP0_inframe = false;
-uint8_t SSP0_rxbuf[buflen+1];
+// ---- SSP0 over GPDMA (UM10470 ch. 34) --------------------------------------
+// The Pi is the SPI master and clocks 250-byte transfers almost back to back at
+// 1.5 MHz. The old SSP0 interrupt moved one byte per received byte and woke at
+// RX FIFO half full: ~20 us to react before the TX FIFO ran dry (the Pi got an
+// extra byte) or the RX FIFO overflowed (a byte lost).
+// Now two DMA channels run endlessly through linked lists that point back at
+// themselves:
+//  - RX (channel 1): SSP0 -> rxRing (1 KB). ROSCommsRx_Task reads the DMA write
+//    position every 1 ms and takes the new bytes; 1 KB = 5.5 ms at 1.5 MHz.
+//  - TX (channel 0): txHalf[0], txHalf[1] -> SSP0. When a half has been sent
+//    (terminal count interrupt, one per 128 bytes) it is refilled from
+//    SPI0TxStreamBuffer, the rest with NOP; the other half is being sent meanwhile,
+//    so the deadline is ~0.7 ms instead of ~20 us.
+// Buffers are in main SRAM: the GPDMA can't reach it only in sleep mode, which
+// this firmware doesn't use (no tickless idle / WFI).
 
-void SSP0_IRQHandler(void) { // SSP0_IRQn 14 (lpc1788)
-    // Disable interrupts and clear the interrupt mask
-    portDISABLE_INTERRUPTS();
-    LPC_SSP0->IMSC &= ~(1 << 2);
+#define DMA_REQ_SSP0_TX 2   // UM10470 table 685 (DMAREQSEL bits 2/3 = 0: SSP0, not T1_MAT)
+#define DMA_REQ_SSP0_RX 3
 
-    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+#define DMA_CTRL_SB4   (1 << 12)  // source burst 4 (SSP FIFO half)
+#define DMA_CTRL_DB4   (1 << 15)  // destination burst 4
+#define DMA_CTRL_SI    (1 << 26)  // source increment (widths 0 = byte)
+#define DMA_CTRL_DI    (1 << 27)  // destination increment
+#define DMA_CTRL_I     (1UL << 31) // terminal count interrupt
 
-    uint8_t rxByte; // Received byte from SPI
-    uint8_t txByte = NOP; // Byte to transmit via SPI
+#define DMA_CFG_E          (1 << 0)
+#define DMA_CFG_SRC(n)     ((n) << 1)
+#define DMA_CFG_DST(n)     ((n) << 6)
+#define DMA_CFG_M2P        (1 << 11)
+#define DMA_CFG_P2M        (2 << 11)
+#define DMA_CFG_IE         (1 << 14)
+#define DMA_CFG_ITC        (1 << 15)
 
-    // Process received data while Receive FIFO is not empty
-    while (LPC_SSP0->SR & (1 << 2)) {
-        rxByte = LPC_SSP0->DR; // Read the received byte
+#define RX_RING  1024
+#define RX_HALF  (RX_RING / 2)
+#define TX_HALF  128
 
-        // Transmit the byte
-        if (xStreamBufferReceiveFromISR(SPI0TxStreamBuffer, &txByte, 1, &xHigherPriorityTaskWoken) == 0) {
-            txByte=NOP;
-        }
-        LPC_SSP0->DR = txByte;
+typedef struct {
+    uint32_t src, dst, next, ctrl;
+} DmaLli;
 
-        // Process the received byte. Bytes outside SOF..EOF are ignored, and a
-        // frame that overflows the buffer is dropped whole (not passed on cut).
-        if (rxByte == SOF) {
-            SSP0_rxpos = 0;
-            SSP0_inframe = true;
-        } else if (!SSP0_inframe || rxByte == NOP) {
-            // idle / padding
-        } else if (rxByte == EOF) {
-            SSP0_rxbuf[SSP0_rxpos++] = 0;
-            if (SSP0_rxpos > 1) xMessageBufferSendFromISR(SPI0RxMessageBuffer, &SSP0_rxbuf, SSP0_rxpos, &xHigherPriorityTaskWoken);
-            SSP0_rxpos = 0;
-            SSP0_inframe = false;
-        } else if (SSP0_rxpos >= buflen - 1) {
-            SSP0_rxpos = 0;
-            SSP0_inframe = false;
-            statRxOverflow++;
-        } else {
-            SSP0_rxbuf[SSP0_rxpos++] = rxByte;
-        }
-        
-        // Wait for the transmission to complete
-        // Do we really need to wait?
-        //while (!(LPC_SSP0->SR & (1 << 4)));
+static uint8_t rxRing[RX_RING] __attribute__((aligned(4)));
+static uint8_t txHalf[2][TX_HALF] __attribute__((aligned(4)));
+static DmaLli rxLli[2] __attribute__((aligned(4)));
+static DmaLli txLli[2] __attribute__((aligned(4)));
+static volatile bool spiReady = false;
+static uint8_t txRefill = 0; // half that finishes next (they alternate, 0 first)
+static volatile uint32_t statDmaErr;
+
+static void spiDmaInit(void) {
+    ROScomms_Init(); // SSP0 pins, 8 bit, CPOL/CPHA, slave; not enabled yet
+
+    LPC_SC->PCONP |= (1 << 29);            // PCGPDMA
+    LPC_SC->DMAREQSEL &= ~((1 << DMA_REQ_SSP0_TX) | (1 << DMA_REQ_SSP0_RX));
+    LPC_GPDMA->Config = 1;                  // controller enable (was missing in the 2023 attempt)
+    while (!(LPC_GPDMA->Config & 1));
+    LPC_GPDMACH0->CConfig = 0;
+    LPC_GPDMACH1->CConfig = 0;
+    LPC_GPDMA->IntTCClear = 0x03;
+    LPC_GPDMA->IntErrClr = 0x03;
+
+    memset(txHalf, NOP, sizeof(txHalf));
+    uint32_t dr = (uint32_t)&LPC_SSP0->DR;
+    for (int i = 0; i < 2; i++) {
+        txLli[i] = (DmaLli){ (uint32_t)txHalf[i], dr, (uint32_t)&txLli[i ^ 1],
+                             TX_HALF | DMA_CTRL_SB4 | DMA_CTRL_DB4 | DMA_CTRL_SI | DMA_CTRL_I };
+        rxLli[i] = (DmaLli){ dr, (uint32_t)&rxRing[i * RX_HALF], (uint32_t)&rxLli[i ^ 1],
+                             RX_HALF | DMA_CTRL_SB4 | DMA_CTRL_DB4 | DMA_CTRL_DI };
     }
 
-    // Re-enable the interrupt mask and enable interrupts
-    LPC_SSP0->IMSC |= (1 << 2);
-    portENABLE_INTERRUPTS();
+    LPC_GPDMACH1->CSrcAddr = rxLli[0].src;
+    LPC_GPDMACH1->CDestAddr = rxLli[0].dst;
+    LPC_GPDMACH1->CLLI = rxLli[0].next;
+    LPC_GPDMACH1->CControl = rxLli[0].ctrl;
+    LPC_GPDMACH1->CConfig = DMA_CFG_E | DMA_CFG_SRC(DMA_REQ_SSP0_RX) | DMA_CFG_P2M | DMA_CFG_IE;
 
-    // Yield from ISR if a higher priority task was woken
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    LPC_GPDMACH0->CSrcAddr = txLli[0].src;
+    LPC_GPDMACH0->CDestAddr = txLli[0].dst;
+    LPC_GPDMACH0->CLLI = txLli[0].next;
+    LPC_GPDMACH0->CControl = txLli[0].ctrl;
+    LPC_GPDMACH0->CConfig = DMA_CFG_E | DMA_CFG_DST(DMA_REQ_SSP0_TX) | DMA_CFG_M2P | DMA_CFG_IE | DMA_CFG_ITC;
+
+    NVIC_SetPriority(DMA_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+    NVIC_EnableIRQ(DMA_IRQn);
+
+    LPC_SSP0->IMSC = 0;          // no SSP interrupts any more
+    LPC_SSP0->DMACR = 0x03;      // RXDMAE | TXDMAE
+    LPC_SSP0->CR1 |= (1 << 1);   // SSP enable, last
+    spiReady = true;
+}
+
+void DMA_IRQHandler(void) {
+    portBASE_TYPE woken = pdFALSE;
+
+    if (LPC_GPDMA->IntTCStat & 0x01) {
+        LPC_GPDMA->IntTCClear = 0x01;
+        // Refill the half that just finished; the DMA reads the other one now. The
+        // halves alternate. At the boundary the source address can still point at
+        // the end of the finished half, so it only re-syncs when the DMA is
+        // clearly inside the half we were about to refill (a missed interrupt).
+        uint32_t src = LPC_GPDMACH0->CSrcAddr;
+        uint32_t start = (uint32_t)txHalf[txRefill];
+        if (src > start && src < start + TX_HALF) txRefill ^= 1;
+        uint8_t *fill = txHalf[txRefill];
+        txRefill ^= 1;
+        size_t n = xStreamBufferReceiveFromISR(SPI0TxStreamBuffer, fill, TX_HALF, &woken);
+        if (n < TX_HALF) memset(fill + n, NOP, TX_HALF - n);
+    }
+    uint32_t err = LPC_GPDMA->IntErrStat & 0x03;
+    if (err) {
+        LPC_GPDMA->IntErrClr = err;
+        statDmaErr++; // bus error: the channel stops; counted in "Link"
+    }
+    portYIELD_FROM_ISR(woken);
 }
 
 // Moves whole frames (SOF + JSON + EOF) from RosTxQueue into the byte stream the
@@ -191,17 +250,10 @@ static const struct {
     { "MOTORREQ_RESETEMG", MOTORREQ_RESETEMG },
 };
 
-void ROSCommsRx_Task(void *pvParameters) {
-    char local_rxbuf[buflen+1];
-
-    for (;;) {
-        while (xMessageBufferReceive(SPI0RxMessageBuffer, &local_rxbuf, buflen, xDelay10)) {
-            local_rxbuf[buflen] = 0;
+// One complete frame (text between SOF and EOF, 0-terminated) from the Pi.
+static void handleFrame(char *local_rxbuf) {
             statRxFrames++;
-            if (!frameCrcOk(local_rxbuf)) {
-                memset(local_rxbuf, 0, buflen);
-                continue;
-            }
+            if (!frameCrcOk(local_rxbuf)) return;
             wdt_reset();
             cJSON* root = cJSON_Parse(local_rxbuf);
             if (root != NULL) {
@@ -237,39 +289,47 @@ void ROSCommsRx_Task(void *pvParameters) {
                 }
                 cJSON_Delete(root); // Will also delete children.
             }
-            memset(local_rxbuf, 0, buflen);
+}
+
+// Takes the bytes the RX DMA wrote since the last call and cuts them into frames.
+// Bytes outside SOF..EOF are ignored; a frame longer than the buffer is dropped
+// whole.
+void ROSCommsRx_Task(void *pvParameters) {
+    char frame[buflen + CRC_SUFFIX_LEN + 1];
+    size_t pos = 0, tail = 0;
+    bool inframe = false;
+
+    while (!spiReady) vTaskDelay(xDelay10);
+
+    for (;;) {
+        size_t head = LPC_GPDMACH1->CDestAddr - (uint32_t)rxRing; // next byte the DMA writes
+        if (head >= RX_RING) head = 0; // at the wrap, before the LLI reload
+        while (tail != head) {
+            uint8_t b = rxRing[tail];
+            tail = (tail + 1) % RX_RING;
+            if (b == SOF) {
+                pos = 0;
+                inframe = true;
+            } else if (!inframe || b == NOP) {
+                // idle / padding
+            } else if (b == EOF) {
+                frame[pos] = 0;
+                if (pos > 0) handleFrame(frame);
+                inframe = false;
+            } else if (pos >= sizeof(frame) - 1) {
+                inframe = false;
+                statRxOverflow++;
+            } else {
+                frame[pos++] = b;
+            }
         }
-        vTaskDelay(xDelay10);
+        vTaskDelay(xDelay1);
     }
 }
 
 void RosCommsTx_Timer(TimerHandle_t xTimer) {
 }
 
-/*
-void DMA_IRQHandler(void) {
-    // Check if DMA channel 0 (TX) has completed the transfer
-    if (LPC_GPDMA->IntTCStat & (1 << 0)) {
-        // Clear the interrupt
-        LPC_GPDMA->IntTCClear = 1 << 0;
-
-        // Handle the completion of the DMA transfer (if needed)
-    }
-}
-
-
-void spi0_Transmit_DMA(uint8_t *data, size_t length) {
-    // Configure DMA channel 0 for SSP0 TX
-    LPC_GPDMACH0->CSrcAddr = (uint32_t)data;
-    LPC_GPDMACH0->CDestAddr = (uint32_t)&LPC_SSP0->DR;
-    LPC_GPDMACH0->CControl = (length << 0) | (1 << 18) | (1 << 21) | (1 << 31);  // Transfer length, SSP0 TX, Memory-to-Peripheral
-    LPC_GPDMACH0->CConfig = (1 << 0) | (1 << 1) | (10 << 6) | (1 << 11);  // Enable channel, SSP0 TX
-    LPC_GPDMACH0->CConfig |= (1 << 0);
-
-    // Clear DMA interrupts
-    //LPC_GPDMA->IntTCClear = 1 << 0;  // Clear DMA channel 0 interrupt
-}
-*/
 
 // Digital inputs as a bitmask, read straight from the pins (the sensor task
 // copies are up to 40 ms old). Order = the Digital frame's keys.
@@ -295,7 +355,7 @@ void ROSCommsTx_Task(void *pvParameters) {
 
     vTaskDelay(xDelay1000);
     wdt_reset();
-    ROScomms_Init();
+    spiDmaInit();
     
 
     
@@ -304,11 +364,6 @@ void ROSCommsTx_Task(void *pvParameters) {
     xBoundaryMsgType BoundaryMsg;
     HeapStats_t xHeapStats;
 
-    NVIC_SetPriority(SSP0_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
-    LPC_SSP0->IMSC |= (1 << 2); // 1 RTIM 2 RXIM Rx FIFO is at least half full.  3 TXIM Tx FIFO is at least half empty.
-    // Software should write the appropriate control information to the other SSP registers and interrupt controller registers, before setting this bit.
-    LPC_SSP0->CR1 |= (1 << 1); // SSP Enable.
-    NVIC_EnableIRQ(SSP0_IRQn);
     char local_txbuf[buflen+1];
     
     uint16_t counter = 0;
@@ -317,27 +372,6 @@ void ROSCommsTx_Task(void *pvParameters) {
 
     debug("ROSComms started...");
     //debug("CoreClk: %i Perclk: %i PCLKDIV: %i", SystemCoreClock, PeripheralClock, (LPC_SC->PCLKSEL & 0x1f));
-/*
-    // Enable GPDMA power
-    LPC_SC->PCONP |= (1 << 29);
-
-    // Enable GPDMA controller
-    LPC_SSP0->DMACR = 0x02;
-
-    // Clear DMA interrupts
-    //LPC_GPDMA->IntTCClear = 0xFF;
-    //LPC_GPDMA->IntErrClr = 0xFF;
-
-    uint8_t test_message[] = "xHello, DMA SPI!x";
-//    test_message[0]=0x01;
-//    test_message[17]=0xff;
-//    test_message[18]=0x00;
-    spi0_Transmit_DMA(test_message, sizeof(test_message));
-    while (!(LPC_GPDMACH0->CConfig & (1 << 17))) {
-        // Wait until terminal count request (DMA transfer complete)
-    }
-    LPC_GPDMA->IntTCClear = (1 << 0);
-    */
 
     // Check if reset was caused by WDT
     if(LPC_SC->RSID & (1 << 2)) {
@@ -456,7 +490,6 @@ if (!(counter % 5)) {
             /*case 7:
                 cJSON_AddItemToObject(obj, "QueueWait", cJSON_CreateNumber(uxQueueMessagesWaiting(RosTxQueue)));
                 cJSON_AddItemToObject(obj, "TxFree", cJSON_CreateNumber(xMessageBufferSpacesAvailable(SPI0TxMessageBuffer)));
-                cJSON_AddItemToObject(obj, "RxFree", cJSON_CreateNumber(xMessageBufferSpacesAvailable(SPI0RxMessageBuffer)));
                 cJSON_AddItemToObject(obj, "FreeH", cJSON_CreateNumber(xPortGetFreeHeapSize()));
                 cJSON_AddItemToObject(root, "DEBUG", obj);
                 
@@ -489,6 +522,7 @@ if (!(counter % 5)) {
             cJSON_AddItemToObject(obj, "RxOverflow", cJSON_CreateNumber(statRxOverflow));
             cJSON_AddItemToObject(obj, "TxFrames", cJSON_CreateNumber(statTxFrames));
             cJSON_AddItemToObject(obj, "TxDropped", cJSON_CreateNumber(statTxDropped));
+            cJSON_AddItemToObject(obj, "DmaErr", cJSON_CreateNumber(statDmaErr));
             cJSON_AddItemToObject(root, "Link", obj);
             rosSendJSON(root);
         }

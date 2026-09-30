@@ -31,7 +31,6 @@ extern xQueueHandle xScreenMsgQueue;
 extern xQueueHandle xMotorMsgQueue;
 extern xQueueHandle xBoundaryMsgQueue;
 extern xQueueHandle xJSONMessageQueue;
-extern MessageBufferHandle_t SPI0RxMessageBuffer;
 extern StreamBufferHandle_t SPI0TxStreamBuffer;
 extern xQueueHandle RosTxQueue;
 

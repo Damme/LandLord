@@ -29,7 +29,6 @@ xQueueHandle xJSONMessageQueue;
 
 SensorType sensorMsg;
 
-MessageBufferHandle_t SPI0RxMessageBuffer;
 StreamBufferHandle_t SPI0TxStreamBuffer;
 xQueueHandle RosTxQueue;
 

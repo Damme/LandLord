@@ -71,7 +71,6 @@ int main(void) {
     xBoundaryMsgQueue = xQueueCreate(1, sizeof(xBoundaryMsgType));
     xJSONMessageQueue = xQueueCreate(8, sizeof(xJSONMessageType));
     SPI0TxStreamBuffer = xStreamBufferCreate( 250 * 5, 1 );
-    SPI0RxMessageBuffer = xMessageBufferCreate( 1000 );
     //TxMessageBuffer = xMessageBufferCreate( 250 * 5 );
     RosTxQueue = xQueueCreate(15, 250);
 
