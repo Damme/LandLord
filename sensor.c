@@ -10,6 +10,7 @@
 #include "cJSON.h"
 
 #include "ROSComms.h"
+#include "motorctrl.h"
 
 #include <math.h>
 
@@ -107,10 +108,12 @@ volatile uint8_t timer2sub = 0;
 #define PULSE_POLL_HZ 4000
 
 void TIMER2_IRQHandler(void) {
+    BaseType_t woken = pdFALSE;
     if (++timer2sub >= PULSE_POLL_HZ / 1000) {
         timer2sub = 0;
         sensorMsg.globalticksms++;
         sensorMsg.watchdogSPI++;
+        motionSensor_TickFromISR(&woken); // bumper/lift/tilt debounce in real ms
     }
     
     if (lastpulsel != GPIO_CHK_PIN(MOTOR_LEFT_PULSE)) {
@@ -134,6 +137,7 @@ void TIMER2_IRQHandler(void) {
     }
 
     LPC_TIM2->IR  |= (1 << 0); // Reset interrupt MR0
+    portYIELD_FROM_ISR(woken);
 }
 
 void sensor_Task(void *pvParameters) {

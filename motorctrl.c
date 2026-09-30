@@ -46,14 +46,18 @@ const char *MotorRequestStrings[] = {
 
 
 // Queues an emergency stop. Callable from the timer task: never blocks.
-void requestEmergency(uint8_t reason) {
+static void requestEmergencyFromISR(uint8_t reason, BaseType_t *woken) {
     xMotorMsgType MotorMsg = { .action = MOTORREQ_EMGSTOP, .reason = reason, .pwm = {0, 0, 0} };
-    xQueueSend(xMotorMsgQueue, &MotorMsg, 0);
+    xQueueSendFromISR(xMotorMsgQueue, &MotorMsg, woken);
 }
 
-// 1 ms software timer. Runs in the timer task: must not block (the old tilt
-// code waited up to 500 ms on a full queue for every tick, stalling the PWM ramp).
-void motionSensor_Timer(TimerHandle_t xTimer) {
+// Every 1 ms from TIMER2_IRQHandler (sensor.c), so the counts are real
+// milliseconds. It used to be a 1 ms FreeRTOS software timer, but the timer task
+// has priority 3, below most tasks: when it ran late, FreeRTOS called the
+// missed callbacks back to back, all reading the pin at the same moment. A lift
+// pin low for a moment (bump on 2026-09-30 18:41) then counted as 100 ms and
+// latched a false lift emergency.
+void motionSensor_TickFromISR(BaseType_t *woken) {
     if (!GPIO_CHK_PIN(SENSOR_STUCK) || !GPIO_CHK_PIN(SENSOR_STUCK2) || !GPIO_CHK_PIN(SENSOR_LIFT) || !GPIO_CHK_PIN(SENSOR_COLLISION))
         sensorMsg.blockForward = 1;
 
@@ -73,14 +77,14 @@ void motionSensor_Timer(TimerHandle_t xTimer) {
 
     // If robot tilted too much / upside down and blade on emergancy stop!
     if (sensorMsg.accelZ < 5000 && sensorMsg.currentPWMBlade > 0) {
-        if (++tiltCounter == TILT_EMG_MS) requestEmergency(EMG_TILT);
+        if (++tiltCounter == TILT_EMG_MS) requestEmergencyFromISR(EMG_TILT, woken);
     } else {
         tiltCounter = 0;
     }
 
     // Lift (pin low = lifted) while the motors are on.
     if (sensorMsg.motorsEnabled && !GPIO_CHK_PIN(SENSOR_LIFT)) {
-        if (++liftCounter == LIFT_EMG_MS) requestEmergency(EMG_LIFT);
+        if (++liftCounter == LIFT_EMG_MS) requestEmergencyFromISR(EMG_LIFT, woken);
     } else {
         liftCounter = 0;
     }
@@ -229,8 +233,6 @@ void motorCtrl_Task(void *pvParameters) {
     // We need to wait for sensor to start.
     vTaskDelay(xDelay1000);
   
-    TimerHandle_t timer1 = xTimerCreate("Motion sensors", TicksPerMS, pdTRUE, NULL, motionSensor_Timer);
-    xTimerStart(timer1, 0);
 
     TimerHandle_t timer2 = xTimerCreate("PWM Handler", pdMS_TO_TICKS(50), pdTRUE, NULL, motorcontrol_timer);
     xTimerStart(timer2, 0);
