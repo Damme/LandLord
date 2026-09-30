@@ -23,9 +23,6 @@
 #define CHARGE_MIN_MA      20       // current that counts as charging
 #define CHARGE_START_MS    15000    // after enabling: wait this long for current
 #define CHARGE_LOST_MS     10000    // current gone this long -> charge ended
-#define CHARGE_RETRY_MS    60000    // after a failure, while not moved: try again
-#define CHARGE_RETRY_SLOW_MS 600000 // ... after CHARGE_RETRY_FAST failures
-#define CHARGE_RETRY_FAST  3
 #define MOVED_TICKS        200      // left+right pulses (~24 cm): left the dock
 
 /*
@@ -50,8 +47,14 @@ Charging (robot logs 2026-09-29): the current tapers to ~160 mA at 29.07 V and
 then stops without reaching BATTERY_MAX_VOLT. The old code called that
 ChargingFailed and waited in CheckCharger for CHARGER_CONNECTED, which only
 reads with MOTOR_MOSFET on: with the motors off (at night) it never charged
-again. Now a charge that ends at >= BATTERY_FULL_VOLT is finished, and a failed
-start is retried while the robot hasn't moved.
+again. Now a charge that ends at >= BATTERY_FULL_VOLT is finished.
+
+The charging station only starts a charge cycle on a new contact (Daniel: it
+can't be reset through the charge pins; only reversing and docking again does
+it). So after a failed start nothing is retried on the dock: CheckCharger waits
+for the contact to go away and come back (CHARGER_CONNECTED low -> high, i.e. a
+re-dock) or for charge current. Topping up after ChargingFinished works because
+the keep-alive pulses keep the station in its charging (red) state.
 */
 
 const char *powerStateStrings[] = {
@@ -103,8 +106,8 @@ void powerMgmt_Task(void *pvParameters) {
 
     TickType_t stateSince = xTaskGetTickCount();
     TickType_t lastCurrentAt = 0;
-    TickType_t retryAt = 0;
-    bool retryPending = false;
+    bool waitNewContact = false; // a start failed: only a re-dock can help
+    bool lastContact = false;
     bool seenCurrent = false;
     int32_t chargeMv = 0;         // voltage while current last flowed
     uint32_t contactTicks = wheelTicks(); // wheel ticks when we last had contact evidence
@@ -128,7 +131,7 @@ void powerMgmt_Task(void *pvParameters) {
             failures = 0;
         } else if (sensorMsg.inCharger && wheelTicks() - contactTicks > MOVED_TICKS) {
             sensorMsg.inCharger = 0;
-            retryPending = false;
+            waitNewContact = false; // left the dock: the next contact is a new one anyway
             if (powerState != CheckCharger && powerState != CheckChargerInit && powerState != Shutdown) {
                 GPIO_CLR_PIN(CHARGER_ENABLE);
                 powerState = Idle;
@@ -149,17 +152,18 @@ void powerMgmt_Task(void *pvParameters) {
                 powerState = CheckCharger;
                 break;
 
-            case CheckCharger:
-                if (GPIO_CHK_PIN(CHARGER_CONNECTED) || current) {
+            case CheckCharger: {
+                bool contact = GPIO_CHK_PIN(CHARGER_CONNECTED);
+                if (current || (contact && (!waitNewContact || !lastContact))) {
+                    if (waitNewContact) debug("Charging: new contact, starting again");
+                    waitNewContact = false;
                     sensorMsg.inCharger = 1;
                     contactTicks = wheelTicks();
                     powerState = StartCharging;
-                } else if (retryPending && sensorMsg.inCharger && xTaskGetTickCount() - retryAt < 0x80000000UL) {
-                    retryPending = false;
-                    debug("Charging: retry %u", failures);
-                    powerState = StartCharging;
                 }
+                lastContact = contact;
                 break;
+            }
 
             case StartCharging:
                 GPIO_CLR_PIN(CHARGER_CHECK);
@@ -221,13 +225,15 @@ void powerMgmt_Task(void *pvParameters) {
                 break;
 
             case ChargingFailed:
-                // Contact bounce, a charger that isn't ready, mains loss...: try again
-                // while the robot stays where it is (moving away clears InCharger).
+                // Contact bounce, a station that isn't ready (e.g. after a board reset on the
+                // dock), mains loss: the station only restarts on a new contact, so wait for
+                // a re-dock (ROS) instead of retrying here.
                 failures++;
-                debug("Charging failed (%u), mV %li mA %li Temp %li Contact %u", failures, sensorMsg.batteryVolt,
-                    sensorMsg.batteryChargeCurrent, sensorMsg.batteryTemp, GPIO_CHK_PIN(CHARGER_CONNECTED));
-                retryAt = xTaskGetTickCount() + pdMS_TO_TICKS(failures <= CHARGE_RETRY_FAST ? CHARGE_RETRY_MS : CHARGE_RETRY_SLOW_MS);
-                retryPending = true;
+                debug("Charging failed (%u), mV %li mA %li Temp %li Contact %u: waiting for a re-dock", failures,
+                    sensorMsg.batteryVolt, sensorMsg.batteryChargeCurrent, sensorMsg.batteryTemp,
+                    GPIO_CHK_PIN(CHARGER_CONNECTED));
+                waitNewContact = true;
+                lastContact = true; // count only a real low -> high edge
                 powerState = CheckChargerInit;
                 break;
 
