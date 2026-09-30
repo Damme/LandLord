@@ -23,6 +23,59 @@
 #define EOF 0xFF
 
 #define buflen  250
+#define CRC_SUFFIX_LEN 5 // "#hhhh"
+
+// Link statistics, sent as {"Link":{...}} every 5 s.
+static volatile uint32_t statRxFrames, statRxCrcErr, statRxNoCrc, statRxOverflow, statTxFrames, statTxDropped;
+
+// Frames to the Pi carry a CRC only once the Pi sent one with a valid CRC: an
+// older worx_hardware can't parse the suffix (strict JSON), a newer one sends it
+// with every command. Reset with the board.
+static volatile bool peerCrc = false;
+
+// CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF), the same as worx_hardware's.
+static uint16_t crc16(const uint8_t *data, size_t len) {
+    uint16_t crc = 0xFFFF;
+    while (len--) {
+        crc ^= (uint16_t)(*data++) << 8;
+        for (int i = 0; i < 8; i++) crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+    return crc;
+}
+
+static int hexval(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    return -1;
+}
+
+// Frames carry "#hhhh" (CRC of the text before it) in front of EOF. Checks and
+// strips it in place. Returns false for a wrong CRC (frame must be dropped); a
+// frame without the suffix (older worx_hardware) is accepted.
+static bool frameCrcOk(char *msg) {
+    size_t len = strlen(msg);
+    if (len < CRC_SUFFIX_LEN || msg[len - CRC_SUFFIX_LEN] != '#') {
+        statRxNoCrc++;
+        return true;
+    }
+    uint16_t want = 0;
+    for (int i = 1; i < CRC_SUFFIX_LEN; i++) {
+        int v = hexval(msg[len - CRC_SUFFIX_LEN + i]);
+        if (v < 0) {
+            statRxNoCrc++; // not a CRC suffix after all
+            return true;
+        }
+        want = (want << 4) | v;
+    }
+    msg[len - CRC_SUFFIX_LEN] = 0;
+    if (crc16((const uint8_t *)msg, len - CRC_SUFFIX_LEN) != want) {
+        statRxCrcErr++;
+        return false;
+    }
+    peerCrc = true;
+    return true;
+}
 
 uint8_t SSP0_rxpos = 0;
 bool SSP0_inframe = false;
@@ -63,6 +116,7 @@ void SSP0_IRQHandler(void) { // SSP0_IRQn 14 (lpc1788)
         } else if (SSP0_rxpos >= buflen - 1) {
             SSP0_rxpos = 0;
             SSP0_inframe = false;
+            statRxOverflow++;
         } else {
             SSP0_rxbuf[SSP0_rxpos++] = rxByte;
         }
@@ -86,7 +140,7 @@ void SSP0_IRQHandler(void) { // SSP0_IRQn 14 (lpc1788)
 // whenever the Pi paused the SPI clock, giving frames like "Rai:0" or "Coll".
 // If the Pi stops reading, RosTxQueue fills and producers drop whole frames.
 void SPI0TxQueue_Task(void *pvParameters) {
-    uint8_t frame[buflen+2];
+    uint8_t frame[buflen + CRC_SUFFIX_LEN + 3];
     char local_txbuf[buflen+1];
 
     while (1) {
@@ -95,12 +149,19 @@ void SPI0TxQueue_Task(void *pvParameters) {
             size_t len = strnlen(local_txbuf, buflen);
             frame[0] = SOF;
             memcpy(&frame[1], local_txbuf, len);
+            // "#hhhh": CRC-16 of the text, so the Pi can drop a damaged frame
+            // (a flipped digit in valid JSON would otherwise pass).
+            if (peerCrc) {
+                snprintf((char *)&frame[len + 1], CRC_SUFFIX_LEN + 1, "#%04X", crc16((const uint8_t *)local_txbuf, len));
+                len += CRC_SUFFIX_LEN;
+            }
             frame[len + 1] = EOF;
             len += 2;
             while (xStreamBufferSpacesAvailable(SPI0TxStreamBuffer) < len) {
                 vTaskDelay(xDelay1);
             }
             xStreamBufferSend(SPI0TxStreamBuffer, frame, len, 0);
+            statTxFrames++;
         }
     }
 }
@@ -111,8 +172,11 @@ bool rosSendJSON(cJSON *root) {
     char local_txbuf[buflen+1];
     bool ok = cJSON_PrintPreallocated(root, local_txbuf, buflen, false);
     cJSON_Delete(root);
-    if (!ok) return false;
-    return xQueueSend(RosTxQueue, local_txbuf, xDelay10) == pdPASS;
+    if (!ok || xQueueSend(RosTxQueue, local_txbuf, xDelay10) != pdPASS) {
+        statTxDropped++;
+        return false;
+    }
+    return true;
 }
 
 // Motor commands from ROS: {"<name>": {...}}. Any valid command also counts as
@@ -133,6 +197,11 @@ void ROSCommsRx_Task(void *pvParameters) {
     for (;;) {
         while (xMessageBufferReceive(SPI0RxMessageBuffer, &local_rxbuf, buflen, xDelay10)) {
             local_rxbuf[buflen] = 0;
+            statRxFrames++;
+            if (!frameCrcOk(local_rxbuf)) {
+                memset(local_rxbuf, 0, buflen);
+                continue;
+            }
             wdt_reset();
             cJSON* root = cJSON_Parse(local_rxbuf);
             if (root != NULL) {
@@ -411,6 +480,19 @@ if (!(counter % 5)) {
         if (root) rosSendJSON(root);
 }
         
+        if (!(counter % 100)) { // 5 s
+            root = cJSON_CreateObject();
+            obj = cJSON_CreateObject();
+            cJSON_AddItemToObject(obj, "RxFrames", cJSON_CreateNumber(statRxFrames));
+            cJSON_AddItemToObject(obj, "RxCrcErr", cJSON_CreateNumber(statRxCrcErr));
+            cJSON_AddItemToObject(obj, "RxNoCrc", cJSON_CreateNumber(statRxNoCrc));
+            cJSON_AddItemToObject(obj, "RxOverflow", cJSON_CreateNumber(statRxOverflow));
+            cJSON_AddItemToObject(obj, "TxFrames", cJSON_CreateNumber(statTxFrames));
+            cJSON_AddItemToObject(obj, "TxDropped", cJSON_CreateNumber(statTxDropped));
+            cJSON_AddItemToObject(root, "Link", obj);
+            rosSendJSON(root);
+        }
+
         if (!(counter % 1000)) {
             for ( int i = 0; i < taskcounter; i++) {
                 sprintf(local_txbuf,"Task %i:%s StackHigh: %li ",i , pcTaskGetName(xHandle[i]), uxTaskGetStackHighWaterMark(xHandle[i]));
