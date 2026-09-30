@@ -55,6 +55,7 @@ typedef struct {
     bool emergancyStop;
     uint8_t emergencyReason; // EMG_* bits, latched until MOTORREQ_RESETEMG
     bool motorsEnabled;      // real state: MOTOR_MOSFET on and controllers enabled
+    bool bladeLockout;       // shell lifted: blade off until a SETSPEED with mow 0 (lift released)
     int32_t globalticksms;
     uint32_t bumps;          // debounced bumper/collision presses since boot
     uint8_t powerState;      // powerStates (powermgmt.h)
@@ -124,7 +125,7 @@ typedef enum {
 // Emergency reasons (sensorMsg.emergencyReason, "EmgReason" in MotorPulse)
 #define EMG_TILT  (1 << 0) // accelZ < 5000 with the blade on for 0.5 s
 #define EMG_STOP  (1 << 1) // STOP key
-#define EMG_LIFT  (1 << 2) // lift sensor with the motors on (debounced)
+#define EMG_LIFT  (1 << 2) // no longer raised (2026-09-30): lift = shell vs chassis, see bladeLockout
 
 typedef struct {
     xMotorRequestType action;

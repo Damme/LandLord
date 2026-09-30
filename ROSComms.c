@@ -422,6 +422,7 @@ void ROSCommsTx_Task(void *pvParameters) {
         cJSON_AddItemToObject(obj, "Motors", cJSON_CreateNumber(sensorMsg.motorsEnabled));
         cJSON_AddItemToObject(obj, "BlockForward", cJSON_CreateNumber(sensorMsg.blockForward));
         cJSON_AddItemToObject(obj, "Bumps", cJSON_CreateNumber(sensorMsg.bumps));
+        cJSON_AddItemToObject(obj, "BladeLock", cJSON_CreateNumber(sensorMsg.bladeLockout));
         cJSON_AddItemToObject(obj, "ms", cJSON_CreateNumber(sensorMsg.globalticksms)); // board time of this sample
         cJSON_AddItemToObject(root, "MotorPulse", obj);
         rosSendJSON(root);

@@ -16,7 +16,7 @@ bool bumpLatched = false;
 #define BUMP_OFF_MS 50 // released this long before the next one counts
 
 #define TILT_EMG_MS 500
-#define LIFT_EMG_MS 100 // filters contact glitches at the charger (seen 2026-09-28)
+#define LIFT_BLADE_MS 20 // lift input this long -> blade off
 
 void setpwm(uint16_t blade, uint16_t left, uint16_t right) {
     if (blade > 2047) blade=2047;
@@ -82,9 +82,18 @@ void motionSensor_TickFromISR(BaseType_t *woken) {
         tiltCounter = 0;
     }
 
-    // Lift (pin low = lifted) while the motors are on.
-    if (sensorMsg.motorsEnabled && !GPIO_CHK_PIN(SENSOR_LIFT)) {
-        if (++liftCounter == LIFT_EMG_MS) requestEmergencyFromISR(EMG_LIFT, woken);
+    // Lift input (pin low): the shell moved up against the chassis - a bump, the
+    // charging contacts, or someone lifting the shell. The robot itself stays on
+    // its wheels, so no emergency (tilt is the real one), but the blade stops at
+    // once and stays off until ROS commands mow 0 (MOTORREQ_SETSPEED). Forward
+    // motion is blocked via blockForward above.
+    if (!GPIO_CHK_PIN(SENSOR_LIFT)) {
+        if (++liftCounter == LIFT_BLADE_MS) {
+            sensorMsg.bladeLockout = true;
+            setPWMBlade = curPWMBlade = 0;
+            LPC_PWM1->MR1 = 0;
+            LPC_PWM1->LER |= (1 << 1);
+        }
     } else {
         liftCounter = 0;
     }
@@ -147,6 +156,7 @@ void motorcontrol_timer(TimerHandle_t xTimer) {
     bladeDirection();
     bool bladeReverse = GPIO_CHK_PIN(MOTOR_BLADE_FORWARD);
     int16_t bladeTarget = ((setPWMBlade < 0) == bladeReverse) ? abs(setPWMBlade) : 0;
+    if (sensorMsg.bladeLockout) bladeTarget = curPWMBlade = 0;
     ramp(&bladeTarget, &curPWMBlade);
 
     PWMBlade = curPWMBlade;
@@ -210,7 +220,6 @@ static xMotorRequestType motorStateNow(bool idle) {
 static uint8_t emergencyCauses(void) {
     uint8_t causes = 0;
     if (GPIO_CHK_PIN(SENSOR_STOP)) causes |= EMG_STOP;
-    if (!GPIO_CHK_PIN(SENSOR_LIFT)) causes |= EMG_LIFT;
     return causes;
 }
 
@@ -309,6 +318,11 @@ void motorCtrl_Task(void *pvParameters) {
                         if (MotorMsg.pwm.left < 0 || MotorMsg.pwm.right < 0) sensorMsg.blockForward = 0;
                         if (MotorMsg.pwm.left == 0 && MotorMsg.pwm.right == 0) sensorMsg.blockForward = 0;
                     } 
+
+                    if (sensorMsg.bladeLockout) {
+                        if (MotorMsg.pwm.blade == 0 && GPIO_CHK_PIN(SENSOR_LIFT)) sensorMsg.bladeLockout = false;
+                        MotorMsg.pwm.blade = 0;
+                    }
 
                     //setpwm(MotorMsg.pwm.blade, MotorMsg.pwm.left, MotorMsg.pwm.right);
                     setPWMBlade = MotorMsg.pwm.blade;
